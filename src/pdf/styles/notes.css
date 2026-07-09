@@ -1,0 +1,47 @@
+/* ═══════════════════════════════════════════════════════════════════
+   PREMIUM THEORY NOTES — template-specific print styles
+   Calm · elegant · minimal · built for hours of reading.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Number chapters from 1: the cover title is also an <h1>, so restart
+   the counter where the real content begins. */
+.doc { counter-reset: chapter; }
+
+/* Chapters (h1) open on a fresh page with a numbered opener. */
+.doc h1 {
+  break-before: page;
+  font-size: 2.15em;
+  margin-top: 0.4em;
+}
+.doc h1::before {
+  content: "Chapter " counter(chapter);
+  display: block;
+  width: auto;
+  height: auto;
+  background: none;
+  font-size: 0.42em;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  margin-bottom: 0.8em;
+  border-bottom: 0.8pt solid var(--c-edge);
+  padding-bottom: 0.7em;
+}
+/* The very first chapter follows the contents page directly. */
+.doc > h1:first-child { break-before: auto; }
+
+/* Definition-style emphasis: **term** inside a definition callout
+   gets the accent color for scannability. */
+.callout--definition strong { color: var(--c-accent); }
+
+/* Key-term paragraphs: lead sentences that start with bold text
+   get a hanging feel via slightly tighter spacing above. */
+.doc p > strong:first-child { letter-spacing: 0.01em; }
+
+/* Figures & standalone images breathe a little more in notes. */
+.doc p > img:only-child {
+  border: 0.6pt solid var(--c-edge);
+  padding: 2mm;
+  background: white;
+}

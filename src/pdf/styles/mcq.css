@@ -1,0 +1,200 @@
+/* ═══════════════════════════════════════════════════════════════════
+   PYQ / MCQ BOOKLET — template-specific print styles
+   Coaching-institute grade question cards.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.mcq-preamble {
+  margin-bottom: 1.4em;
+  padding: 0.9em 1.1em;
+  border: 0.7pt solid var(--c-edge);
+  border-radius: 7pt;
+  background: color-mix(in srgb, var(--c-band) 65%, white);
+  font-size: 0.94em;
+}
+
+/* Section divider */
+.mcq-section {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin: 1.6em 0 1em;
+  break-after: avoid;
+}
+.mcq-section:first-child { margin-top: 0; }
+.mcq-section__num {
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  font-size: 1.5em;
+  color: color-mix(in srgb, var(--c-accent) 55%, white);
+  letter-spacing: 0.02em;
+}
+.mcq-section h2 {
+  flex: 1;
+  border-left: none;
+  padding: 0 0 0.25em;
+  margin: 0;
+  border-bottom: 1.6pt solid var(--c-primary);
+  font-size: 1.3em;
+}
+.mcq-section__intro { font-size: 0.94em; color: var(--c-muted); margin-bottom: 1em; }
+
+/* ── Question card ───────────────────────────────────────────────── */
+
+.q {
+  break-inside: avoid;
+  border: 0.7pt solid var(--c-edge);
+  border-radius: 7pt;
+  padding: 0.75em 0.95em 0.8em;
+  margin: 0 0 0.85em;
+  background: white;
+}
+.q__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8em;
+  margin-bottom: 0.45em;
+}
+.q__num {
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  font-size: 0.92em;
+  color: white;
+  background: var(--c-primary);
+  border-radius: 4pt;
+  padding: 1.2pt 6pt 1.6pt;
+  letter-spacing: 0.04em;
+}
+.q__chips { display: flex; gap: 3pt; flex-wrap: wrap; justify-content: flex-end; }
+.qchip {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 6.9pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  border: 0.6pt solid var(--c-edge);
+  border-radius: 99pt;
+  padding: 1pt 5pt;
+  background: var(--c-band);
+}
+.qchip--easy     { color: var(--c-good);   border-color: color-mix(in srgb, var(--c-good) 35%, white);   background: color-mix(in srgb, var(--c-good) 8%, white); }
+.qchip--moderate { color: var(--c-warn);   border-color: color-mix(in srgb, var(--c-warn) 35%, white);   background: color-mix(in srgb, var(--c-warn) 9%, white); }
+.qchip--hard     { color: var(--c-danger); border-color: color-mix(in srgb, var(--c-danger) 35%, white); background: color-mix(in srgb, var(--c-danger) 7%, white); }
+.qchip--source   { color: var(--c-accent); border-color: color-mix(in srgb, var(--c-accent) 35%, white); background: var(--c-accentSoft); }
+
+.q__text { font-weight: 500; }
+.q__text p { margin-bottom: 0.5em; }
+
+.q__options {
+  list-style: none;
+  margin: 0.35em 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5pt 10pt;
+}
+/* Long options fall back to a single column via the harness adding
+   .q__options--long when any option exceeds ~55 characters. */
+.q__options--long { grid-template-columns: 1fr; }
+
+.q__opt {
+  display: flex;
+  gap: 0.55em;
+  align-items: baseline;
+  margin: 0;
+  padding: 1.5pt 3pt;
+  border-radius: 4pt;
+}
+.q__key {
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  font-size: 0.8em;
+  color: var(--c-accent);
+  border: 0.8pt solid color-mix(in srgb, var(--c-accent) 45%, white);
+  border-radius: 3pt;
+  min-width: 1.5em;
+  height: 1.5em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transform: translateY(-0.5pt);
+}
+.q__opt-text { font-size: 0.97em; }
+
+/* Study mode: correct option is softly highlighted. */
+.q__opt--correct { background: color-mix(in srgb, var(--c-good) 8%, white); }
+.q__opt--correct .q__key { color: white; background: var(--c-good); border-color: var(--c-good); }
+
+.q__answer {
+  margin-top: 0.6em;
+  border-top: 0.8pt dashed var(--c-edge);
+  padding-top: 0.55em;
+  font-size: 0.93em;
+}
+.q__answer-label {
+  font-family: "Manrope", sans-serif;
+  font-weight: 700;
+  font-size: 0.88em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-good);
+  margin-bottom: 0.25em;
+}
+.q__answer-body p:last-child { margin-bottom: 0; }
+
+/* ── Answer key ──────────────────────────────────────────────────── */
+
+.answer-key { break-before: page; }
+.key {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4pt;
+}
+.key__cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0.7pt solid var(--c-edge);
+  border-radius: 4pt;
+  padding: 3pt 7pt;
+  background: white;
+  break-inside: avoid;
+}
+.key__q { font-family: "Manrope", sans-serif; font-weight: 600; font-size: 0.86em; color: var(--c-muted); }
+.key__a { font-family: "Manrope", sans-serif; font-weight: 800; color: var(--c-primary); }
+
+/* ── Explanations (practice mode) ────────────────────────────────── */
+
+.explanations { break-before: page; }
+.exp {
+  break-inside: avoid;
+  border-left: 2.5pt solid var(--c-accent);
+  background: color-mix(in srgb, var(--c-band) 55%, white);
+  border-radius: 0 6pt 6pt 0;
+  padding: 0.6em 0.9em 0.65em;
+  margin-bottom: 0.7em;
+  font-size: 0.95em;
+}
+.exp__head {
+  display: flex;
+  gap: 0.8em;
+  align-items: baseline;
+  margin-bottom: 0.3em;
+}
+.exp__num {
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  color: var(--c-accent);
+}
+.exp__answer {
+  font-family: "Manrope", sans-serif;
+  font-size: 0.82em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+.exp__answer strong { color: var(--c-good); }
+.exp__body p:last-child { margin-bottom: 0; }

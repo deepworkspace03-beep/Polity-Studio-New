@@ -1,0 +1,310 @@
+/* ═══════════════════════════════════════════════════════════════════
+   POLITY STUDIO · COVER STYLE LIBRARY
+   Loaded after print-base.css. Covers read like premium exam-guide book
+   covers: a full-bleed patterned ground, an enlarged publisher lockup, a
+   dominant title, selling points listed line by line, and a small temple
+   emblem in the lower-right. One skeleton, four palettes — every style is
+   driven by the --cv-* custom properties on its .cover--<id> block.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.cover {
+  page: cover;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  break-after: page;
+  padding: 18mm 17mm 15mm;
+  background: var(--cv-bg);
+  color: var(--cv-ink);
+  --cv-bg: #0b1830;
+  --cv-ink: #f7f2e5;
+  --cv-soft: #c7d2e4;
+  --cv-accent: #d7b052;
+  --cv-line: rgba(255, 255, 255, 0.18);
+  --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
+  --cv-edition-tx: #10203c;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* In the continuous editor preview, show the true A4 shape so what you
+   see matches what prints. */
+body.mode-flow .cover {
+  aspect-ratio: 210 / 297;
+  height: auto;
+  border-radius: 10px;
+  margin-bottom: 40px;
+}
+
+/* Full-bleed background layers */
+.cv-pattern, .cv-shade { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.cv-emblem {
+  position: absolute;
+  right: 13mm;
+  bottom: 25mm;
+  width: 32mm;
+  color: var(--cv-accent);
+  opacity: 0.12;
+  z-index: 0;
+}
+
+/* Content above the background */
+.cv-top, .cv-body, .cv-foot { position: relative; z-index: 1; }
+
+/* ── Publisher lockup (top) ──────────────────────────────────────── */
+.cv-top { display: flex; align-items: center; justify-content: space-between; gap: 6mm; }
+.cv-pub { display: flex; align-items: center; gap: 4mm; }
+.cv-pub .cv-mark { flex: none; display: block; color: var(--cv-accent); opacity: 0.92; }
+.cv-pub__words { display: flex; flex-direction: column; line-height: 1.18; }
+.cv-pub__words b {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 14pt;
+  letter-spacing: 0.05em;
+  color: var(--cv-ink);
+}
+.cv-pub__words span {
+  font-family: "Literata", "Noto Serif Devanagari", serif;
+  font-style: italic;
+  font-size: 9.5pt;
+  color: var(--cv-soft);
+  margin-top: 0.8mm;
+}
+.cv-edition {
+  flex: none;
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  font-size: 12.5pt;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  min-width: 12mm;
+  height: 12mm;
+  padding: 0 3mm;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2.8mm;
+  color: var(--cv-edition-tx);
+  background: var(--cv-accent);
+}
+
+/* ── Hero + highlights (body) ────────────────────────────────────── */
+.cv-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8mm 0; }
+.cv-eyebrow {
+  font-family: "JetBrains Mono", "Noto Sans Devanagari", monospace;
+  font-size: 11pt;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cv-accent);
+  margin: 0 0 6mm;
+}
+.cv-exam {
+  font-family: var(--cv-title-font);
+  font-weight: 800;
+  font-size: 44pt;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  margin: 0;
+  padding: 0;
+  border: none;
+  color: var(--cv-ink);
+  text-wrap: balance;
+}
+.cv-exam::before { display: none; }
+.cv-guide {
+  font-family: "Literata", "Noto Serif Devanagari", serif;
+  font-size: 16.5pt;
+  line-height: 1.35;
+  color: var(--cv-soft);
+  margin: 7mm 0 0;
+  max-width: 152mm;
+}
+.cv-highlights { list-style: none; margin: 11mm 0 0; padding: 0; display: flex; flex-direction: column; gap: 3.4mm; }
+.cv-highlights li {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 600;
+  font-size: 12pt;
+  color: var(--cv-ink);
+  position: relative;
+  padding-left: 8mm;
+}
+.cv-highlights li::before {
+  content: "";
+  position: absolute;
+  left: 1mm;
+  top: 0.42em;
+  width: 3.2mm;
+  height: 3.2mm;
+  background: var(--cv-accent);
+  transform: rotate(45deg);
+  border-radius: 0.6mm;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.cv-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6mm;
+  padding-top: 5mm;
+  border-top: 0.7pt solid var(--cv-line);
+}
+.cv-foot__site {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8.6pt;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--cv-accent);
+  border-bottom: none;
+}
+.cv-foot__jrf {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 700;
+  font-size: 9.5pt;
+  color: var(--cv-ink);
+}
+
+/* ── 01 · Regal (navy + gold, default) ──────────────────────────── */
+.cover--regal {
+  --cv-bg: linear-gradient(158deg, #0b1830 0%, #132a52 100%);
+  --cv-ink: #f7f2e5;
+  --cv-soft: #c7d2e4;
+  --cv-accent: #d7b052;
+  --cv-line: rgba(215, 176, 82, 0.42);
+  --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
+  --cv-edition-tx: #10203c;
+}
+.cover--regal .cv-pattern {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(215, 176, 82, 0.13) 0 0.5pt, transparent 0.5pt 22px),
+    repeating-linear-gradient(-45deg, rgba(215, 176, 82, 0.13) 0 0.5pt, transparent 0.5pt 22px);
+}
+.cover--regal .cv-shade { background: radial-gradient(130% 90% at 50% -10%, transparent 45%, rgba(5, 12, 26, 0.55)); }
+
+/* ── 02 · Aurora (brand gradient) ───────────────────────────────── */
+.cover--aurora {
+  --cv-bg: linear-gradient(158deg, #123c93 0%, #0d76b2 52%, #0a9f80 100%);
+  --cv-ink: #ffffff;
+  --cv-soft: rgba(255, 255, 255, 0.9);
+  --cv-accent: #eafff6;
+  --cv-line: rgba(255, 255, 255, 0.32);
+  --cv-title-font: "Manrope", "Noto Sans Devanagari", sans-serif;
+  --cv-edition-tx: #0d4b8a;
+}
+.cover--aurora .cv-pattern {
+  background-image: repeating-radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.09) 0 0.5pt, transparent 0.5pt 24px);
+}
+.cover--aurora .cv-shade { background: radial-gradient(120% 80% at 50% 120%, rgba(0, 0, 0, 0.16), transparent 60%); }
+.cover--aurora .cv-edition { background: #ffffff; }
+
+/* ── 03 · Ivory (light textbook) ────────────────────────────────── */
+.cover--ivory {
+  --cv-bg: #f7f2e6;
+  --cv-ink: #182741;
+  --cv-soft: #5b5340;
+  --cv-accent: #b1832c;
+  --cv-line: rgba(24, 39, 65, 0.2);
+  --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
+  --cv-edition-tx: #ffffff;
+}
+.cover--ivory .cv-pattern {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(177, 131, 44, 0.1) 0 0.5pt, transparent 0.5pt 22px),
+    repeating-linear-gradient(-45deg, rgba(177, 131, 44, 0.1) 0 0.5pt, transparent 0.5pt 22px);
+}
+.cover--ivory .cv-shade { display: none; }
+.cover--ivory .cv-edition { background: #182741; }
+.cover--ivory .cv-emblem { opacity: 0.13; }
+.cover--ivory .cv-foot__site { color: #1f5fbf; }
+
+/* ── 04 · Midnight (refined dark) ───────────────────────────────── */
+.cover--midnight {
+  --cv-bg: linear-gradient(160deg, #141f2e 0%, #1b2b41 100%);
+  --cv-ink: #f2f6fc;
+  --cv-soft: #aebccf;
+  --cv-accent: #48e0bd;
+  --cv-line: rgba(255, 255, 255, 0.16);
+  --cv-title-font: "Manrope", "Noto Sans Devanagari", sans-serif;
+  --cv-edition-tx: #0f1a28;
+}
+.cover--midnight .cv-pattern {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 0.4pt, transparent 0.4pt),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0.4pt, transparent 0.4pt);
+  background-size: 13mm 13mm;
+}
+.cover--midnight .cv-shade { background: radial-gradient(120% 80% at 85% 10%, rgba(72, 224, 189, 0.12), transparent 55%); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   BACK PAGE (closing) — brand block, no clutter
+   ═══════════════════════════════════════════════════════════════════ */
+
+.closing {
+  page: closing;
+  break-before: page;
+  /* min-height (not height) — a 100%-height box can overflow the page
+     content box by the chrome padding and spill a blank trailing page. */
+  min-height: calc(100% - 8mm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.closing__card { max-width: 120mm; }
+.closing__card > .cv-mark { color: var(--c-primary); margin-bottom: 6mm; }
+.closing__brand {
+  border: none;
+  padding: 0;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 17pt;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--c-primary);
+  margin: 0 0 1.5mm;
+}
+.closing__tagline {
+  font-family: "Literata", "Noto Serif Devanagari", serif;
+  font-style: italic;
+  font-size: 10.5pt;
+  color: var(--c-muted);
+  margin: 0 0 7mm;
+}
+.closing__rule {
+  width: 26mm;
+  height: 1.1mm;
+  border-radius: 1mm;
+  background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+  margin: 0 auto 7mm;
+}
+.closing__site {
+  font-family: "Manrope", sans-serif;
+  font-size: 12pt;
+  font-weight: 800;
+  margin: 0 0 6mm;
+}
+.closing__site a { color: var(--c-accent); border-bottom: none; }
+.closing__links {
+  list-style: none;
+  margin: 0 0 8mm;
+  padding: 0;
+  font-family: "Manrope", sans-serif;
+  font-size: 9.5pt;
+  color: var(--c-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+}
+.closing__links a { color: var(--c-accent); border-bottom: none; }
+.closing__copyright {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 6.8pt;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  margin: 0;
+}

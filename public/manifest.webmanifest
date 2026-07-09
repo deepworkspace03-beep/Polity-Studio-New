@@ -1,0 +1,17 @@
+{
+  "name": "Polity Studio",
+  "short_name": "Polity Studio",
+  "description": "Turn raw notes into premium branded study PDFs — Polity Made Simple",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1118",
+  "theme_color": "#0c1118",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
