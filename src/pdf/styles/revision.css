@@ -1,0 +1,18 @@
+/* QUICK REVISION — compact, scannable, no ceremony. */
+body { font-size: calc(var(--body-size) * 0.92); line-height: 1.5; }
+.doc h1 {
+  font-size: 1.5em;
+  margin: 1.1em 0 0.5em;
+  padding: 0.35em 0.6em;
+  background: color-mix(in srgb, var(--c-accentSoft) 70%, white);
+  border-left: 3.5pt solid var(--c-accent);
+  border-radius: 0 4pt 4pt 0;
+}
+.doc h1::before { display: none; }
+.doc h2 { font-size: 1.18em; margin: 1.1em 0 0.4em; }
+.doc h3 { font-size: 1.02em; margin: 0.9em 0 0.3em; }
+.doc p { margin-bottom: 0.6em; }
+.doc ul, .doc ol { margin-bottom: 0.65em; }
+.doc li { margin-bottom: 0.16em; }
+.callout { margin: 0.8em 0; padding: 0.5em 0.8em 0.55em; }
+table { font-size: 0.88em; }

@@ -1,0 +1,87 @@
+/* ── Domain model ─────────────────────────────────────────────────── */
+
+export type TemplateId = "notes" | "revision" | "mcq" | "flashcards";
+
+export type CoverStyle = "regal" | "aurora" | "ivory" | "midnight";
+export type PageSize = "a4" | "a5" | "letter";
+export type Density = "compact" | "comfort" | "relaxed";
+export type AnswersMode = "inline" | "end" | "none";
+
+/** Per-document layout & PDF options — everything the user can tune
+    about the exported document without touching code. */
+export interface DocLayout {
+  cover: boolean;
+  coverStyle: CoverStyle;
+  toc: boolean;
+  watermark: boolean;
+  closingPage: boolean;
+  pageSize: PageSize;
+  density: Density;
+  /** MCQ booklets only: where answers & explanations appear. */
+  answers: AnswersMode;
+}
+
+export interface Doc {
+  id: string;
+  title: string;
+  subtitle: string;
+  template: TemplateId;
+  body: string;
+  exam: string;
+  paper: string;
+  session: string;
+  author: string;
+  lang: "en" | "hi";
+  layout: DocLayout;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/* ── Branding ─────────────────────────────────────────────────────── */
+
+export interface BrandLink {
+  url: string;
+  label: string;
+}
+
+/** One config drives every cover, header, footer, watermark and the
+    PDF metadata. Editable in Settings → Branding. */
+export interface BrandConfig {
+  name: string;
+  initiative: string;
+  tagline: string;
+  website: string;
+  telegram: BrandLink;
+  whatsapp: BrandLink;
+  /** PDF palette (print styles read these as --c-* variables). */
+  colors: {
+    primary: string;
+    primarySoft: string;
+    accent: string;
+    accentSoft: string;
+    gold: string;
+  };
+  exams: string[];
+  author: string;
+  watermarkText: string;
+}
+
+/* ── App settings ─────────────────────────────────────────────────── */
+
+export type UiTheme = "dark" | "light" | "system";
+
+export interface AiConfig {
+  provider: "openai" | "anthropic";
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface Settings {
+  theme: UiTheme;
+  /** Filename pattern for exports; {title} and {brand} are replaced. */
+  fileNamePattern: string;
+  /** Layout applied to newly created documents. */
+  newDocLayout: DocLayout;
+  ai: AiConfig;
+}

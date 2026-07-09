@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* ── Design tokens ─────────────────────────────────────────────────
+   The UI theme flips by [data-theme] on <html>; utilities map to the
+   runtime variables via @theme inline (e.g. bg-surface, text-ink). */
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-edge: var(--edge);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-sans: "Manrope", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Literata", "Noto Serif Devanagari", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c1118;
+  --surface: #131a24;
+  --raised: #1a2331;
+  --edge: #253143;
+  --ink: #e9eef6;
+  --ink-2: #aab8cb;
+  --faint: #71819a;
+  --accent: #2cc8b9;
+  --accent-ink: #062824;
+  --ok: #34c98e;
+  --warn: #e0a63a;
+  --danger: #ef6d5c;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --raised: #eef1f6;
+  --edge: #dfe5ee;
+  --ink: #16202d;
+  --ink-2: #46566b;
+  --faint: #77869b;
+  --accent: #0f9c8f;
+  --accent-ink: #ffffff;
+  --ok: #178a5e;
+  --warn: #a4741a;
+  --danger: #c44f3f;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Firmer touch targets on coarse pointers without bloating desktop. */
+@media (pointer: coarse) {
+  button,
+  [role="button"] {
+    min-height: 40px;
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Scrollbars that match both themes. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge) transparent;
+}
+
+/* CodeMirror host fills its pane; theme is configured in editor code. */
+.cm-editor {
+  height: 100%;
+  font-size: 15px;
+}
+.cm-editor.cm-focused {
+  outline: none;
+}

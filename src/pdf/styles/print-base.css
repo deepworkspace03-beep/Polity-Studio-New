@@ -1,0 +1,487 @@
+/* ═══════════════════════════════════════════════════════════════════
+   POLITY STUDIO · SHARED PRINT FOUNDATION
+   Loaded before every template's own stylesheet. All colors come from
+   the --c-* variables emitted by the document builder (brand config) —
+   never hard-code a brand color here.
+   ═══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Literata", "Noto Serif Devanagari", Georgia, serif;
+  font-size: var(--body-size);
+  line-height: var(--body-leading);
+  color: var(--c-text);
+  background: var(--c-paper);
+  font-kerning: normal;
+  font-variant-numeric: proportional-nums;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  counter-reset: chapter;
+}
+
+/* Continuous (flow) preview gets comfortable reading margins. */
+body.mode-flow {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 28px 80px;
+}
+body.mode-flow .run-head-book,
+body.mode-flow .run-head-topic,
+body.mode-flow .run-foot-brand,
+body.mode-flow .run-foot-site { display: none; }
+
+/* ── Page model ──────────────────────────────────────────────────────
+   Header  ·  left: exam/subject        right: current topic
+   Footer  ·  left: brand lockup   center: page X / Total   right: site */
+
+/* Page size and margins are emitted by the document builder (they vary
+   by page-size setting); this block only defines the margin boxes. */
+@page {
+  @top-left { content: element(runHeadBook); vertical-align: bottom; }
+  @top-right { content: element(runHeadTopic); vertical-align: bottom; }
+
+  @bottom-left { content: element(runFootBrand); vertical-align: top; }
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--c-muted);
+    vertical-align: top;
+  }
+  @bottom-right { content: element(runFootSite); vertical-align: top; }
+}
+
+/* Cover and closing pages: full bleed, no chrome. */
+@page cover {
+  margin: 0;
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-left { content: none; }
+  @bottom-center { content: none; }
+  @bottom-right { content: none; }
+}
+@page closing {
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-left { content: none; }
+  @bottom-center { content: none; }
+  @bottom-right { content: none; }
+}
+
+.pagedjs_pagebox {
+  background: var(--c-paper);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Breathing room between the running header and the body. */
+.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .pagedjs_page_content {
+  padding-top: 6mm;
+}
+
+/* Divider rules under the header and above the footer. */
+.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .pagedjs_margin-top {
+  border-bottom: 0.6pt solid var(--c-edge);
+}
+.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .pagedjs_margin-bottom {
+  border-top: 0.6pt solid var(--c-edge);
+}
+
+/* Running header — book/exam (left) · current topic (right, set per
+   page by the print harness as pages are laid out). */
+.run-head-book,
+.run-head-topic {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 7.8pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 84mm;
+  padding-bottom: 2.6pt;
+}
+.run-head-book {
+  position: running(runHeadBook);
+  color: var(--c-primary);
+  text-transform: uppercase;
+}
+.run-head-topic {
+  position: running(runHeadTopic);
+  color: var(--c-muted);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Running footer — brand lockup (left) · website (right, clickable). */
+.run-foot-brand {
+  position: running(runFootBrand);
+  display: flex;
+  align-items: center;
+  gap: 5pt;
+  padding-top: 2.6pt;
+}
+/* Paged.js forces margin-box children to display:block with a
+   higher-specificity rule; win it back on content pages only. */
+.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .run-foot-brand {
+  display: flex !important;
+}
+.run-foot-brand__mark { width: 15pt; height: 13pt; display: block; flex: none; color: var(--c-primary); opacity: 0.8; }
+.run-foot-brand__words { display: flex; flex-direction: column; line-height: 1.16; }
+.run-foot-brand__words b {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 8pt;
+  font-weight: 800;
+  letter-spacing: 0.005em;
+  color: var(--c-primary);
+}
+.run-foot-brand__words span {
+  font-family: "Literata", "Noto Serif Devanagari", serif;
+  font-style: italic;
+  font-size: 6.1pt;
+  letter-spacing: 0.006em;
+  color: var(--c-muted);
+}
+.run-foot-site {
+  position: running(runFootSite);
+  padding-top: 2.6pt;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 7pt;
+  letter-spacing: 0.02em;
+  text-align: right;
+}
+.run-foot-site a { color: #2e63d6; font-weight: 700; border-bottom: none; }
+
+/* Watermark — a pure-vector diagonal mark injected per page by the
+   print harness; opacity is baked into the artwork. */
+.page-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.page-watermark__art {
+  width: 165%;
+  flex: none;
+}
+
+/* Manual page break: authors type \pagebreak on its own line. */
+.page-break { break-after: page; height: 0; }
+
+/* ── Headings ────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4 {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  color: var(--c-primary);
+  line-height: 1.25;
+  margin: 0;
+  break-after: avoid;
+}
+
+h1 {
+  font-size: 2em;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  margin: 1.6em 0 0.7em;
+  padding-top: 0.55em;
+  counter-increment: chapter;
+}
+h1::before {
+  content: "";
+  display: block;
+  width: 44pt;
+  height: 3.5pt;
+  border-radius: 2pt;
+  background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+  margin-bottom: 0.55em;
+}
+
+h2 {
+  font-size: 1.42em;
+  font-weight: 700;
+  margin: 1.5em 0 0.55em;
+  padding-left: 0.55em;
+  border-left: 3pt solid var(--c-accent);
+}
+
+h3 {
+  font-size: 1.16em;
+  font-weight: 700;
+  margin: 1.3em 0 0.4em;
+  color: var(--c-primarySoft);
+}
+
+h4 {
+  font-weight: 700;
+  margin: 1.15em 0 0.3em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.86em;
+  color: var(--c-muted);
+}
+
+/* ── Body copy ───────────────────────────────────────────────────── */
+
+p { margin: 0 0 0.85em; orphans: 3; widows: 3; }
+
+a {
+  color: var(--c-accent);
+  text-decoration: none;
+  border-bottom: 0.8pt dotted color-mix(in srgb, var(--c-accent) 55%, transparent);
+}
+
+strong { color: var(--c-primary); font-weight: 700; }
+
+mark {
+  background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--c-accent) 22%, transparent) 45%);
+  color: inherit;
+  padding: 0 1pt;
+}
+
+ul, ol { margin: 0 0 0.9em; padding-left: 1.35em; }
+li { margin-bottom: 0.3em; }
+li > ul, li > ol { margin: 0.3em 0 0.35em; }
+ul li::marker { color: var(--c-accent); }
+ol li::marker { color: var(--c-primary); font-weight: 700; font-family: "Manrope", sans-serif; font-size: 0.9em; }
+
+.contains-task-list { list-style: none; padding-left: 0.35em; }
+.task-list-item { display: flex; align-items: baseline; gap: 0.5em; }
+.task-list-item input { transform: translateY(1.5pt); accent-color: var(--c-accent); }
+
+hr {
+  border: none;
+  border-top: 0.7pt solid var(--c-edge);
+  height: 0;
+  margin: 1.8em 0;
+}
+
+/* ── Blockquotes ─────────────────────────────────────────────────── */
+
+blockquote {
+  margin: 1.2em 0.3em;
+  padding: 0.55em 1.1em 0.55em 1.25em;
+  border-left: 2.5pt solid var(--c-accent);
+  background: color-mix(in srgb, var(--c-accentSoft) 55%, transparent);
+  border-radius: 0 6pt 6pt 0;
+  font-style: italic;
+  color: var(--c-primarySoft);
+  break-inside: avoid;
+}
+blockquote p { margin-bottom: 0.4em; }
+blockquote p:last-child { margin-bottom: 0; }
+
+/* ── Tables ──────────────────────────────────────────────────────── */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.1em 0 1.3em;
+  font-size: 0.92em;
+  break-inside: avoid;
+}
+thead { display: table-header-group; }
+th {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 700;
+  font-size: 0.86em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--c-paper);
+  background: var(--c-primary);
+  padding: 6pt 8pt;
+  text-align: left;
+  border: none;
+}
+th:first-child { border-radius: 4pt 0 0 0; }
+th:last-child { border-radius: 0 4pt 0 0; }
+td {
+  padding: 5.5pt 8pt;
+  border-bottom: 0.6pt solid var(--c-edge);
+  vertical-align: top;
+}
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--c-band) 60%, transparent); }
+tr { break-inside: avoid; }
+
+/* ── Code (verbatim blocks — no syntax highlighting by design) ───── */
+
+code {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.86em;
+  background: var(--c-band);
+  border: 0.5pt solid var(--c-edge);
+  border-radius: 3pt;
+  padding: 0.5pt 3.5pt;
+  color: var(--c-primary);
+}
+pre {
+  background: var(--c-band);
+  border: 0.6pt solid var(--c-edge);
+  border-radius: 6pt;
+  padding: 0.85em 1em;
+  margin: 1em 0 1.2em;
+  overflow-x: auto;
+  break-inside: avoid;
+  line-height: 1.5;
+}
+pre code { background: none; border: none; padding: 0; font-size: 0.84em; color: var(--c-text); }
+
+/* ── Images ──────────────────────────────────────────────────────── */
+
+img { max-width: 100%; height: auto; }
+p > img:only-child {
+  display: block;
+  margin: 1.1em auto;
+  border-radius: 6pt;
+}
+
+/* ── Footnotes (rendered as endnotes) ────────────────────────────── */
+
+.footnote-ref a, a.footnote-backref { border-bottom: none; font-weight: 700; }
+.footnotes-sep { display: none; }
+.footnotes {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1.4pt solid var(--c-primary);
+  font-size: 0.88em;
+  color: var(--c-muted);
+}
+.footnotes::before {
+  content: "Notes & References";
+  display: block;
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  font-size: 1.05em;
+  letter-spacing: 0.02em;
+  color: var(--c-primary);
+  margin-bottom: 0.6em;
+}
+
+/* ── Callouts ────────────────────────────────────────────────────── */
+
+.callout {
+  margin: 1.15em 0;
+  border-radius: 7pt;
+  border: 0.6pt solid var(--co-edge, var(--c-edge));
+  border-left: 3pt solid var(--co-accent, var(--c-accent));
+  background: var(--co-bg, var(--c-band));
+  padding: 0.7em 1em 0.75em;
+  break-inside: avoid;
+}
+.callout__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.4em;
+}
+.callout__icon { display: inline-flex; width: 1.05em; height: 1.05em; color: var(--co-accent, var(--c-accent)); }
+.callout__icon svg { width: 100%; height: 100%; }
+.callout__label {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 0.8em;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--co-accent, var(--c-accent));
+}
+.callout__body { font-size: 0.96em; }
+.callout__body > p:last-child { margin-bottom: 0; }
+
+.callout--definition { --co-accent: var(--c-accent); --co-bg: color-mix(in srgb, var(--c-accentSoft) 65%, white); }
+.callout--example    { --co-accent: var(--c-primarySoft); --co-bg: color-mix(in srgb, var(--c-band) 75%, white); }
+.callout--important  { --co-accent: var(--c-gold); --co-bg: color-mix(in srgb, var(--c-gold) 9%, white); }
+.callout--summary    { --co-accent: var(--c-primary); --co-bg: color-mix(in srgb, var(--c-primary) 6%, white); }
+.callout--tip        { --co-accent: var(--c-good); --co-bg: color-mix(in srgb, var(--c-good) 7%, white); }
+.callout--warning    { --co-accent: var(--c-danger); --co-bg: color-mix(in srgb, var(--c-danger) 7%, white); }
+.callout--note       { --co-accent: var(--c-muted); --co-bg: color-mix(in srgb, var(--c-band) 80%, white); }
+.callout--exam       { --co-accent: var(--c-primary); --co-bg: color-mix(in srgb, var(--c-gold) 12%, white); }
+.callout--exam .callout__label { color: var(--c-primary); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TABLE OF CONTENTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.toc { break-after: page; }
+.toc__title {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 19pt;
+  font-weight: 800;
+  color: var(--c-primary);
+  border: none;
+  padding: 0;
+  margin: 0 0 1em;
+}
+.toc__title::after {
+  content: "";
+  display: block;
+  width: 44pt;
+  height: 3.5pt;
+  border-radius: 2pt;
+  background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+  margin-top: 0.4em;
+}
+.toc__list { list-style: none; padding: 0; margin: 0; counter-reset: tocc; }
+.toc__item a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  border-bottom: none;
+  color: var(--c-text);
+  padding: 0.22em 0;
+}
+.toc__item a::after {
+  content: target-counter(attr(href), page);
+  font-family: "Manrope", sans-serif;
+  font-weight: 700;
+  font-size: 0.9em;
+  color: var(--c-accent);
+  min-width: 2em;
+  text-align: right;
+}
+.toc__dots { flex: 1; border-bottom: 1pt dotted var(--c-edge); transform: translateY(-3pt); }
+.toc__item--l1 { font-family: "Manrope", "Noto Serif Devanagari", sans-serif; font-weight: 800; }
+.toc__item--l1 a { color: var(--c-primary); }
+.toc__item--l1 .toc__text { counter-increment: tocc; }
+.toc__item--l1 .toc__text::before {
+  content: counter(tocc, decimal-leading-zero) "  ";
+  color: var(--c-accent);
+  font-weight: 800;
+}
+.toc__item--l1:not(:first-child) { margin-top: 0.6em; }
+.toc__item--l2 { padding-left: 2.1em; font-size: 0.95em; }
+.toc__item--l3 { padding-left: 3.4em; font-size: 0.9em; color: var(--c-muted); }
+
+/* In the flow preview there are no page numbers to point at. */
+body.mode-flow .toc__item a::after { content: none; }
+
+/* Generic centered block titles (Answer Key, Explanations…) */
+.block-title {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 17pt;
+  font-weight: 800;
+  color: var(--c-primary);
+  text-align: center;
+  border: none;
+  padding: 0;
+  margin: 0 0 1em;
+}
+.block-title::after {
+  content: "";
+  display: block;
+  width: 44pt;
+  height: 3.5pt;
+  border-radius: 2pt;
+  background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
+  margin: 0.45em auto 0;
+}
