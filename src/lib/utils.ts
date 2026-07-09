@@ -9,31 +9,6 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
-export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number): ((...args: A) => void) & { flush: () => void } {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let pending: A | null = null;
-  const run = (...args: A) => {
-    pending = args;
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = null;
-      const a = pending!;
-      pending = null;
-      fn(...a);
-    }, ms);
-  };
-  run.flush = () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-      const a = pending!;
-      pending = null;
-      fn(...a);
-    }
-  };
-  return run;
-}
-
 export function relativeDate(ts: number): string {
   const diff = Date.now() - ts;
   const min = Math.floor(diff / 60_000);

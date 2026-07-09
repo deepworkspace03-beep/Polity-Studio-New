@@ -71,7 +71,7 @@ function questionCard(q: McqQuestion, inline: boolean): string {
       ? `<div class="q__answer"><div class="q__answer-label">Answer — ${q.answer || "—"}</div><div class="q__answer-body">${renderMarkdown(q.explanation)}</div></div>`
       : "";
 
-  return `<article class="q">
+  return `<article class="q" data-line="${q.line}">
   <div class="q__head"><span class="q__num">Q${q.number}</span><span class="q__chips">${chips.join("")}</span></div>
   <div class="q__text">${renderMarkdown(q.text)}</div>
   <ol class="q__options">${options}</ol>
@@ -133,13 +133,14 @@ function mcqBody(doc: Doc): BuiltBody {
 
 function flashcardsBody(doc: Doc): BuiltBody {
   const lines = doc.body.split(/\r?\n/);
-  const cards: { front: string; back: string[] }[] = [];
+  const cards: { front: string; back: string[]; line: number }[] = [];
   const intro: string[] = [];
-  let current: { front: string; back: string[] } | null = null;
-  for (const line of lines) {
+  let current: { front: string; back: string[]; line: number } | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const h = line.match(/^##\s+(.+)$/);
     if (h) {
-      current = { front: h[1].trim(), back: [] };
+      current = { front: h[1].trim(), back: [], line: i + 1 };
       cards.push(current);
     } else if (current) {
       current.back.push(line);
@@ -150,7 +151,7 @@ function flashcardsBody(doc: Doc): BuiltBody {
   const introHtml = intro.join("\n").trim() ? `<section class="deck-intro">${renderMarkdown(intro.join("\n"))}</section>` : "";
   const cardsHtml = cards
     .map(
-      (c, i) => `<article class="fcard">
+      (c, i) => `<article class="fcard" data-line="${c.line}">
   <div class="fcard__front"><span class="fcard__num">${String(i + 1).padStart(2, "0")}</span>${renderInline(c.front)}</div>
   <div class="fcard__back">${renderMarkdown(c.back.join("\n"))}</div>
 </article>`,

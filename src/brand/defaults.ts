@@ -5,7 +5,7 @@ import type { BrandConfig, DocLayout, Settings } from "../lib/types";
 export const DEFAULT_BRAND: BrandConfig = {
   name: "Polity Made Simple",
   initiative: "A JRF Club Initiative",
-  tagline: "Study Smarter. Learn Faster.",
+  tagline: "Study Smarter, Learn Faster",
   website: "https://www.politymadesimple.com",
   telegram: {
     url: "https://t.me/politicalsciencenetjrfclub",
@@ -20,7 +20,7 @@ export const DEFAULT_BRAND: BrandConfig = {
     primarySoft: "#2C4A74",
     accent: "#149C94",
     accentSoft: "#E4F4F2",
-    gold: "#C89B3C",
+    gold: "#B99659",
   },
   exams: [
     "UGC-NET/JRF Political Science",
@@ -37,7 +37,6 @@ export const DEFAULT_LAYOUT: DocLayout = {
   coverStyle: "regal",
   toc: true,
   watermark: true,
-  closingPage: true,
   pageSize: "a4",
   density: "comfort",
   answers: "end",
@@ -47,10 +46,4 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   fileNamePattern: "{title} — {brand}",
   newDocLayout: DEFAULT_LAYOUT,
-  ai: {
-    provider: "openai",
-    baseUrl: "https://api.openai.com/v1",
-    apiKey: "",
-    model: "gpt-5-mini",
-  },
 };

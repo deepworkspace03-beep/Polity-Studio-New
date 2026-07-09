@@ -3,6 +3,7 @@ import { navigate } from "../lib/router";
 import { createDoc, deleteDoc, duplicateDoc, useApp } from "../lib/store";
 import { contentStats, cx, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
+import { DEMOS, type DemoDoc } from "../templates/demos";
 import type { TemplateId } from "../lib/types";
 import { Button, IconButton, Modal, useToast } from "../components/ui";
 import { Icon, TempleMark } from "../components/Icon";
@@ -25,6 +26,7 @@ export function Library() {
   const toast = useToast();
   const [query, setQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
 
   const filtered = useMemo(() => {
@@ -37,6 +39,18 @@ export function Library() {
     const t = TEMPLATE_META[template];
     const doc = createDoc({ template, title: t.starterTitle, body: t.starter });
     setPickerOpen(false);
+    navigate({ edit: doc.id });
+  }
+
+  function handleOpenExample(demo: DemoDoc) {
+    const doc = createDoc({
+      template: demo.template,
+      title: demo.title,
+      body: demo.body,
+      subtitle: demo.subtitle,
+      paper: demo.paper,
+    });
+    setExamplesOpen(false);
     navigate({ edit: doc.id });
   }
 
@@ -56,11 +70,16 @@ export function Library() {
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold">{greeting()}</h2>
-          <p className="mt-0.5 text-sm text-faint">Paste raw content, get a beautiful branded PDF.</p>
+          <p className="mt-0.5 text-sm text-faint">Paste your Markdown, get a beautiful branded PDF.</p>
         </div>
-        <Button variant="primary" icon="plus" onClick={() => setPickerOpen(true)}>
-          New document
-        </Button>
+        <div className="flex gap-2">
+          <Button icon="eye" onClick={() => setExamplesOpen(true)}>
+            Examples
+          </Button>
+          <Button variant="primary" icon="plus" onClick={() => setPickerOpen(true)}>
+            New document
+          </Button>
+        </div>
       </div>
 
       {docs.length > 3 && (
@@ -82,11 +101,17 @@ export function Library() {
           </span>
           <h3 className="text-base font-bold">Your studio is empty</h3>
           <p className="mt-1 max-w-sm text-sm text-faint">
-            Create your first document and turn raw notes into an exam-ready PDF in minutes.
+            Create your first document and turn raw notes into an exam-ready PDF in minutes — or open an example to see
+            what the studio can do.
           </p>
-          <Button variant="primary" className="mt-5" icon="plus" onClick={() => setPickerOpen(true)}>
-            Create your first document
-          </Button>
+          <div className="mt-5 flex gap-2">
+            <Button icon="eye" onClick={() => setExamplesOpen(true)}>
+              Browse examples
+            </Button>
+            <Button variant="primary" icon="plus" onClick={() => setPickerOpen(true)}>
+              Create your first document
+            </Button>
+          </div>
         </div>
       ) : filtered.length === 0 ? (
         <p className="py-16 text-center text-sm text-faint">No documents match “{query}”.</p>
@@ -157,6 +182,29 @@ export function Library() {
               </span>
               <span className="text-sm font-bold">{t.name}</span>
               <span className="text-xs text-faint">{t.description}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal open={examplesOpen} onClose={() => setExamplesOpen(false)} title="Example documents" wide>
+        <p className="mb-4 text-sm text-faint">
+          Real study material that shows off tables, callouts, footnotes, highlights, MCQ metadata and more. Each opens
+          as a fresh document in your library — edit or delete it freely.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {DEMOS.map((demo) => (
+            <button
+              key={demo.id}
+              onClick={() => handleOpenExample(demo)}
+              className="flex flex-col items-start gap-2 rounded-xl border border-edge p-4 text-left transition-colors hover:border-accent hover:bg-raised"
+            >
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-raised px-2.5 py-1 text-[11px] font-semibold text-ink-2">
+                <TemplateGlyph id={demo.template} className="h-3 w-3" />
+                {TEMPLATE_META[demo.template].name}
+              </span>
+              <span className="text-sm font-bold">{demo.title}</span>
+              <span className="text-xs text-faint">{demo.description}</span>
             </button>
           ))}
         </div>

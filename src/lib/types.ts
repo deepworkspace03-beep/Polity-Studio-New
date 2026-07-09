@@ -14,7 +14,6 @@ export interface DocLayout {
   coverStyle: CoverStyle;
   toc: boolean;
   watermark: boolean;
-  closingPage: boolean;
   pageSize: PageSize;
   density: Density;
   /** MCQ booklets only: where answers & explanations appear. */
@@ -70,18 +69,10 @@ export interface BrandConfig {
 
 export type UiTheme = "dark" | "light" | "system";
 
-export interface AiConfig {
-  provider: "openai" | "anthropic";
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-}
-
 export interface Settings {
   theme: UiTheme;
-  /** Filename pattern for exports; {title} and {brand} are replaced. */
+  /** Filename pattern for exports; {title}, {brand} and {date} are replaced. */
   fileNamePattern: string;
   /** Layout applied to newly created documents. */
   newDocLayout: DocLayout;
-  ai: AiConfig;
 }

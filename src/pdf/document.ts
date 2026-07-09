@@ -1,19 +1,21 @@
 import type { BrandConfig, Doc, PageSize } from "../lib/types";
 import { escapeHtml } from "../lib/utils";
-import { templeEmblemSvg, templeMarkSvg, watermarkSvg } from "../brand/marks";
+import { telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkSvg, whatsappIconSvg } from "../brand/marks";
 import { extractToc } from "../markdown/renderer";
 import { TEMPLATE_RENDERERS } from "../templates";
 import { TEMPLATE_META } from "../templates/meta";
 import printBaseCss from "./styles/print-base.css?raw";
 import coversCss from "./styles/covers.css?raw";
-import { HARNESS_JS } from "./harness";
+import { HARNESS_JS, PREVIEW_JS } from "./harness";
 
 /**
  * Builds the complete, self-contained HTML for a document. The same
  * builder feeds the flow preview, the paged preview and the PDF export,
  * so what you see is always what prints.
  *
- *   flow  — continuous scroll, no pagination (fast live preview)
+ *   flow  — continuous scroll, no pagination (fast live preview);
+ *           content lives in #doc-root and is refreshed in place via
+ *           postMessage so typing never rebuilds the iframe
  *   paged — Paged.js pagination with running headers/footers, page
  *           numbers, TOC page numbers and per-page watermark
  */
@@ -65,7 +67,6 @@ function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
   const author = doc.author || brand.author;
-  const highlights = [...coverLines, brand.name].filter(Boolean);
 
   return `
 <section class="cover cover--${doc.layout.coverStyle}">
@@ -87,7 +88,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
     <h1 class="cv-exam">${escapeHtml(doc.title || "Untitled")}</h1>
     ${doc.subtitle ? `<p class="cv-guide">${escapeHtml(doc.subtitle)}</p>` : ""}
     <ul class="cv-highlights">
-      ${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join("\n      ")}
+      ${coverLines.map((h) => `<li>${escapeHtml(h)}</li>`).join("\n      ")}
     </ul>
   </div>
   <div class="cv-foot">
@@ -122,6 +123,16 @@ function tocHtml(doc: Doc): string {
 
 function runnersHtml(doc: Doc, brand: BrandConfig): string {
   const site = brand.website.replace(/^https?:\/\//, "");
+  const social = [
+    brand.telegram.url
+      ? `<a class="run-social" href="${escapeHtml(brand.telegram.url)}" aria-label="Telegram">${telegramIconSvg("run-social__icon")}</a>`
+      : "",
+    brand.whatsapp.url
+      ? `<a class="run-social" href="${escapeHtml(brand.whatsapp.url)}" aria-label="WhatsApp">${whatsappIconSvg("run-social__icon")}</a>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n  ");
   return `
 <div class="run-head-book">${escapeHtml(doc.exam || brand.name)}</div>
 <div class="run-head-topic"></div>
@@ -132,29 +143,8 @@ function runnersHtml(doc: Doc, brand: BrandConfig): string {
     <span>${escapeHtml(brand.tagline)}</span>
   </span>
 </div>
-<div class="run-foot-site"><a href="${escapeHtml(brand.website)}">${escapeHtml(site)}</a></div>`;
-}
-
-/* ── Closing page ──────────────────────────────────────────────────── */
-
-function closingHtml(doc: Doc, brand: BrandConfig): string {
-  if (!doc.layout.closingPage) return "";
-  const year = new Date().getFullYear();
-  return `
-<section class="closing">
-  <div class="closing__card">
-    ${templeMarkSvg("26mm", "cv-mark")}
-    <h2 class="closing__brand">${escapeHtml(brand.name)}</h2>
-    <p class="closing__tagline">${escapeHtml(brand.tagline)}</p>
-    <div class="closing__rule"></div>
-    <p class="closing__site"><a href="${escapeHtml(brand.website)}">${escapeHtml(brand.website.replace(/^https?:\/\//, ""))}</a></p>
-    <ul class="closing__links">
-      ${brand.telegram.url ? `<li>Telegram — <a href="${escapeHtml(brand.telegram.url)}">${escapeHtml(brand.telegram.label || brand.telegram.url)}</a></li>` : ""}
-      ${brand.whatsapp.url ? `<li>WhatsApp — <a href="${escapeHtml(brand.whatsapp.url)}">${escapeHtml(brand.whatsapp.label || "Join the channel")}</a></li>` : ""}
-    </ul>
-    <p class="closing__copyright">© ${year} ${escapeHtml(brand.name)}</p>
-  </div>
-</section>`;
+<div class="run-foot-site"><a href="${escapeHtml(brand.website)}">${escapeHtml(site)}</a></div>
+<div class="run-foot-social">${social}</div>`;
 }
 
 /* ── Assembly ──────────────────────────────────────────────────────── */
@@ -162,28 +152,63 @@ function closingHtml(doc: Doc, brand: BrandConfig): string {
 /** Extra styles for the on-screen paged preview: dark desk, centered
     pages, drop shadows. Export keeps pristine print geometry. */
 const PAGED_PREVIEW_CSS = `
-body.purpose-preview { background: #2a303b; }
+body.purpose-preview { background: #262b34; }
 body.purpose-preview .pagedjs_pages {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 18px;
-  padding: 24px 12px 60px;
-  transform-origin: top center;
+  padding: 24px 12px 80px;
+  width: fit-content;
+  margin: 0 auto;
 }
 body.purpose-preview .pagedjs_page {
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
   flex: none;
 }
 @media print {
-  body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; transform: none !important; }
+  body.purpose-preview { background: none; }
+  body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; zoom: 1 !important; }
   body.purpose-preview .pagedjs_page { box-shadow: none; }
+}`;
+
+/** Cursor-follow highlight used by the flow preview. */
+const FLOW_PREVIEW_CSS = `
+[data-line].preview-here {
+  animation: preview-here 1.6s ease-out;
+  border-radius: 4px;
+}
+@keyframes preview-here {
+  0% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-accent) 35%, transparent); }
+  100% { box-shadow: 0 0 0 4px transparent; }
 }`;
 
 /** Content pasted from other tools often carries YAML front matter —
     it is metadata, never body text, so drop it before rendering. */
 function stripFrontMatter(body: string): string {
-  return body.replace(/^\ufeff?---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
+  return body.replace(/^﻿?---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
+}
+
+/** The document content that changes while typing: cover + TOC + body.
+    The flow preview swaps this into #doc-root without a reload. */
+export function buildDocContent(doc: Doc, brand: BrandConfig): string {
+  doc = { ...doc, body: stripFrontMatter(doc.body) };
+  const body = TEMPLATE_RENDERERS[doc.template].buildBody(doc);
+  return `${coverHtml(doc, brand, body.coverLines)}
+${tocHtml(doc)}
+${body.html}`;
+}
+
+/** Everything that requires a full iframe rebuild when it changes —
+    used by the preview to decide srcdoc reload vs in-place update. */
+export function buildShellKey(doc: Doc, brand: BrandConfig): string {
+  return [
+    doc.template,
+    doc.layout.pageSize,
+    doc.layout.density,
+    doc.lang,
+    Object.values(brand.colors).join(","),
+  ].join("|");
 }
 
 export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOptions): string {
@@ -204,10 +229,10 @@ export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOp
 ${printBaseCss}
 ${coversCss}
 ${template.css}
-${paged ? PAGED_PREVIEW_CSS : ""}`;
+${paged ? PAGED_PREVIEW_CSS : FLOW_PREVIEW_CSS}`;
 
   // The watermark template lives in <head>: any extra node in <body>
-  // after the closing section would earn its own blank trailing page
+  // after the last section would earn its own blank trailing page
   // during pagination.
   const watermarkTemplate = paged
     ? `<template id="watermark-template"><div class="page-watermark" aria-hidden="true">${watermarkSvg(brand.watermarkText)}</div></template>`
@@ -215,7 +240,12 @@ ${paged ? PAGED_PREVIEW_CSS : ""}`;
   const scripts = paged
     ? `<script src="/vendor/paged.polyfill.min.js"></script>
 <script>${HARNESS_JS}</script>`
-    : "";
+    : `<script>${PREVIEW_JS}</script>`;
+
+  const content = `${coverHtml(doc, brand, body.coverLines)}
+${paged ? runnersHtml(doc, brand) : ""}
+${tocHtml(doc)}
+${body.html}`;
 
   const title = options.fileTitle || doc.title || "Untitled";
 
@@ -230,11 +260,7 @@ ${paged ? PAGED_PREVIEW_CSS : ""}`;
 ${watermarkTemplate}
 </head>
 <body class="tpl-${doc.template} mode-${mode} purpose-${purpose}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
-${coverHtml(doc, brand, body.coverLines)}
-${paged ? runnersHtml(doc, brand) : ""}
-${tocHtml(doc)}
-${body.html}
-${closingHtml(doc, brand)}
+${paged ? content : `<div id="doc-root">${content}</div>`}
 ${scripts}
 </body>
 </html>`;

@@ -5,6 +5,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
+import { insertLink, wrapSelection } from "./commands";
 
 /** Markdown syntax colors driven by the app theme variables, so the
     editor follows dark/light mode automatically. */
@@ -43,15 +44,19 @@ const editorTheme = EditorView.theme({
 export interface CodeMirrorProps {
   value: string;
   onChange: (value: string) => void;
+  /** 1-based line number of the primary cursor — drives preview sync. */
+  onCursorLine?: (line: number) => void;
   onSaveShortcut?: () => void;
   viewRef: React.MutableRefObject<EditorView | null>;
 }
 
-export function CodeMirror({ value, onChange, onSaveShortcut, viewRef }: CodeMirrorProps) {
+export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
+  const onCursorRef = useRef(onCursorLine);
   const onSaveRef = useRef(onSaveShortcut);
   onChangeRef.current = onChange;
+  onCursorRef.current = onCursorLine;
   onSaveRef.current = onSaveShortcut;
 
   useEffect(() => {
@@ -70,6 +75,11 @@ export function CodeMirror({ value, onChange, onSaveShortcut, viewRef }: CodeMir
                 return true;
               },
             },
+            { key: "Mod-b", run: (v) => (wrapSelection(v, "**"), true) },
+            { key: "Mod-i", run: (v) => (wrapSelection(v, "*"), true) },
+            { key: "Mod-u", run: (v) => (wrapSelection(v, "++"), true) },
+            { key: "Mod-k", run: (v) => (insertLink(v), true) },
+            { key: "Mod-Shift-h", run: (v) => (wrapSelection(v, "=="), true) },
             ...defaultKeymap,
             ...historyKeymap,
           ]),
@@ -77,9 +87,12 @@ export function CodeMirror({ value, onChange, onSaveShortcut, viewRef }: CodeMir
           syntaxHighlighting(mdHighlight),
           editorTheme,
           EditorView.lineWrapping,
-          placeholder("Paste or write your content here…"),
+          placeholder("Paste or write your Markdown here…"),
           EditorView.updateListener.of((u: ViewUpdate) => {
             if (u.docChanged) onChangeRef.current(u.state.doc.toString());
+            if (u.selectionSet || u.docChanged) {
+              onCursorRef.current?.(u.state.doc.lineAt(u.state.selection.main.head).number);
+            }
           }),
         ],
       }),
@@ -94,7 +107,7 @@ export function CodeMirror({ value, onChange, onSaveShortcut, viewRef }: CodeMir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Apply external changes (AI apply, restore) without recreating the view.
+  // Apply external changes (restore, template swap) without recreating the view.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;

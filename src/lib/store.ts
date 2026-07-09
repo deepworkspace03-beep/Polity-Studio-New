@@ -42,10 +42,6 @@ export function useApp(): AppState {
   return useSyncExternalStore(subscribe, () => state);
 }
 
-export function getState(): AppState {
-  return state;
-}
-
 /* ── Persistence ──────────────────────────────────────────────────── */
 
 const SAVE_DELAY = 600;
@@ -79,12 +75,14 @@ if (typeof window !== "undefined") {
   });
 }
 
-/** Deep-ish merge that keeps newly added default fields when older
-    persisted objects are loaded (forward-compatible settings). */
+/** Merges a stored object over the defaults, keeping only keys the
+    current schema knows about — old fields (removed features) are
+    dropped and newly added defaults survive. */
 function withDefaults<T extends object>(defaults: T, stored: unknown): T {
   if (!stored || typeof stored !== "object") return defaults;
   const out: Record<string, unknown> = { ...(defaults as Record<string, unknown>) };
   for (const [k, v] of Object.entries(stored)) {
+    if (!(k in (defaults as Record<string, unknown>))) continue;
     const base = (defaults as Record<string, unknown>)[k];
     out[k] =
       base && typeof base === "object" && !Array.isArray(base) && v && typeof v === "object" && !Array.isArray(v)
@@ -103,7 +101,7 @@ export async function initStore(): Promise<void> {
     ]);
     setState({
       ready: true,
-      docs: docs.sort((a, b) => b.updatedAt - a.updatedAt),
+      docs: docs.map((d) => withDefaults(blankDoc(), d)).sort((a, b) => b.updatedAt - a.updatedAt),
       settings: withDefaults(DEFAULT_SETTINGS, settings),
       brand: withDefaults(DEFAULT_BRAND, brand),
     });
@@ -115,20 +113,32 @@ export async function initStore(): Promise<void> {
 
 /* ── Document actions ─────────────────────────────────────────────── */
 
-export function createDoc(partial: Pick<Doc, "template" | "title" | "body">): Doc {
+function blankDoc(): Doc {
   const now = Date.now();
-  const doc: Doc = {
+  return {
     id: uid(),
+    title: "Untitled",
     subtitle: "",
-    exam: state.brand.exams[0] ?? "",
+    template: "notes",
+    body: "",
+    exam: "",
     paper: "",
-    session: String(new Date().getFullYear()),
+    session: "",
     author: state.brand.author,
     lang: "en",
     layout: { ...state.settings.newDocLayout },
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+export function createDoc(partial: Pick<Doc, "template" | "title" | "body"> & Partial<Doc>): Doc {
+  const doc: Doc = {
+    ...blankDoc(),
+    exam: state.brand.exams[0] ?? "",
+    session: String(new Date().getFullYear()),
     ...partial,
+    id: uid(),
   };
   setState({ ...state, docs: [doc, ...state.docs] });
   void db.putDoc(doc);
@@ -148,6 +158,12 @@ export function updateDoc(id: string, patch: Partial<Omit<Doc, "id">>): void {
 export function deleteDoc(id: string): void {
   setState({ ...state, docs: state.docs.filter((d) => d.id !== id) });
   void db.deleteDoc(id);
+}
+
+export async function deleteAllDocs(): Promise<void> {
+  const ids = state.docs.map((d) => d.id);
+  setState({ ...state, docs: [] });
+  await Promise.all(ids.map((id) => db.deleteDoc(id)));
 }
 
 export function duplicateDoc(id: string): Doc | null {
@@ -178,27 +194,27 @@ export function saveBrand(patch: Partial<BrandConfig>): void {
 
 interface Backup {
   app: "polity-studio";
-  version: 2;
+  version: number;
   exportedAt: string;
   docs: Doc[];
-  settings: Omit<Settings, "ai"> & { ai: Omit<Settings["ai"], "apiKey"> };
+  settings: Settings;
   brand: BrandConfig;
 }
 
 export function exportBackup(): string {
-  const { ai, ...rest } = state.settings;
-  const { apiKey: _key, ...aiRest } = ai;
   const backup: Backup = {
     app: "polity-studio",
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     docs: state.docs,
-    settings: { ...rest, ai: aiRest },
+    settings: state.settings,
     brand: state.brand,
   };
   return JSON.stringify(backup, null, 2);
 }
 
+/** Restores a backup (v2 or v3 — unknown fields from older versions are
+    dropped by the schema merge). Documents merge by id. */
 export async function importBackup(json: string): Promise<number> {
   const data = JSON.parse(json) as Partial<Backup>;
   if (data.app !== "polity-studio" || !Array.isArray(data.docs)) {
@@ -207,7 +223,7 @@ export async function importBackup(json: string): Promise<number> {
   const byId = new Map(state.docs.map((d) => [d.id, d]));
   for (const doc of data.docs) {
     if (!doc.id || typeof doc.body !== "string") continue;
-    byId.set(doc.id, withDefaults(byId.get(doc.id) ?? { ...createDefaultsFor(doc) }, doc));
+    byId.set(doc.id, withDefaults(byId.get(doc.id) ?? { ...blankDoc(), id: doc.id }, doc));
   }
   const docs = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   const settings = withDefaults(state.settings, data.settings);
@@ -215,23 +231,4 @@ export async function importBackup(json: string): Promise<number> {
   setState({ ...state, docs, settings, brand });
   await Promise.all([...docs.map((d) => db.putDoc(d)), db.putKv("settings", settings), db.putKv("brand", brand)]);
   return data.docs.length;
-}
-
-function createDefaultsFor(doc: Partial<Doc>): Doc {
-  const now = Date.now();
-  return {
-    id: doc.id ?? uid(),
-    title: "Untitled",
-    subtitle: "",
-    template: "notes",
-    body: "",
-    exam: "",
-    paper: "",
-    session: "",
-    author: state.brand.author,
-    lang: "en",
-    layout: { ...state.settings.newDocLayout },
-    createdAt: now,
-    updatedAt: now,
-  };
 }

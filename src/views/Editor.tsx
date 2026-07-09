@@ -4,14 +4,12 @@ import { navigate } from "../lib/router";
 import { flushSaves, updateDoc, useApp } from "../lib/store";
 import { contentStats, cx } from "../lib/utils";
 import type { Doc } from "../lib/types";
-import { exportPdf, type ExportPhase } from "../pdf/export";
 import { Button, IconButton, Segmented, useToast } from "../components/ui";
-import { Icon } from "../components/Icon";
 import { CodeMirror } from "./editor/CodeMirror";
 import { Toolbar } from "./editor/Toolbar";
 import { Preview } from "./editor/Preview";
 import { Details } from "./editor/Details";
-import { AiPanel } from "./editor/AiPanel";
+import { Publish } from "./editor/Publish";
 
 type Tab = "write" | "preview";
 
@@ -23,8 +21,8 @@ export function Editor({ id }: { id: string }) {
   const viewRef = useRef<EditorView | null>(null);
   const [tab, setTab] = useState<Tab>("write");
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [exportPhase, setExportPhase] = useState<ExportPhase | null>(null);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [cursorLine, setCursorLine] = useState(1);
 
   const onChange = useCallback((patch: Partial<Doc>) => updateDoc(id, patch), [id]);
 
@@ -41,19 +39,6 @@ export function Editor({ id }: { id: string }) {
 
   const stats = contentStats(doc.body);
 
-  async function handleExport() {
-    if (exportPhase) return;
-    flushSaves();
-    try {
-      const result = await exportPdf(doc!, brand, settings, setExportPhase);
-      if (result.fallback) toast("Page layout failed — exported the simple layout instead.", "error");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Export failed.", "error");
-    } finally {
-      setExportPhase(null);
-    }
-  }
-
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-2 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
@@ -66,10 +51,17 @@ export function Editor({ id }: { id: string }) {
           aria-label="Document title"
         />
         <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
-        <IconButton label="Document details" name="sliders" onClick={() => setDetailsOpen(true)} />
-        <IconButton label="AI assistant" name="sparkles" active={aiOpen} onClick={() => setAiOpen((v) => !v)} />
-        <Button variant="primary" icon="export" onClick={handleExport} disabled={exportPhase !== null} className="px-2.5 sm:px-3">
-          <span className="hidden sm:inline">{exportPhase ? "Preparing…" : "Export PDF"}</span>
+        <IconButton label="Document details & layout" name="sliders" onClick={() => setDetailsOpen(true)} />
+        <Button
+          variant="primary"
+          icon="export"
+          onClick={() => {
+            flushSaves();
+            setPublishOpen(true);
+          }}
+          className="px-2.5 sm:px-3"
+        >
+          <span className="hidden sm:inline">Publish PDF</span>
         </Button>
       </header>
 
@@ -93,6 +85,7 @@ export function Editor({ id }: { id: string }) {
             <CodeMirror
               value={doc.body}
               onChange={(body) => onChange({ body })}
+              onCursorLine={setCursorLine}
               onSaveShortcut={() => {
                 flushSaves();
                 toast("Saved", "ok");
@@ -102,24 +95,13 @@ export function Editor({ id }: { id: string }) {
           </div>
         </div>
         <div className={cx("min-w-0 flex-1 lg:block lg:w-1/2", tab === "preview" ? "block" : "hidden")}>
-          <Preview doc={doc} brand={brand} />
+          <Preview doc={doc} brand={brand} cursorLine={cursorLine} />
         </div>
-
-        <AiPanel open={aiOpen} onClose={() => setAiOpen(false)} doc={doc} getView={() => viewRef.current} onChange={onChange} />
       </div>
 
       <Details open={detailsOpen} onClose={() => setDetailsOpen(false)} doc={doc} onChange={onChange} />
 
-      {exportPhase && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="flex items-center gap-3 rounded-2xl border border-edge bg-surface px-6 py-4 shadow-2xl">
-            <Icon name="loader" size={18} className="animate-spin text-accent" />
-            <span className="text-sm font-medium">
-              {exportPhase === "paginating" ? "Laying out your PDF pages…" : "Opening print dialog…"}
-            </span>
-          </div>
-        </div>
-      )}
+      {publishOpen && <Publish doc={doc} brand={brand} settings={settings} onClose={() => setPublishOpen(false)} />}
     </div>
   );
 }
