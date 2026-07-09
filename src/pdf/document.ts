@@ -180,8 +180,15 @@ body.purpose-preview .pagedjs_page {
   body.purpose-preview .pagedjs_page { box-shadow: none; }
 }`;
 
+/** Content pasted from other tools often carries YAML front matter —
+    it is metadata, never body text, so drop it before rendering. */
+function stripFrontMatter(body: string): string {
+  return body.replace(/^\ufeff?---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
+}
+
 export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOptions): string {
   const { mode, purpose = "preview" } = options;
+  doc = { ...doc, body: stripFrontMatter(doc.body) };
   const template = TEMPLATE_RENDERERS[doc.template];
   const body = template.buildBody(doc);
   const geometry = PAGE_GEOMETRY[doc.layout.pageSize];
@@ -199,9 +206,14 @@ ${coversCss}
 ${template.css}
 ${paged ? PAGED_PREVIEW_CSS : ""}`;
 
+  // The watermark template lives in <head>: any extra node in <body>
+  // after the closing section would earn its own blank trailing page
+  // during pagination.
+  const watermarkTemplate = paged
+    ? `<template id="watermark-template"><div class="page-watermark" aria-hidden="true">${watermarkSvg(brand.watermarkText)}</div></template>`
+    : "";
   const scripts = paged
-    ? `<template id="watermark-template"><div class="page-watermark" aria-hidden="true">${watermarkSvg(brand.watermarkText)}</div></template>
-<script src="/vendor/paged.polyfill.min.js"></script>
+    ? `<script src="/vendor/paged.polyfill.min.js"></script>
 <script>${HARNESS_JS}</script>`
     : "";
 
@@ -215,6 +227,7 @@ ${paged ? PAGED_PREVIEW_CSS : ""}`;
 <title>${escapeHtml(title)}</title>
 <link rel="stylesheet" href="/fonts/fonts.css">
 <style>${css}</style>
+${watermarkTemplate}
 </head>
 <body class="tpl-${doc.template} mode-${mode} purpose-${purpose}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
 ${coverHtml(doc, brand, body.coverLines)}

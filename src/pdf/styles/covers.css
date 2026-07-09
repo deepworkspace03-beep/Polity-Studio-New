@@ -247,7 +247,9 @@ body.mode-flow .cover {
 .closing {
   page: closing;
   break-before: page;
-  height: 100%;
+  /* min-height (not height) — a 100%-height box can overflow the page
+     content box by the chrome padding and spill a blank trailing page. */
+  min-height: calc(100% - 8mm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,6 +258,8 @@ body.mode-flow .cover {
 .closing__card { max-width: 120mm; }
 .closing__card > .cv-mark { color: var(--c-primary); margin-bottom: 6mm; }
 .closing__brand {
+  border: none;
+  padding: 0;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-size: 17pt;
   font-weight: 800;

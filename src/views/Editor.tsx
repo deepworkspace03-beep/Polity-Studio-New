@@ -65,7 +65,7 @@ export function Editor({ id }: { id: string }) {
           placeholder="Untitled document"
           aria-label="Document title"
         />
-        <span className="hidden text-xs text-faint md:inline">{stats.words.toLocaleString()} words · autosaved</span>
+        <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
         <IconButton label="Document details" name="sliders" onClick={() => setDetailsOpen(true)} />
         <IconButton label="AI assistant" name="sparkles" active={aiOpen} onClick={() => setAiOpen((v) => !v)} />
         <Button variant="primary" icon="export" onClick={handleExport} disabled={exportPhase !== null} className="px-2.5 sm:px-3">
@@ -74,7 +74,7 @@ export function Editor({ id }: { id: string }) {
       </header>
 
       {/* Write / Preview switch on small screens */}
-      <div className="flex justify-center border-b border-edge bg-surface py-1.5 md:hidden">
+      <div className="flex justify-center border-b border-edge bg-surface py-1.5 lg:hidden">
         <Segmented
           size="sm"
           value={tab}
@@ -87,7 +87,7 @@ export function Editor({ id }: { id: string }) {
       </div>
 
       <div className="relative flex min-h-0 flex-1">
-        <div className={cx("min-w-0 flex-1 flex-col md:flex md:w-1/2 md:border-r md:border-edge", tab === "write" ? "flex" : "hidden")}>
+        <div className={cx("min-w-0 flex-1 flex-col lg:flex lg:w-1/2 lg:border-r lg:border-edge", tab === "write" ? "flex" : "hidden")}>
           <Toolbar getView={() => viewRef.current} />
           <div className="min-h-0 flex-1">
             <CodeMirror
@@ -101,7 +101,7 @@ export function Editor({ id }: { id: string }) {
             />
           </div>
         </div>
-        <div className={cx("min-w-0 flex-1 md:block md:w-1/2", tab === "preview" ? "block" : "hidden")}>
+        <div className={cx("min-w-0 flex-1 lg:block lg:w-1/2", tab === "preview" ? "block" : "hidden")}>
           <Preview doc={doc} brand={brand} />
         </div>
 
