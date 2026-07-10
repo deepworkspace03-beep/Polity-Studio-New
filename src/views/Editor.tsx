@@ -4,8 +4,10 @@ import { navigate } from "../lib/router";
 import { flushSaves, updateDoc, useApp } from "../lib/store";
 import { contentStats, cx } from "../lib/utils";
 import type { Doc } from "../lib/types";
-import { Button, IconButton, Segmented, useToast } from "../components/ui";
+import { Button, DropOverlay, IconButton, Segmented, useFileDrop, useToast } from "../components/ui";
 import { Icon, type IconName } from "../components/Icon";
+import { openPalette } from "../components/CommandPalette";
+import { readImportFile } from "../lib/importer";
 import { CodeMirror } from "./editor/CodeMirror";
 import { Toolbar } from "./editor/Toolbar";
 import { Preview, type InlineEdit } from "./editor/Preview";
@@ -109,7 +111,7 @@ function patchHeadingLine(body: string, line: number, text: string): string {
   return lines.join("\n");
 }
 
-export function Editor({ id }: { id: string }) {
+export function Editor({ id, line }: { id: string; line?: number }) {
   const { docs, brand, settings } = useApp();
   const toast = useToast();
   const doc = docs.find((d) => d.id === id);
@@ -191,6 +193,31 @@ export function Editor({ id }: { id: string }) {
 
   const onChange = useCallback((patch: Partial<Doc>) => updateDoc(id, patch), [id]);
 
+  // Deep link from universal search (#/edit/:id/:line): put the cursor
+  // on the matched line. Child effects run first, so the view exists.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!line || !view) return;
+    const ln = Math.min(view.state.doc.lines, line);
+    view.dispatch({ selection: { anchor: view.state.doc.line(ln).from }, scrollIntoView: true });
+  }, [id, line]);
+
+  // Dropping .md/.txt/.html files on the editor inserts their converted
+  // content at the cursor (whole-file import lives in the Library).
+  const drop = useFileDrop(async (files) => {
+    const parts: string[] = [];
+    for (const file of files) {
+      const r = await readImportFile(file);
+      if (r.kind === "doc") parts.push(r.body);
+      else if (r.kind === "skip") toast(`Skipped ${file.name} — ${r.reason}`, "error");
+      else toast(`${file.name} is a backup — restore it from Settings`, "info");
+    }
+    const view = viewRef.current;
+    if (!parts.length || !view) return;
+    view.dispatch({ ...view.state.replaceSelection(parts.join("\n\n")), scrollIntoView: true });
+    toast(`Inserted ${parts.length === 1 ? files[0].name : `${parts.length} files`} at the cursor`, "ok");
+  });
+
   const onInlineEdit = useCallback(
     (edit: InlineEdit) => {
       if ("field" in edit) {
@@ -247,6 +274,7 @@ export function Editor({ id }: { id: string }) {
           aria-label="Document title"
         />
         <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
+        <IconButton label="Search everything (Ctrl+K)" name="search" size={17} onClick={openPalette} />
         <IconButton label="Markdown guide" name="help" size={17} onClick={() => navigate("help")} />
         <IconButton
           label="Document details & layout"
@@ -302,10 +330,11 @@ export function Editor({ id }: { id: string }) {
         {/* Markdown editor — always the primary pane, fills whatever space the side panes leave. */}
         <div
           className={cx(
-            "min-w-0 flex-1 flex-col md:border-r md:border-edge",
+            "relative min-w-0 flex-1 flex-col md:border-r md:border-edge",
             fullscreen ? "hidden" : "md:flex",
             tab === "write" ? "flex" : "hidden",
           )}
+          {...drop.handlers}
         >
           <Toolbar getView={() => viewRef.current} />
           <div className="min-h-0 flex-1">
@@ -317,9 +346,11 @@ export function Editor({ id }: { id: string }) {
                 flushSaves();
                 toast("Saved", "ok");
               }}
+              onSmartPaste={(summary) => toast(`${summary} — Ctrl+Z restores the original`, "ok")}
               viewRef={viewRef}
             />
           </div>
+          <DropOverlay show={drop.over} label="Drop to insert at the cursor" />
         </div>
 
         {/* Live preview */}

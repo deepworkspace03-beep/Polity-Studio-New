@@ -68,7 +68,14 @@ src/
 │  ├─ db.ts              minimal typed IndexedDB (docs + kv stores)
 │  ├─ store.ts           app store: load, autosave (debounced + pagehide
 │  │                     flush), delete-all, backup/restore
-│  ├─ router.ts          hash router (#/, #/edit/:id, #/settings, #/help)
+│  ├─ router.ts          hash router (#/, #/edit/:id[/:line], #/settings,
+│  │                     #/help) — :line deep-links search hits
+│  ├─ importer.ts        smart import: HTML→Markdown (DOMParser walk, no
+│  │                     deps) for Word/GDocs/web/AI-chat paste, plain-text
+│  │                     tidy, file import (.md/.txt/.html + backup .json)
+│  ├─ search.ts          universal search: scored linear scan over the
+│  │                     in-memory corpus (title > metadata > body), with
+│  │                     snippet + line for editor deep links
 │  └─ utils.ts           uid, cx, debounce, dates, download, stats
 ├─ brand/
 │  ├─ defaults.ts        default Polity Made Simple branding + settings
@@ -102,7 +109,9 @@ src/
 │  │                     geometry
 │  └─ styles/            print-base.css (foundation) · covers.css ·
 │                        notes/revision/mcq/flashcards.css
-├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast…
+├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast,
+│                        file-drop hook/overlay, CommandPalette (Ctrl+K:
+│                        global search + actions, mounted once in App)
 └─ views/
    ├─ Library.tsx        home: hero, document grid, search, templates,
    │                     Examples, theme toggle (no persistent nav chrome)
@@ -168,6 +177,26 @@ typing is never clobbered.
 - **New toolbar action** — a command in `views/editor/commands.ts` and
   an entry in the `GROUPS` list in `views/editor/Toolbar.tsx` (add a
   keyboard binding in `CodeMirror.tsx` if it deserves one).
+
+## Import & universal search
+
+Smart Paste intercepts the editor's paste event only when it can add value:
+rich clipboard HTML (Word, Google Docs, web pages, AI chats) is converted to
+the app's Markdown dialect by a dependency-free DOMParser walk in
+`lib/importer.ts`; plain text gets only unambiguous fixes (unicode bullets,
+zero-width junk, NBSP) so pasted Markdown and MCQ bodies (`Q1.`, `a)`) pass
+through untouched. Every conversion is one CodeMirror transaction — Ctrl+Z
+always restores the raw paste — and a toast summarizes what was converted.
+The same converter backs drag-and-drop and the Import picker: files dropped
+on the Library become documents (a leading `# Title` is promoted to the doc
+title; a dropped backup .json restores), files dropped on the editor insert
+at the cursor.
+
+Search (`lib/search.ts`) is a scored linear scan — the whole corpus is
+already in memory, so an index would be pure overhead at this scale. Content
+hits carry a snippet and line number; the palette (Ctrl+K, `CommandPalette.tsx`)
+and Library search both use it, and opening a content hit deep-links
+`#/edit/:id/:line` to place the cursor on the match.
 
 ## Storage & data safety
 

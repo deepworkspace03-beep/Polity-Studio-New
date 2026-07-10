@@ -262,6 +262,57 @@ export function Modal({
   );
 }
 
+/* ── File drag & drop ──────────────────────────────────────────────── */
+
+/** Tracks a files-only drag over a container. Depth-counted so child
+    enter/leave churn doesn't flicker the overlay; text drags (moving a
+    selection inside the editor) are ignored. Capture-phase handlers so
+    the drop never reaches CodeMirror's own file handling. */
+export function useFileDrop(onFiles: (files: File[]) => void) {
+  const [over, setOver] = useState(false);
+  const depth = useRef(0);
+  const hasFiles = (e: React.DragEvent) => e.dataTransfer?.types.includes("Files");
+  return {
+    over,
+    handlers: {
+      onDragEnterCapture: (e: React.DragEvent) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        depth.current++;
+        setOver(true);
+      },
+      onDragOverCapture: (e: React.DragEvent) => {
+        if (hasFiles(e)) e.preventDefault();
+      },
+      onDragLeaveCapture: (e: React.DragEvent) => {
+        if (!hasFiles(e)) return;
+        depth.current = Math.max(0, depth.current - 1);
+        if (!depth.current) setOver(false);
+      },
+      onDropCapture: (e: React.DragEvent) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        depth.current = 0;
+        setOver(false);
+        onFiles([...e.dataTransfer.files]);
+      },
+    },
+  };
+}
+
+export function DropOverlay({ show, label }: { show: boolean; label: string }) {
+  if (!show) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-bg/70 backdrop-blur-[2px]">
+      <div className="flex items-center gap-2.5 rounded-2xl border-2 border-dashed border-accent bg-surface px-6 py-4 text-sm font-semibold text-accent shadow-xl">
+        <Icon name="upload" size={17} />
+        {label}
+      </div>
+    </div>
+  );
+}
+
 /* ── Toasts ────────────────────────────────────────────────────────── */
 
 interface ToastItem {

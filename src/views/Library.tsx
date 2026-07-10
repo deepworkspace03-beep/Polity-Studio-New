@@ -5,8 +5,11 @@ import { contentStats, cx, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import { DEMOS, type DemoDoc } from "../templates/demos";
 import type { TemplateId } from "../lib/types";
-import { Button, IconButton, Modal, useToast } from "../components/ui";
+import { searchDocs } from "../lib/search";
+import { importFilesAsDocs, pickAndImportFiles } from "../lib/importer";
+import { Button, DropOverlay, IconButton, Modal, useFileDrop, useToast } from "../components/ui";
 import { Icon, TempleMark } from "../components/Icon";
+import { openPalette } from "../components/CommandPalette";
 
 function TemplateGlyph({ id, className }: { id: TemplateId; className?: string }) {
   return (
@@ -32,11 +35,17 @@ export function Library() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
+  // Content-aware: matches body text as well as title/metadata, ranked.
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return docs;
-    return docs.filter((d) => (d.title + " " + d.exam + " " + d.subtitle).toLowerCase().includes(q));
+    return searchDocs(docs, q, 200).map((h) => h.doc);
   }, [docs, query]);
+
+  const drop = useFileDrop(async (files) => {
+    const doc = await importFilesAsDocs(files, toast);
+    if (doc) navigate({ edit: doc.id });
+  });
 
   function exitSelectMode() {
     setSelectMode(false);
@@ -90,11 +99,13 @@ export function Library() {
   const isDark = settings.theme === "dark" || (settings.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
 
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+    <div className="relative mx-auto flex h-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8" {...drop.handlers}>
+      <DropOverlay show={drop.over} label="Drop files to import as documents" />
       <header className="mb-8 flex items-center gap-2.5">
         <TempleMark size={26} className="flex-none text-accent" />
         <span className="min-w-0 truncate text-[15px] font-extrabold tracking-tight">Polity Studio</span>
         <span className="flex-1" />
+        <IconButton label="Search everything (Ctrl+K)" name="search" size={18} onClick={openPalette} />
         {docs.length > 0 &&
           (selectMode ? (
             <Button onClick={exitSelectMode}>Cancel</Button>
@@ -118,7 +129,10 @@ export function Library() {
             Turn your Markdown into a beautifully branded, exam-ready PDF.
           </p>
         </div>
-        <div className="flex flex-none gap-2">
+        <div className="flex flex-none flex-wrap gap-2">
+          <Button icon="upload" onClick={() => pickAndImportFiles(toast, (doc) => navigate({ edit: doc.id }))}>
+            Import
+          </Button>
           <Button icon="eye" onClick={() => setExamplesOpen(true)}>
             Examples
           </Button>
@@ -134,7 +148,7 @@ export function Library() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search documents…"
+            placeholder="Search titles, content & metadata…"
             className="w-full rounded-xl border border-edge bg-surface py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-faint focus:border-accent"
           />
         </div>
@@ -145,8 +159,8 @@ export function Library() {
           <TempleMark size={44} className="mb-4 text-accent/70" />
           <h3 className="text-base font-bold">Your studio is empty</h3>
           <p className="mt-1 max-w-sm text-sm text-faint">
-            Create your first document and turn raw notes into an exam-ready PDF in minutes — or open an example to see
-            what the studio can do.
+            Create your first document and turn raw notes into an exam-ready PDF in minutes — paste straight from
+            Word, Google Docs or an AI chat, drop .md / .txt / .html files anywhere on this screen, or open an example.
           </p>
           <div className="mt-5 flex gap-2">
             <Button icon="eye" onClick={() => setExamplesOpen(true)}>
