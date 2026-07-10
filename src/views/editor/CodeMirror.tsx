@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { insertLink, wrapSelection } from "./commands";
+import { smartPaste } from "../../lib/importer";
 
 /** Markdown syntax colors driven by the app theme variables, so the
     editor follows dark/light mode automatically. */
@@ -47,17 +48,21 @@ export interface CodeMirrorProps {
   /** 1-based line number of the primary cursor — drives preview sync. */
   onCursorLine?: (line: number) => void;
   onSaveShortcut?: () => void;
+  /** Fired when a paste was auto-converted/tidied, with a summary line. */
+  onSmartPaste?: (summary: string) => void;
   viewRef: React.MutableRefObject<EditorView | null>;
 }
 
-export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, viewRef }: CodeMirrorProps) {
+export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   const onCursorRef = useRef(onCursorLine);
   const onSaveRef = useRef(onSaveShortcut);
+  const onSmartPasteRef = useRef(onSmartPaste);
   onChangeRef.current = onChange;
   onCursorRef.current = onCursorLine;
   onSaveRef.current = onSaveShortcut;
+  onSmartPasteRef.current = onSmartPaste;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -83,6 +88,23 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, view
             ...defaultKeymap,
             ...historyKeymap,
           ]),
+          // Smart Paste: rich clipboard content (Word, Google Docs, web,
+          // AI chats) is converted to the app's Markdown before insert.
+          // Returns false when conversion adds nothing, so the default
+          // paste happens; the paste is one transaction, so Ctrl+Z
+          // always restores the raw text.
+          EditorView.domEventHandlers({
+            paste: (event, view) => {
+              const dt = event.clipboardData;
+              if (!dt) return false;
+              const result = smartPaste(dt.getData("text/html"), dt.getData("text/plain"));
+              if (!result) return false;
+              event.preventDefault();
+              view.dispatch({ ...view.state.replaceSelection(result.markdown), scrollIntoView: true });
+              onSmartPasteRef.current?.(result.summary);
+              return true;
+            },
+          }),
           markdown({ base: markdownLanguage }),
           syntaxHighlighting(mdHighlight),
           editorTheme,

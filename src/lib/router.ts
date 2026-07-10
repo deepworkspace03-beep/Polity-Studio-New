@@ -8,14 +8,21 @@ import { useSyncExternalStore } from "react";
 
 export type Route =
   | { view: "library" }
-  | { view: "editor"; id: string }
-  | { view: "settings" };
+  | { view: "editor"; id: string; line?: number }
+  | { view: "settings" }
+  | { view: "help" };
 
 function parse(): Route {
   const hash = window.location.hash.replace(/^#\/?/, "");
   const [head, ...rest] = hash.split("/");
-  if (head === "edit" && rest[0]) return { view: "editor", id: decodeURIComponent(rest[0]) };
+  if (head === "edit" && rest[0]) {
+    // Optional line segment (#/edit/:id/:line) deep-links search hits
+    // to the matched body line.
+    const line = Number(rest[1]);
+    return { view: "editor", id: decodeURIComponent(rest[0]), line: Number.isInteger(line) && line > 0 ? line : undefined };
+  }
   if (head === "settings") return { view: "settings" };
+  if (head === "help") return { view: "help" };
   return { view: "library" };
 }
 
@@ -34,6 +41,11 @@ export function useRoute(): Route {
   return useSyncExternalStore(subscribe, () => current);
 }
 
-export function navigate(path: "library" | "settings" | { edit: string }): void {
-  window.location.hash = typeof path === "string" ? (path === "library" ? "#/" : "#/settings") : `#/edit/${encodeURIComponent(path.edit)}`;
+export function navigate(path: "library" | "settings" | "help" | { edit: string; line?: number }): void {
+  window.location.hash =
+    typeof path === "string"
+      ? path === "library"
+        ? "#/"
+        : `#/${path}`
+      : `#/edit/${encodeURIComponent(path.edit)}${path.line ? `/${path.line}` : ""}`;
 }

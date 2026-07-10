@@ -105,8 +105,18 @@ export interface LoadedFace {
 export class FontResolver {
   private loaded = new Map<string, Promise<LoadedFace | null>>();
   private warned = new Set<string>();
+  /** (font-family stack, weight, style, codepoint) → face. Once warm,
+      the per-character hot loop is a synchronous Map hit instead of an
+      awaited promise — on a 400-page export that removes millions of
+      microtask allocations. */
+  private memo = new Map<string, LoadedFace | null>();
   constructor(private pdf: PDFDocument, private baseUrl: string) {
     this.pdf.registerFontkit(fontkit);
+  }
+
+  /** Synchronous cache probe; `undefined` means "not resolved yet". */
+  cached(stackKey: string, weight: number, italic: boolean, cp: number): LoadedFace | null | undefined {
+    return this.memo.get(`${stackKey}|${weight}|${italic ? 1 : 0}|${cp}`);
   }
 
   private load(def: FaceDef): Promise<LoadedFace | null> {
@@ -153,7 +163,8 @@ export class FontResolver {
    * unicode-range covers the character participate; nearest
    * weight/style wins. Returns null when nothing covers it.
    */
-  async resolve(stack: string[], weight: number, italic: boolean, cp: number): Promise<LoadedFace | null> {
+  async resolve(stack: string[], weight: number, italic: boolean, cp: number, stackKey?: string): Promise<LoadedFace | null> {
+    let result: LoadedFace | null = null;
     for (const raw of stack) {
       const name = raw.trim().replace(/^["']|["']$/g, "").toLowerCase();
       const family = FACES.some((f) => f.family === name) ? name : GENERIC[name];
@@ -164,9 +175,13 @@ export class FontResolver {
       const pool = styled.length ? styled : covering;
       const chosen = pickWeight(pool, weight);
       const face = await this.load(chosen);
-      if (face && face.hasGlyph(cp)) return face;
+      if (face && face.hasGlyph(cp)) {
+        result = face;
+        break;
+      }
       // Slice covers the range but misses the glyph — try remaining families.
     }
-    return null;
+    if (stackKey !== undefined) this.memo.set(`${stackKey}|${weight}|${italic ? 1 : 0}|${cp}`, result);
+    return result;
   }
 }
