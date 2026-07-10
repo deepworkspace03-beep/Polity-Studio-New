@@ -6,10 +6,11 @@ import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import { DEMOS, type DemoDoc } from "../templates/demos";
 import type { TemplateId } from "../lib/types";
 import { searchDocs } from "../lib/search";
-import { importFilesAsDocs, pickAndImportFiles } from "../lib/importer";
+import { pickAndImportFiles, stageAndReview } from "../components/ImportReview";
 import { Button, DropOverlay, IconButton, Modal, useFileDrop, useToast } from "../components/ui";
 import { Icon, TempleMark } from "../components/Icon";
 import { openPalette } from "../components/CommandPalette";
+import { StudioNav } from "../components/StudioNav";
 
 function TemplateGlyph({ id, className }: { id: TemplateId; className?: string }) {
   return (
@@ -42,10 +43,7 @@ export function Library() {
     return searchDocs(docs, q, 200).map((h) => h.doc);
   }, [docs, query]);
 
-  const drop = useFileDrop(async (files) => {
-    const doc = await importFilesAsDocs(files, toast);
-    if (doc) navigate({ edit: doc.id });
-  });
+  const drop = useFileDrop((files) => stageAndReview(files, toast, (doc) => navigate({ edit: doc.id })));
 
   function exitSelectMode() {
     setSelectMode(false);
@@ -106,6 +104,7 @@ export function Library() {
         <span className="min-w-0 truncate text-[15px] font-extrabold tracking-tight">Polity Studio</span>
         <span className="flex-1" />
         <IconButton label="Search everything (Ctrl+K)" name="search" size={18} onClick={openPalette} />
+        <StudioNav home={false} />
         {docs.length > 0 &&
           (selectMode ? (
             <Button onClick={exitSelectMode}>Cancel</Button>

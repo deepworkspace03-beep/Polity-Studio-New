@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { navigate } from "../lib/router";
 import {
   deleteAllDocs,
   exportBackup,
@@ -13,7 +12,8 @@ import {
 import { DEFAULT_BRAND } from "../brand/defaults";
 import type { BrandConfig } from "../lib/types";
 import { downloadFile } from "../lib/utils";
-import { Button, Field, IconButton, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
+import { Button, Field, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
+import { StudioNav } from "../components/StudioNav";
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -57,7 +57,7 @@ export function Settings() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
       <header className="mb-6 flex items-center gap-2">
-        <IconButton label="Back to library" name="back" size={18} onClick={() => navigate("library")} />
+        <StudioNav />
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold">Settings</h1>
           <p className="text-xs text-faint">Every change saves automatically.</p>

@@ -43,5 +43,5 @@
 .doc p > img:only-child {
   border: 0.6pt solid var(--c-edge);
   padding: 2mm;
-  background: white;
+  background: var(--c-mix, white);
 }

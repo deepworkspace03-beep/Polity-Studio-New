@@ -4,7 +4,7 @@ body { font-size: calc(var(--body-size) * 0.92); line-height: 1.5; }
   font-size: 1.5em;
   margin: 1.1em 0 0.5em;
   padding: 0.35em 0.6em;
-  background: color-mix(in srgb, var(--c-accentSoft) 70%, white);
+  background: color-mix(in srgb, var(--c-accentSoft) 70%, var(--c-mix, white));
   border-left: 3.5pt solid var(--c-accent);
   border-radius: 0 4pt 4pt 0;
 }

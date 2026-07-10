@@ -3,6 +3,7 @@ import { useRoute } from "./lib/router";
 import { useApp } from "./lib/store";
 import { ToastProvider } from "./components/ui";
 import { CommandPalette } from "./components/CommandPalette";
+import { ImportReviewModal } from "./components/ImportReview";
 import { Library } from "./views/Library";
 
 const Editor = lazy(() => import("./views/Editor").then((m) => ({ default: m.Editor })));
@@ -55,6 +56,7 @@ export default function App() {
         </Suspense>
       </div>
       <CommandPalette />
+      <ImportReviewModal />
     </ToastProvider>
   );
 }

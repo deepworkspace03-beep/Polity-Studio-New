@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
-import { IconButton } from "../../components/ui";
+import { openSearchPanel } from "@codemirror/search";
+import { IconButton, useToast } from "../../components/ui";
 import { Icon, type IconName } from "../../components/Icon";
 import { CALLOUTS } from "../../markdown/renderer";
+import { IMPORT_ACCEPT } from "../../lib/importer";
+import { stageAndReviewForInsert } from "../../components/ImportReview";
 import {
   CODE_SNIPPET,
   TABLE_SNIPPET,
@@ -62,11 +65,14 @@ const GROUPS: Action[][] = [
     { id: "hr", icon: "minus", label: "Divider line", run: (v) => insertBlock(v, "---") },
     { id: "pagebreak", icon: "pagebreak", label: "Page break (starts a new PDF page)", run: (v) => insertBlock(v, "\\pagebreak") },
   ],
+  [{ id: "findReplace", icon: "replace", label: "Find & replace (Ctrl+F)", run: (v) => void openSearchPanel(v) }],
 ];
 
 export function Toolbar({ getView }: { getView: () => EditorView | null }) {
   const [calloutsOpen, setCalloutsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   useEffect(() => {
     if (!calloutsOpen) return;
@@ -81,6 +87,14 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
     const view = getView();
     if (view) fn(view);
   };
+
+  function insertFile(file: File) {
+    void stageAndReviewForInsert([file], toast, (markdown) => {
+      const view = getView();
+      if (!view) return;
+      view.dispatch({ ...view.state.replaceSelection(markdown), scrollIntoView: true });
+    });
+  }
 
   return (
     <div className="flex items-center gap-0.5 overflow-x-auto border-b border-edge bg-surface px-1.5 py-1 [scrollbar-width:none]">
@@ -124,6 +138,22 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           </div>
         )}
       </div>
+      <IconButton
+        label="Insert file — Markdown, text, HTML or Word (.docx) at the cursor"
+        name="upload"
+        onClick={() => fileRef.current?.click()}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept={IMPORT_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void insertFile(file);
+        }}
+      />
     </div>
   );
 }

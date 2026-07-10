@@ -10,7 +10,6 @@
  *   D) Laski
  *   Answer: B                             ← …or write it explicitly
  *   Explanation: Aristotle decided what other sciences belong in a state.
- *   Difficulty: Easy
  *   Topic: Greek Political Thought
  *   Source: UGC-NET Dec 2023
  *
@@ -37,7 +36,6 @@ export interface McqQuestion {
   options: McqOption[];
   answer?: string;
   explanation?: string;
-  difficulty?: string;
   topic?: string;
   source?: string;
   marks?: string;
@@ -60,6 +58,10 @@ export interface McqDocument {
 
 const QUESTION_RE = /^Q\s*(\d+)?\s*[.):]\s*(.*)$/i;
 const OPTION_RE = /^\(?([A-Ea-e1-5])[).:]\s+(.*)$/;
+// "Difficulty"/"Level" are still recognized (and silently dropped) so
+// older documents that still have those lines don't have them bleed
+// into the next option/explanation text — the booklet just stopped
+// rendering them as chips (see templates/index.ts).
 const META_RE = /^(Answer|Ans|Explanation|Exp|Difficulty|Level|Topic|Source|Marks)\s*:\s*(.*)$/i;
 const SECTION_RE = /^##\s+(.*)$/;
 
@@ -157,8 +159,7 @@ export function parseMcq(body: string): McqDocument {
           q.explanation = value;
           collecting = "explanation";
         } else if (field === "difficulty" || field === "level") {
-          q.difficulty = value;
-          collecting = null;
+          collecting = null; // recognized, intentionally not stored — no longer rendered
         } else if (field === "topic") {
           q.topic = value;
           collecting = null;

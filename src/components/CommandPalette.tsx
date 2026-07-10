@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { navigate } from "../lib/router";
 import { createDoc, exportBackup, saveSettings, useApp } from "../lib/store";
 import { searchDocs, type SearchHit } from "../lib/search";
-import { pickAndImportFiles } from "../lib/importer";
+import { pickAndImportFiles } from "./ImportReview";
 import { cx, downloadFile, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import type { Doc } from "../lib/types";

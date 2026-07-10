@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { BrandConfig, Doc, DocTheme } from "../../lib/types";
 import { buildDocContent, buildDocumentHtml, buildShellKey } from "../../pdf/document";
+import { saveSettings } from "../../lib/store";
 import { IconButton, Segmented } from "../../components/ui";
 
 type PreviewMode = "flow" | "pages";
@@ -178,10 +179,11 @@ export function Preview({
   }
 
   const isPages = mode === "pages";
+  const isDark = theme === "dark";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-edge bg-surface px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-b border-edge bg-surface px-2 py-1">
         <Segmented
           size="sm"
           value={mode}
@@ -215,10 +217,16 @@ export function Preview({
         )}
 
         <IconButton
+          label={isDark ? "Switch document to light reading theme" : "Switch document to dark reading theme"}
+          name={isDark ? "sun" : "moon"}
+          size={15}
+          className="ml-auto"
+          onClick={() => saveSettings({ docTheme: isDark ? "light" : "dark" })}
+        />
+        <IconButton
           label={fullscreen ? "Exit full screen" : "Full screen"}
           name={fullscreen ? "collapse" : "expand"}
           size={15}
-          className="ml-auto"
           active={fullscreen}
           onClick={onToggleFullscreen}
         />

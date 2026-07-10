@@ -1,5 +1,6 @@
-import type { Doc } from "./types";
-import { createDoc, importBackup } from "./store";
+import { importBackup } from "./store";
+import { newTally, plural, summarize, wrap, type Tally } from "./importTally";
+import { docxToMarkdown, isDocxSupported } from "./docx";
 
 /**
  * Smart import engine — converts whatever arrives via clipboard, drag &
@@ -19,35 +20,6 @@ export interface ImportResult {
 }
 
 /* ── Conversion tally → human summary ─────────────────────────────── */
-
-interface Tally {
-  headings: number;
-  listItems: number;
-  tables: number;
-  quotes: number;
-  codeBlocks: number;
-  links: number;
-  imagesDropped: number;
-}
-
-const newTally = (): Tally => ({ headings: 0, listItems: 0, tables: 0, quotes: 0, codeBlocks: 0, links: 0, imagesDropped: 0 });
-
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
-
-function summarize(flavor: string, t: Tally): string {
-  const parts: string[] = [];
-  if (t.headings) parts.push(plural(t.headings, "heading"));
-  if (t.listItems) parts.push(plural(t.listItems, "list item"));
-  if (t.tables) parts.push(plural(t.tables, "table"));
-  if (t.quotes) parts.push(plural(t.quotes, "quote"));
-  if (t.codeBlocks) parts.push(plural(t.codeBlocks, "code block"));
-  if (t.links) parts.push(plural(t.links, "link"));
-  if (t.imagesDropped) parts.push(`${plural(t.imagesDropped, "image")} removed`);
-  const detail = parts.slice(0, 3).join(", ");
-  return `Converted ${flavor} to Markdown${detail ? ` — ${detail}` : ""}`;
-}
 
 function flavorOf(html: string): string {
   if (/mso-|urn:schemas-microsoft-com|class="?Mso/i.test(html)) return "Word content";
@@ -75,14 +47,6 @@ const styleAttr = (el: Element): string => (el.getAttribute("style") || "").toLo
     in Devanagari text. */
 function cleanText(s: string): string {
   return s.replace(/[\u200b\ufeff]/g, "").replace(/\u00a0/g, " ").replace(/\s+/g, " ");
-}
-
-/** Wraps trimmed content in a Markdown delimiter, keeping surrounding
-    spaces outside so `** bold **` never happens. */
-function wrap(inner: string, mark: string): string {
-  const m = inner.match(/^(\s*)([\s\S]*?)(\s*)$/)!;
-  if (!m[2] || (m[2].startsWith(mark) && m[2].endsWith(mark))) return inner;
-  return `${m[1]}${mark}${m[2]}${mark}${m[3]}`;
 }
 
 function inlineChildren(el: Element, t: Tally): string {
@@ -320,7 +284,7 @@ export function smartPaste(html: string, text: string): ImportResult | null {
 
 /* ── File import ──────────────────────────────────────────────────── */
 
-export const IMPORT_ACCEPT = ".md,.markdown,.txt,.text,.html,.htm,.json";
+export const IMPORT_ACCEPT = ".md,.markdown,.txt,.text,.html,.htm,.json,.docx";
 
 export type FileImport =
   | { kind: "doc"; title: string; body: string; summary: string }
@@ -329,6 +293,16 @@ export type FileImport =
 
 export async function readImportFile(file: File): Promise<FileImport> {
   const ext = file.name.toLowerCase().match(/\.(\w+)$/)?.[1] || "";
+  if (ext === "docx") {
+    if (!isDocxSupported()) return { kind: "skip", reason: "Word import needs a newer browser" };
+    if (file.size > 20_000_000) return { kind: "skip", reason: "file is too large" };
+    try {
+      const { markdown, summary } = await docxToMarkdown(await file.arrayBuffer());
+      return { kind: "doc", title: file.name.replace(/\.\w+$/, ""), body: markdown, summary };
+    } catch (err) {
+      return { kind: "skip", reason: err instanceof Error ? err.message : "couldn't read this Word file" };
+    }
+  }
   const textual = ["md", "markdown", "txt", "text", "html", "htm", "json"].includes(ext) || file.type.startsWith("text/");
   if (!textual) return { kind: "skip", reason: "unsupported file type" };
   if (file.size > 5_000_000) return { kind: "skip", reason: "file is too large" };
@@ -353,11 +327,23 @@ export async function readImportFile(file: File): Promise<FileImport> {
 
 type Toast = (message: string, tone?: "ok" | "error" | "info") => void;
 
-/** Creates library documents from files (or restores a dropped backup).
-    Returns the new doc when exactly one was created so callers can open
-    it directly. */
-export async function importFilesAsDocs(files: File[], toast: Toast): Promise<Doc | null> {
-  const created: Doc[] = [];
+export interface StagedDoc {
+  title: string;
+  body: string;
+  summary: string;
+}
+
+/** Converts files into ready-to-review documents, or restores a dropped
+    backup immediately (reviewing a full JSON backup line by line isn't
+    practical, and restore already has its own toast). Skips and
+    restores are reported as they happen; the returned list is what the
+    Import Review modal (components/ImportReview.tsx) shows before any
+    document is actually created. Titles are just the filename here —
+    callers that create whole documents should run the result through
+    `promoteLeadingTitle`; callers that insert into an existing document
+    must not, or a converted heading would silently vanish. */
+export async function stageImportFiles(files: File[], toast: Toast): Promise<StagedDoc[]> {
+  const staged: StagedDoc[] = [];
   let restored = 0;
   for (const file of files) {
     const r = await readImportFile(file);
@@ -370,31 +356,21 @@ export async function importFilesAsDocs(files: File[], toast: Toast): Promise<Do
         toast(`${file.name}: ${(err as Error).message}`, "error");
       }
     } else {
-      // Promote a single leading `# Title` into the document title — the
-      // cover renders the title already, so leaving it in the body would
-      // print it twice.
-      const m = r.body.match(/^#[ \t]+(.+?)\s*(?:\n+|$)/);
-      created.push(createDoc({
-        template: "notes",
-        title: m ? m[1].trim() : r.title,
-        body: (m ? r.body.slice(m[0].length) : r.body).trim(),
-      }));
+      staged.push({ title: r.title, body: r.body, summary: r.summary });
     }
   }
   if (restored) toast(`Backup restored — ${plural(restored, "document")}`, "ok");
-  if (created.length) toast(`Imported ${created.length === 1 ? `“${created[0].title}”` : `${created.length} documents`}`, "ok");
-  return created.length === 1 && !restored ? created[0] : null;
+  return staged;
 }
 
-/** Opens the OS file picker and imports the chosen files as documents. */
-export function pickAndImportFiles(toast: Toast, onOpen: (doc: Doc) => void): void {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.multiple = true;
-  input.accept = IMPORT_ACCEPT;
-  input.onchange = async () => {
-    const doc = await importFilesAsDocs([...(input.files || [])], toast);
-    if (doc) onOpen(doc);
-  };
-  input.click();
+/** Promotes a single leading `# Title` line into the document title —
+    the cover renders the title already, so leaving it in the body would
+    print it twice. Only meaningful when the result becomes a whole new
+    document; never apply this before inserting into an existing one. */
+export function promoteLeadingTitle(items: StagedDoc[]): StagedDoc[] {
+  return items.map((d) => {
+    const m = d.body.match(/^#[ \t]+(.+?)\s*(?:\n+|$)/);
+    if (!m) return d;
+    return { ...d, title: m[1].trim(), body: d.body.slice(m[0].length).trim() };
+  });
 }

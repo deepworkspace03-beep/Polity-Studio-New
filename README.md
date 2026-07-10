@@ -21,7 +21,7 @@ engine, so files are small, open instantly and keep selectable text.
 ## Highlights
 
 - **Four templates** — Theory Notes, Quick Revision, MCQ Booklet (parsed
-  questions, difficulty/topic/source chips, answer key and explanations)
+  questions, topic/source chips, answer key and explanations)
   and Flash Cards. Library → **Examples** opens a rich showcase of each.
 - **A serious editor** — grouped formatting toolbar (headings, bold,
   italic, underline, highlight, strikethrough, super/subscript, lists,
@@ -66,7 +66,6 @@ B) Aristotle *          ← trailing * marks the answer (or "Answer: B")
 C) Machiavelli
 D) Laski
 Explanation: …
-Difficulty: Easy
 Topic: Greek Political Thought
 Source: UGC-NET Dec 2023
 ```

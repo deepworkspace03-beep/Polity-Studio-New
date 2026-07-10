@@ -87,7 +87,6 @@ B) Aristotle *
 C) Machiavelli
 D) Harold Laski
 Explanation: Aristotle called politics the master science because it determines what other sciences should be studied within the state.
-Difficulty: Easy
 Topic: Greek Political Thought
 Source: UGC-NET Dec 2023
 
@@ -97,7 +96,6 @@ B) Warfare
 C) Economics
 D) Diplomacy
 Explanation: Rousseau called The Republic "the finest treatise on education ever written" — its central concern is the education scheme for guardians.
-Difficulty: Moderate
 Topic: Plato
 Source: UGC-NET June 2024
 `,

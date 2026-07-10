@@ -10,7 +10,7 @@
   border-radius: 4mm;
   overflow: hidden;
   break-inside: avoid;
-  background: white;
+  background: var(--c-mix, white);
 }
 .fcard__front {
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
@@ -18,7 +18,7 @@
   font-size: 1.02em;
   line-height: 1.35;
   color: var(--c-primary);
-  background: color-mix(in srgb, var(--c-accentSoft) 60%, white);
+  background: color-mix(in srgb, var(--c-accentSoft) 60%, var(--c-mix, white));
   border-bottom: 1pt dashed var(--c-edge);
   padding: 3.5mm 4mm;
 }

@@ -9,9 +9,19 @@ export type AnswersMode = "inline" | "end" | "none";
 
 /** Per-document layout & PDF options — everything the user can tune
     about the exported document without touching code. */
+/** Optional per-document overrides on top of the chosen cover style's own
+    palette — unset fields keep the style's default look untouched. */
+export interface CoverColors {
+  bg?: string;
+  ink?: string;
+  accent?: string;
+}
+
 export interface DocLayout {
   cover: boolean;
   coverStyle: CoverStyle;
+  /** Custom cover palette overrides — absent/empty means "use the style default". */
+  coverColors?: CoverColors;
   toc: boolean;
   watermark: boolean;
   pageSize: PageSize;

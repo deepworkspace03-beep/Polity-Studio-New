@@ -70,9 +70,23 @@ src/
 │  │                     flush), delete-all, backup/restore
 │  ├─ router.ts          hash router (#/, #/edit/:id[/:line], #/settings,
 │  │                     #/help) — :line deep-links search hits
+│  ├─ session.ts         "Resume last session" — last open doc + cursor
+│  │                     line in localStorage (throwaway UI state, read
+│  │                     before the store loads, so not IndexedDB)
 │  ├─ importer.ts        smart import: HTML→Markdown (DOMParser walk, no
 │  │                     deps) for Word/GDocs/web/AI-chat paste, plain-text
-│  │                     tidy, file import (.md/.txt/.html + backup .json)
+│  │                     tidy, file staging (.md/.txt/.html/.docx + backup
+│  │                     .json) — actual doc creation/insertion lives in
+│  │                     components/ImportReview.tsx
+│  ├─ importTally.ts     shared "what changed" bookkeeping (Tally,
+│  │                     summarize) used by importer.ts and docx.ts —
+│  │                     split out so DOCX conversion can reuse it
+│  │                     without an importer.ts ⇄ docx.ts circular import
+│  ├─ docx.ts            .docx → Markdown: a hand-rolled ZIP central-
+│  │                     directory reader (DecompressionStream for
+│  │                     deflate — no zip library) + a WordprocessingML
+│  │                     walk (headings, runs, numbering.xml-aware lists,
+│  │                     tables, hyperlinks via relationships)
 │  ├─ search.ts          universal search: scored linear scan over the
 │  │                     in-memory corpus (title > metadata > body), with
 │  │                     snippet + line for editor deep links
@@ -111,18 +125,26 @@ src/
 │                        notes/revision/mcq/flashcards.css
 ├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast,
 │                        file-drop hook/overlay, CommandPalette (Ctrl+K:
-│                        global search + actions, mounted once in App)
+│                        global search + actions), StudioNav (Home /
+│                        Resume last session / Restart Studio header
+│                        actions), ImportReview (confirm-or-edit staged
+│                        imports before they become a document or an
+│                        insert) — the latter two mounted once in App
 └─ views/
    ├─ Library.tsx        home: hero, document grid, search, templates,
    │                     Examples, theme toggle (no persistent nav chrome)
    ├─ Editor.tsx         header, three resizable panes (settings pane ·
-   │                     editor · preview), mobile write/preview tabs
-   ├─ editor/            CodeMirror wrapper, commands, Toolbar, Preview
-   │                     (flow/pages), Details sheet, Publish overlay
+   │                     editor · preview), mobile write/preview tabs,
+   │                     focus mode (hides toolbar + settings pane)
+   ├─ editor/            CodeMirror wrapper (incl. find & replace via
+   │                     @codemirror/search), commands, Toolbar, Preview
+   │                     (flow/pages + doc-theme toggle), Details sheet
+   │                     (incl. per-document cover color overrides),
+   │                     Publish overlay
    ├─ Settings.tsx       appearance (incl. document reading theme),
    │                     branding, defaults, save/restore, your data
-   └─ Help.tsx           Markdown guide: syntax examples, callouts, MCQ
-                         grammar, AI-prompt for generating compatible docs
+   └─ Help.tsx           the manual: Markdown syntax, a guide + tuned AI
+                         prompt per template, workspace tips
 ```
 
 ## Publish flow
