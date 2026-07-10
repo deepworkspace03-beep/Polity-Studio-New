@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
-import { IconButton, useToast } from "../../components/ui";
+import { HintBubble, IconButton, useLongPressHint, useToast } from "../../components/ui";
 import { Icon, type IconName } from "../../components/Icon";
 import { CALLOUTS } from "../../markdown/renderer";
 import { IMPORT_ACCEPT } from "../../lib/importer";
@@ -73,6 +73,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const calloutHint = useLongPressHint();
 
   useEffect(() => {
     if (!calloutsOpen) return;
@@ -112,10 +113,12 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           aria-label="Insert callout box"
           aria-expanded={calloutsOpen}
           onClick={() => setCalloutsOpen((v) => !v)}
-          className="flex items-center gap-1 rounded-lg p-2 text-ink-2 transition-colors hover:bg-raised hover:text-ink"
+          className="relative flex items-center gap-1 rounded-lg p-2 text-ink-2 transition-colors hover:bg-raised hover:text-ink"
+          {...calloutHint.handlers}
         >
           <Icon name="callout" size={16} />
           <Icon name="chevronDown" size={11} />
+          <HintBubble show={calloutHint.show} text="Insert callout box" />
         </button>
         {calloutsOpen && (
           <div className="absolute right-0 top-full z-30 mt-1 w-64 rounded-xl border border-edge bg-surface py-1 shadow-xl">

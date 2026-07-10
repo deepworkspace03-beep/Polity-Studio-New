@@ -38,7 +38,7 @@ export function Button({
 /** Desktop gets the native `title` tooltip on hover for free; touch
     devices don't reliably show it, so a long press reveals the same
     text in a small bubble instead. Shared by IconButton and Segmented. */
-function useLongPressHint() {
+export function useLongPressHint() {
   const [show, setShow] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clear = () => {
@@ -73,7 +73,7 @@ function useLongPressHint() {
 }
 
 /** Small dark bubble anchored above the trigger, shown while `show` is true. */
-function HintBubble({ show, text }: { show: boolean; text: string }) {
+export function HintBubble({ show, text }: { show: boolean; text: string }) {
   if (!show) return null;
   return (
     <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-56 -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-center text-[11px] font-medium leading-snug text-bg shadow-lg">
