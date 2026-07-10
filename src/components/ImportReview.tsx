@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from "react";
 import { createDoc } from "../lib/store";
 import { IMPORT_ACCEPT, promoteLeadingTitle, stageImportFiles, type StagedDoc } from "../lib/importer";
 import type { Doc } from "../lib/types";
+import { TEMPLATE_META_LIST } from "../templates/meta";
 import { cx } from "../lib/utils";
 import { Button, Modal, inputClass } from "./ui";
 
@@ -54,7 +55,7 @@ export async function stageAndReview(files: File[], toast: Toast, onOpen: (doc: 
   const staged = promoteLeadingTitle(await stageImportFiles(files, toast));
   if (!staged.length) return;
   openImportReview(staged, "create", (finalItems) => {
-    const created = finalItems.map((d) => createDoc({ template: "notes", title: d.title || "Untitled", body: d.body }));
+    const created = finalItems.map((d) => createDoc({ template: d.template, title: d.title || "Untitled", body: d.body }));
     toast(`Imported ${created.length === 1 ? `“${created[0].title}”` : `${created.length} documents`}`, "ok");
     if (created.length === 1) onOpen(created[0]);
   });
@@ -124,13 +125,27 @@ function ReviewBody({ items, mode, onConfirm }: { items: StagedDoc[]; mode: Mode
         )}
         <div className="flex min-h-0 flex-1 flex-col gap-2">
           {mode === "create" && (
-            <input
-              value={current.title}
-              onChange={(e) => patch(active, { title: e.target.value })}
-              className={inputClass}
-              placeholder="Document title"
-              aria-label="Document title"
-            />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                value={current.title}
+                onChange={(e) => patch(active, { title: e.target.value })}
+                className={cx(inputClass, "sm:flex-1")}
+                placeholder="Document title"
+                aria-label="Document title"
+              />
+              <select
+                value={current.template}
+                onChange={(e) => patch(active, { template: e.target.value as StagedDoc["template"] })}
+                className={cx(inputClass, "sm:w-44")}
+                aria-label="Document type"
+              >
+                {TEMPLATE_META_LIST.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
           <p className="text-xs text-faint">{current.summary}</p>
           <textarea

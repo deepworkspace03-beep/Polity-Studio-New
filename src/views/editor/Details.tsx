@@ -254,16 +254,23 @@ export function DetailsPane({
   doc,
   onChange,
   onCollapse,
+  onResetLayout,
 }: {
   doc: Doc;
   onChange: (patch: Partial<Doc>) => void;
   onCollapse: () => void;
+  onResetLayout?: () => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
       <header className="flex flex-none items-center justify-between gap-2 border-b border-edge px-4 py-2.5">
         <h2 className="text-xs font-extrabold uppercase tracking-wider text-faint">Settings</h2>
-        <IconButton label="Collapse settings panel" name="chevronLeft" size={14} onClick={onCollapse} />
+        <div className="flex items-center gap-0.5">
+          {onResetLayout && (
+            <IconButton label="Reset workspace to default layout" name="refresh" size={14} onClick={onResetLayout} />
+          )}
+          <IconButton label="Collapse settings panel" name="chevronLeft" size={14} onClick={onCollapse} />
+        </div>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <DetailsFields doc={doc} onChange={onChange} />

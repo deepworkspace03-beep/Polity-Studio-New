@@ -28,6 +28,9 @@ const EDITOR_MIN = 300;
 const RESIZER_W = 6;
 const RAIL_W = 16;
 
+const DEFAULT_SETTINGS_WIDTH = 300;
+const DEFAULT_PREVIEW_WIDTH = 440;
+
 /** Reads/writes a UI preference to localStorage, falling back silently in
     private-browsing contexts where storage access throws. */
 function usePersisted<T extends number | boolean>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -126,8 +129,8 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   const [fullscreen, setFullscreen] = useState(false);
   const [cursorLine, setCursorLine] = useState(1);
 
-  const [settingsWidth, setSettingsWidth] = usePersisted<number>("ps2:pane:settingsWidth", 300);
-  const [previewWidth, setPreviewWidth] = usePersisted<number>("ps2:pane:previewWidth", 440);
+  const [settingsWidth, setSettingsWidth] = usePersisted<number>("ps2:pane:settingsWidth", DEFAULT_SETTINGS_WIDTH);
+  const [previewWidth, setPreviewWidth] = usePersisted<number>("ps2:pane:previewWidth", DEFAULT_PREVIEW_WIDTH);
   const [settingsCollapsed, setSettingsCollapsed] = usePersisted<boolean>("ps2:pane:settingsCollapsed", false);
   const [previewCollapsed, setPreviewCollapsed] = usePersisted<boolean>("ps2:pane:previewCollapsed", false);
   // Distraction-free toggle: hides the formatting toolbar and tucks the
@@ -138,6 +141,17 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   const exitFocus = () => {
     setFocusMode(false);
     setSettingsCollapsed(false);
+  };
+  // "Reset to Default Settings" — restores the three-pane workspace
+  // (widths, collapse state, focus mode) to first-run defaults without
+  // touching the document itself.
+  const resetLayout = () => {
+    setSettingsWidth(DEFAULT_SETTINGS_WIDTH);
+    setPreviewWidth(DEFAULT_PREVIEW_WIDTH);
+    setSettingsCollapsed(false);
+    setPreviewCollapsed(false);
+    setFocusMode(false);
+    toast("Workspace layout reset", "ok");
   };
 
   // Keep the persisted pane widths honest against whatever room the
@@ -340,7 +354,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           ) : (
             <>
               <div className="hidden md:flex md:min-h-0 md:flex-none md:flex-col md:border-r md:border-edge" style={{ width: settingsWidth }}>
-                <DetailsPane doc={doc} onChange={onChange} onCollapse={() => setSettingsCollapsed(true)} />
+                <DetailsPane doc={doc} onChange={onChange} onCollapse={() => setSettingsCollapsed(true)} onResetLayout={resetLayout} />
               </div>
               <PaneResizer label="Resize settings panel" onDrag={resizeSettings} />
             </>
