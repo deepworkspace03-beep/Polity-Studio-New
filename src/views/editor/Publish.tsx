@@ -125,6 +125,11 @@ export function Publish({
     }
   }
 
+  function downloadMarkdown() {
+    downloadFile(`${fileTitle}.md`, doc.body, "text/markdown");
+    toast("Downloaded · plain-text source, portable to any Markdown editor", "ok");
+  }
+
   async function downloadHtml() {
     const srcDoc = frameRef.current?.contentWindow?.document;
     if (!srcDoc) return;
@@ -176,6 +181,12 @@ export function Publish({
           </>
         )}
 
+        <IconButton
+          label="Download Markdown — the raw source, portable to any Markdown editor or backup"
+          name="file"
+          size={17}
+          onClick={downloadMarkdown}
+        />
         {phase !== "error" && (
           <IconButton
             label="Download HTML — the same pages as an offline web page, opens instantly in any browser"
