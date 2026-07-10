@@ -1,6 +1,7 @@
 import { importBackup } from "./store";
 import { newTally, plural, summarize, wrap, type Tally } from "./importTally";
 import { docxToMarkdown, isDocxSupported } from "./docx";
+import type { TemplateId } from "./types";
 
 /**
  * Smart import engine — converts whatever arrives via clipboard, drag &
@@ -327,10 +328,21 @@ export async function readImportFile(file: File): Promise<FileImport> {
 
 type Toast = (message: string, tone?: "ok" | "error" | "info") => void;
 
+/** Q1./Q2. style numbered questions are the one format specific enough
+    to guess safely — question papers, PYQs and quiz exports converted
+    from Word/PDF almost always keep that numbering. Everything else
+    (notes vs. revision vs. flashcards) is a stylistic choice the author
+    makes in the Import Review picker, not something worth guessing. */
+function guessTemplate(body: string): TemplateId {
+  const hits = body.match(/^\s{0,3}Q\s*\d*[.):]\s+\S/gim)?.length ?? 0;
+  return hits >= 2 ? "mcq" : "notes";
+}
+
 export interface StagedDoc {
   title: string;
   body: string;
   summary: string;
+  template: TemplateId;
 }
 
 /** Converts files into ready-to-review documents, or restores a dropped
@@ -356,7 +368,7 @@ export async function stageImportFiles(files: File[], toast: Toast): Promise<Sta
         toast(`${file.name}: ${(err as Error).message}`, "error");
       }
     } else {
-      staged.push({ title: r.title, body: r.body, summary: r.summary });
+      staged.push({ title: r.title, body: r.body, summary: r.summary, template: guessTemplate(r.body) });
     }
   }
   if (restored) toast(`Backup restored — ${plural(restored, "document")}`, "ok");
