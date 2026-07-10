@@ -52,6 +52,9 @@ const PATHS = {
   fitPage: "M12 8V3m0 0L9 6m3-3l3 3M12 16v5m0 0l-3-3m3 3l3-3M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z",
   expand: "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",
   collapse: "M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7",
+  merge: "M8 6 12 2 16 6M12 2v10.3a4 4 0 0 1-1.17 2.87L4 22M20 22l-5-5",
+  circle: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z",
+  globe: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z",
 } as const;
 
 export type IconName = keyof typeof PATHS;

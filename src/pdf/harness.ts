@@ -176,6 +176,19 @@ export const HARNESS_JS = String.raw`(function () {
     else if (d.type === "print") { window.focus(); window.print(); }
   });
 
+  // Preview → editor: clicking any sourced element reports its line so
+  // the host can move the editor cursor there (read-only pages view —
+  // no inline editing here, that's the flow preview's job).
+  document.addEventListener("click", function (e) {
+    if (!isPreview) return;
+    if (e.target.closest && e.target.closest("a, input")) return;
+    var target = e.target.closest && e.target.closest("[data-line]");
+    if (!target) return;
+    var line = parseInt(target.getAttribute("data-line"), 10);
+    if (!line) return;
+    try { parent.postMessage({ type: "preview-click", line: line, editable: false }, "*"); } catch (err) {}
+  });
+
   // Running header topic — tracks the chapter (h1) / section (h2) in
   // effect as each page opens. "Plato: The Philosopher" → "Plato".
   var curChap = "";
@@ -284,6 +297,21 @@ export const PREVIEW_JS = String.raw`(function () {
       });
     });
   }
+
+  // Preview → editor: click anywhere sourced (paragraph, list item,
+  // table cell, callout…) reports its line. Elements that are also
+  // inline-editable (title/subtitle/headings) mark themselves so the
+  // host syncs the editor cursor without stealing DOM focus from the
+  // contenteditable the click just entered.
+  root.addEventListener("click", function (e) {
+    if (e.target.closest("a, input")) return;
+    var target = e.target.closest("[data-line]");
+    if (!target) return;
+    var line = parseInt(target.getAttribute("data-line"), 10);
+    if (!line) return;
+    var editable = !!e.target.closest("[data-edit], [data-edit-line]");
+    try { parent.postMessage({ type: "preview-click", line: line, editable: editable }, "*"); } catch (err) {}
+  });
 
   window.addEventListener("message", function (e) {
     var d = e.data || {};

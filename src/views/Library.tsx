@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { navigate } from "../lib/router";
-import { createDoc, deleteDoc, duplicateDoc, useApp } from "../lib/store";
+import { createDoc, deleteDoc, deleteDocs, duplicateDoc, mergeDocs, useApp } from "../lib/store";
 import { contentStats, cx, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import { DEMOS, type DemoDoc } from "../templates/demos";
@@ -28,12 +28,45 @@ export function Library() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return docs;
     return docs.filter((d) => (d.title + " " + d.exam + " " + d.subtitle).toLowerCase().includes(q));
   }, [docs, query]);
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleBulkDelete() {
+    deleteDocs([...selected]);
+    toast(`Deleted ${selected.size} document${selected.size === 1 ? "" : "s"}`, "info");
+    setConfirmBulkDelete(false);
+    exitSelectMode();
+  }
+
+  function handleMerge() {
+    // Merge order should follow what's on screen, not Set insertion order.
+    const orderedIds = filtered.map((d) => d.id).filter((id) => selected.has(id));
+    const merged = mergeDocs(orderedIds);
+    if (!merged) return;
+    exitSelectMode();
+    navigate({ edit: merged.id });
+  }
 
   function handleCreate(template: TemplateId) {
     const t = TEMPLATE_META[template];
@@ -64,6 +97,12 @@ export function Library() {
           <h1 className="truncate text-lg font-extrabold tracking-tight">Polity Studio</h1>
           <p className="truncate text-xs text-faint">{brand.name} · {brand.initiative}</p>
         </div>
+        {docs.length > 0 &&
+          (selectMode ? (
+            <Button onClick={exitSelectMode}>Cancel</Button>
+          ) : (
+            <IconButton label="Select documents" name="checklist" size={19} onClick={() => setSelectMode(true)} />
+          ))}
         <IconButton label="Settings" name="settings" size={19} onClick={() => navigate("settings")} />
       </header>
 
@@ -116,47 +155,67 @@ export function Library() {
       ) : filtered.length === 0 ? (
         <p className="py-16 text-center text-sm text-faint">No documents match “{query}”.</p>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((doc) => {
             const stats = contentStats(doc.body);
             const template = TEMPLATE_META[doc.template];
+            const isSelected = selected.has(doc.id);
             return (
               <li key={doc.id}>
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={() => navigate({ edit: doc.id })}
-                  onKeyDown={(e) => e.key === "Enter" && navigate({ edit: doc.id })}
-                  className="group cursor-pointer rounded-xl border border-edge bg-surface p-4 transition-colors hover:border-accent"
+                  onClick={() => (selectMode ? toggleSelected(doc.id) : navigate({ edit: doc.id }))}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    if (selectMode) toggleSelected(doc.id);
+                    else navigate({ edit: doc.id });
+                  }}
+                  className={cx(
+                    "group relative cursor-pointer rounded-xl border bg-surface p-4 transition-colors",
+                    isSelected ? "border-accent ring-1 ring-accent" : "border-edge hover:border-accent",
+                  )}
                 >
                   <div className="mb-2.5 flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-raised px-2.5 py-1 text-[11px] font-semibold text-ink-2">
                       <TemplateGlyph id={doc.template} className="h-3 w-3" />
                       {template.name}
                     </span>
-                    <span className={cx("flex gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100", "opacity-100")}>
-                      <IconButton
-                        label="Duplicate"
-                        name="copy"
-                        size={14}
-                        className="p-1.5"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const copy = duplicateDoc(doc.id);
-                          if (copy) toast("Duplicated", "ok");
-                        }}
-                      />
-                      <IconButton
-                        label="Delete"
-                        name="trash"
-                        size={14}
-                        className="p-1.5 hover:text-danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDelete({ id: doc.id, title: doc.title });
-                        }}
-                      />
-                    </span>
+                    {selectMode ? (
+                      <span
+                        className={cx(
+                          "flex h-5 w-5 flex-none items-center justify-center rounded-full border-2",
+                          isSelected ? "border-accent bg-accent text-accent-ink" : "border-edge text-transparent",
+                        )}
+                        aria-hidden="true"
+                      >
+                        <Icon name="check" size={12} />
+                      </span>
+                    ) : (
+                      <span className={cx("flex gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100", "opacity-100")}>
+                        <IconButton
+                          label="Duplicate"
+                          name="copy"
+                          size={14}
+                          className="p-1.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const copy = duplicateDoc(doc.id);
+                            if (copy) toast("Duplicated", "ok");
+                          }}
+                        />
+                        <IconButton
+                          label="Delete"
+                          name="trash"
+                          size={14}
+                          className="p-1.5 hover:text-danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDelete({ id: doc.id, title: doc.title });
+                          }}
+                        />
+                      </span>
+                    )}
                   </div>
                   <h3 className="truncate text-sm font-bold">{doc.title || "Untitled"}</h3>
                   <p className="mt-1 text-xs text-faint">
@@ -167,6 +226,26 @@ export function Library() {
             );
           })}
         </ul>
+      )}
+
+      {selectMode && (
+        <div className="sticky bottom-0 -mx-4 mt-auto flex items-center gap-3 border-t border-edge bg-surface px-4 py-3 sm:-mx-6 sm:px-6">
+          <span className="text-sm font-medium text-ink-2">
+            {selected.size} selected
+          </span>
+          <span className="flex-1" />
+          <Button icon="merge" disabled={selected.size < 2} onClick={handleMerge}>
+            Merge
+          </Button>
+          <Button
+            variant="danger"
+            icon="trash"
+            disabled={selected.size === 0}
+            onClick={() => setConfirmBulkDelete(true)}
+          >
+            Delete
+          </Button>
+        </div>
       )}
 
       <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} title="What are you creating?" wide>
@@ -226,6 +305,18 @@ export function Library() {
             }}
           >
             Delete
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={confirmBulkDelete} onClose={() => setConfirmBulkDelete(false)} title="Delete documents?">
+        <p className="text-sm text-ink-2">
+          {selected.size} document{selected.size === 1 ? "" : "s"} will be permanently deleted. This cannot be undone.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={() => setConfirmBulkDelete(false)}>Cancel</Button>
+          <Button variant="primary" className="bg-danger text-white" onClick={handleBulkDelete}>
+            Delete {selected.size}
           </Button>
         </div>
       </Modal>

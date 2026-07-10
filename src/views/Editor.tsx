@@ -49,6 +49,22 @@ export function Editor({ id }: { id: string }) {
     [id, docs],
   );
 
+  /** Preview → editor: move the CodeMirror cursor to the clicked
+      element's source line, focusing the editor unless the click landed
+      on something the preview itself is already editing inline. */
+  const onFocusLine = useCallback((line: number, focusEditor: boolean) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const doc = view.state.doc;
+    const ln = Math.max(1, Math.min(doc.lines, line));
+    const pos = doc.line(ln).from;
+    view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+    if (focusEditor) {
+      setTab("write"); // surface the editor pane on the mobile write/preview toggle
+      requestAnimationFrame(() => view.focus());
+    }
+  }, []);
+
   if (!doc) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-faint">
@@ -96,8 +112,8 @@ export function Editor({ id }: { id: string }) {
             value={tab}
             onChange={setTab}
             options={[
-              { value: "write", label: "Write", icon: "edit" },
-              { value: "preview", label: "Preview", icon: "eye" },
+              { value: "write", label: "Write", icon: "edit", hint: "The Markdown source — formatting toolbar, syntax highlighting." },
+              { value: "preview", label: "Preview", icon: "eye", hint: "See the formatted document as it will publish." },
             ]}
           />
         </div>
@@ -137,6 +153,7 @@ export function Editor({ id }: { id: string }) {
             brand={brand}
             cursorLine={cursorLine}
             onInlineEdit={onInlineEdit}
+            onFocusLine={onFocusLine}
             fullscreen={fullscreen}
             onToggleFullscreen={() => setFullscreen((v) => !v)}
           />

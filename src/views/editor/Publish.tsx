@@ -125,6 +125,18 @@ export function Publish({
     }
   }
 
+  async function downloadHtml() {
+    try {
+      const { buildStandaloneHtml } = await import("../../pdf/htmlExport");
+      const html = await buildStandaloneHtml(doc, brand, fileTitle);
+      downloadFile(`${fileTitle}.html`, html, "text/html");
+      toast(`Downloaded · ${(new Blob([html]).size / 1024).toFixed(0)} KB · opens instantly in any browser`, "ok");
+    } catch (err) {
+      console.error("[publish] html export failed", err);
+      toast("HTML export hit a problem.", "error");
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg" role="dialog" aria-modal="true" aria-label="Publish PDF">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
@@ -162,6 +174,15 @@ export function Publish({
           </>
         )}
 
+        {phase !== "error" && (
+          <IconButton
+            label="Download HTML — the same pages as an offline web page, opens instantly in any browser"
+            name="globe"
+            size={17}
+            onClick={downloadHtml}
+            disabled={phase !== "ready"}
+          />
+        )}
         <Button
           variant="primary"
           icon={phase === "exporting" ? "loader" : "download"}

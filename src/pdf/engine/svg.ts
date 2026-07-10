@@ -23,9 +23,12 @@ export function transcribeSvg(
     const cs = win.getComputedStyle(shape);
     if (cs.display === "none" || cs.visibility === "hidden") continue;
 
-    // Cumulative opacity of the shape and its <g>/<svg> ancestors.
+    // Cumulative opacity of the shape's <g> ancestors up to (but not
+    // including) the <svg> root — the root's own opacity is already
+    // folded into baseOpacity by the caller, so re-reading it here would
+    // double-count it (e.g. a 12%-opacity mark would render at ~1.4%).
     let opacity = baseOpacity;
-    for (let el: Element | null = shape; el && el !== svg.parentElement; el = el.parentElement) {
+    for (let el: Element | null = shape; el && el !== svg; el = el.parentElement) {
       const o = parseFloat(win.getComputedStyle(el).opacity);
       if (o < 1) opacity *= o;
     }

@@ -294,8 +294,24 @@ ins {
   text-underline-offset: 2.5pt;
 }
 
-/* ~~struck~~ · H~2~O · x^2^ */
-s, del { color: var(--c-muted); }
+/* ~~struck~~ — a synthetic line, not native text-decoration: the
+   browser positions line-through from each font's own (often wrong)
+   metrics, which sat visibly too high in Literata. A pinned ::after
+   line is consistent across fonts and, via pseudo materialization,
+   renders identically in the exported PDF. */
+s, del {
+  color: var(--c-muted);
+  text-decoration: none;
+  position: relative;
+}
+s::after, del::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 53%;
+  border-top: 1pt solid currentColor;
+}
 sub, sup { font-size: 0.68em; line-height: 0; }
 
 /* List markers are real .li-mark spans emitted by the renderer (not
