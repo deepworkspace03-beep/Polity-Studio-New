@@ -41,20 +41,8 @@ function revisionBody(doc: Doc): BuiltBody {
   };
 }
 
-const DIFF_CLASS: Record<string, string> = {
-  easy: "easy",
-  moderate: "moderate",
-  medium: "moderate",
-  hard: "hard",
-  difficult: "hard",
-};
-
 function questionCard(q: McqQuestion, inline: boolean): string {
   const chips: string[] = [];
-  if (q.difficulty) {
-    const cls = DIFF_CLASS[q.difficulty.toLowerCase()] || "moderate";
-    chips.push(`<span class="qchip qchip--${cls}">${escapeHtml(q.difficulty)}</span>`);
-  }
   if (q.topic) chips.push(`<span class="qchip">${escapeHtml(q.topic)}</span>`);
   if (q.source) chips.push(`<span class="qchip qchip--source">${escapeHtml(q.source)}</span>`);
   if (q.marks) chips.push(`<span class="qchip">${escapeHtml(q.marks)} marks</span>`);

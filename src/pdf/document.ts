@@ -1,4 +1,4 @@
-import type { BrandConfig, Doc, PageSize } from "../lib/types";
+import type { BrandConfig, CoverColors, Doc, PageSize } from "../lib/types";
 import { escapeHtml } from "../lib/utils";
 import { coverPatternSvg, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
 import { extractToc } from "../markdown/renderer";
@@ -96,6 +96,30 @@ function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
 
 /* ── Cover ─────────────────────────────────────────────────────────── */
 
+/** Relative luminance of a #rrggbb color, used to pick a legible ink
+    color for the accent-colored edition badge when the author picks a
+    custom accent (the four preset styles already choose this by hand). */
+function pickBadgeInk(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "#141414";
+  const n = parseInt(m[1], 16);
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const L = 0.2126 * lin(((n >> 16) & 255) / 255) + 0.7152 * lin(((n >> 8) & 255) / 255) + 0.0722 * lin((n & 255) / 255);
+  return L > 0.5 ? "#141414" : "#ffffff";
+}
+
+/** Inline custom-property overrides for the author's optional cover
+    color overrides (Details → Cover colors) — absent fields fall
+    through to the chosen style's own palette untouched. */
+function coverColorVars(colors: CoverColors | undefined): string {
+  if (!colors) return "";
+  const vars: string[] = [];
+  if (colors.bg) vars.push(`--cv-bg:${colors.bg}`);
+  if (colors.ink) vars.push(`--cv-ink:${colors.ink}`, `--cv-line:color-mix(in srgb, ${colors.ink} 32%, transparent)`);
+  if (colors.accent) vars.push(`--cv-accent:${colors.accent}`, `--cv-edition-tx:${pickBadgeInk(colors.accent)}`);
+  return vars.length ? ` style="${vars.join(";")}"` : "";
+}
+
 function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   if (!doc.layout.cover) return "";
   const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
@@ -106,7 +130,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   const geo = PAGE_GEOMETRY[doc.layout.pageSize];
 
   return `
-<section class="cover cover--${doc.layout.coverStyle}">
+<section class="cover cover--${doc.layout.coverStyle}"${coverColorVars(doc.layout.coverColors)}>
   ${coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color)}
   <div class="cv-shade" aria-hidden="true"></div>
   ${templeEmblemSvg("cv-emblem")}

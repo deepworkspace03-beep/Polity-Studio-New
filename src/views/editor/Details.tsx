@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { Doc, DocLayout } from "../../lib/types";
+import type { CoverColors, Doc, DocLayout } from "../../lib/types";
 import { useApp } from "../../lib/store";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
@@ -13,6 +13,52 @@ const COVER_STYLES: { id: DocLayout["coverStyle"]; label: string; swatch: string
   { id: "heritage", label: "Heritage", swatch: "linear-gradient(150deg,#faf8f2 55%,#8a6d3b 200%)" },
   { id: "eclipse", label: "Eclipse", swatch: "linear-gradient(160deg,#0c1017,#1a2434 62%,#d3a662 210%)" },
 ];
+
+const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: string }[] = [
+  { key: "bg", label: "Background", fallback: "#12203a" },
+  { key: "ink", label: "Heading & title", fallback: "#f5f2ea" },
+  { key: "accent", label: "Accent", fallback: "#c9bc9e" },
+];
+
+/** Optional per-document overrides on top of the chosen cover style's own
+    palette — each field is independent and falls back to the style's own
+    color until the author picks one. */
+function CoverColorPicker({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
+  const colors = doc.layout.coverColors;
+  function set(key: keyof CoverColors, value: string | undefined) {
+    const next: CoverColors = { ...colors };
+    if (value) next[key] = value;
+    else delete next[key];
+    onChange({ layout: { ...doc.layout, coverColors: Object.keys(next).length ? next : undefined } });
+  }
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {COVER_COLOR_FIELDS.map((f) => {
+        const active = !!colors?.[f.key];
+        return (
+          <div key={f.key} className="flex flex-col items-center gap-1.5 rounded-lg border border-edge p-2">
+            <input
+              type="color"
+              aria-label={f.label}
+              value={colors?.[f.key] || f.fallback}
+              onChange={(e) => set(f.key, e.target.value)}
+              className="h-7 w-full cursor-pointer rounded border-0 bg-transparent p-0"
+            />
+            <span className="text-center text-[10.5px] font-semibold text-ink-2">{f.label}</span>
+            <button
+              type="button"
+              disabled={!active}
+              onClick={() => set(f.key, undefined)}
+              className="text-[10px] font-medium text-faint underline decoration-dotted disabled:opacity-0"
+            >
+              Use style default
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /** The settings form itself — shared verbatim by the mobile modal and the
     desktop pane so the two stay in lockstep with zero duplicated markup. */
@@ -82,6 +128,12 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
                 {s.label}
               </button>
             ))}
+          </div>
+        )}
+        {doc.layout.cover && (
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
+            <CoverColorPicker doc={doc} onChange={onChange} />
           </div>
         )}
         {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}

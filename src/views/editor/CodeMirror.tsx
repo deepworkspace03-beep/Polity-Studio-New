@@ -4,6 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+import { search, searchKeymap } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 import { insertLink, wrapSelection } from "./commands";
 import { smartPaste } from "../../lib/importer";
@@ -40,6 +41,33 @@ const editorTheme = EditorView.theme({
   ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--raised) 55%, transparent)" },
   ".cm-placeholder": { color: "var(--faint)" },
   ".cm-scroller": { overflow: "auto" },
+  // Find & replace panel — matches the app's own inputs/buttons instead
+  // of CodeMirror's unstyled defaults.
+  ".cm-panels": { backgroundColor: "var(--surface)", color: "var(--ink)" },
+  ".cm-panels-top": { borderBottom: "1px solid var(--edge)" },
+  ".cm-search": { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", padding: "8px 12px" },
+  ".cm-search label": { display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "12px", color: "var(--ink-2)" },
+  ".cm-textfield": {
+    backgroundColor: "var(--bg)",
+    color: "var(--ink)",
+    border: "1px solid var(--edge)",
+    borderRadius: "6px",
+    padding: "4px 8px",
+    fontSize: "13px",
+  },
+  ".cm-textfield:focus-visible": { outline: "1px solid var(--accent)" },
+  ".cm-button": {
+    backgroundColor: "var(--raised)",
+    color: "var(--ink)",
+    border: "1px solid var(--edge)",
+    borderRadius: "6px",
+    padding: "4px 9px",
+    fontSize: "12px",
+    backgroundImage: "none",
+  },
+  ".cm-button:hover": { backgroundColor: "var(--edge)" },
+  ".cm-searchMatch": { backgroundColor: "color-mix(in srgb, var(--accent) 25%, transparent)" },
+  ".cm-searchMatch-selected": { backgroundColor: "color-mix(in srgb, var(--accent) 55%, transparent)" },
 });
 
 export interface CodeMirrorProps {
@@ -87,7 +115,9 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
             { key: "Mod-Shift-h", run: (v) => (wrapSelection(v, "=="), true) },
             ...defaultKeymap,
             ...historyKeymap,
+            ...searchKeymap,
           ]),
+          search({ top: true }),
           // Smart Paste: rich clipboard content (Word, Google Docs, web,
           // AI chats) is converted to the app's Markdown before insert.
           // Returns false when conversion adds nothing, so the default

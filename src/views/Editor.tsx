@@ -7,7 +7,9 @@ import type { Doc } from "../lib/types";
 import { Button, DropOverlay, IconButton, Segmented, useFileDrop, useToast } from "../components/ui";
 import { Icon, type IconName } from "../components/Icon";
 import { openPalette } from "../components/CommandPalette";
-import { readImportFile } from "../lib/importer";
+import { stageAndReviewForInsert } from "../components/ImportReview";
+import { saveLastSession } from "../lib/session";
+import { StudioNav } from "../components/StudioNav";
 import { CodeMirror } from "./editor/CodeMirror";
 import { Toolbar } from "./editor/Toolbar";
 import { Preview, type InlineEdit } from "./editor/Preview";
@@ -128,6 +130,15 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   const [previewWidth, setPreviewWidth] = usePersisted<number>("ps2:pane:previewWidth", 440);
   const [settingsCollapsed, setSettingsCollapsed] = usePersisted<boolean>("ps2:pane:settingsCollapsed", false);
   const [previewCollapsed, setPreviewCollapsed] = usePersisted<boolean>("ps2:pane:previewCollapsed", false);
+  // Distraction-free toggle: hides the formatting toolbar and tucks the
+  // settings pane away without disturbing its own persisted collapse
+  // state, so turning focus mode off restores exactly what was open.
+  const [focusMode, setFocusMode] = usePersisted<boolean>("ps2:editor:focusMode", false);
+  const effSettingsCollapsed = settingsCollapsed || focusMode;
+  const exitFocus = () => {
+    setFocusMode(false);
+    setSettingsCollapsed(false);
+  };
 
   // Keep the persisted pane widths honest against whatever room the
   // workspace actually has — on mount, on window resize, and on tablet
@@ -193,6 +204,13 @@ export function Editor({ id, line }: { id: string; line?: number }) {
 
   const onChange = useCallback((patch: Partial<Doc>) => updateDoc(id, patch), [id]);
 
+  // Remembers the open document + cursor line for "Resume last session"
+  // (debounced so rapid cursor movement doesn't spam localStorage).
+  useEffect(() => {
+    const timer = setTimeout(() => saveLastSession(id, cursorLine), 500);
+    return () => clearTimeout(timer);
+  }, [id, cursorLine]);
+
   // Deep link from universal search (#/edit/:id/:line): put the cursor
   // on the matched line. Child effects run first, so the view exists.
   useEffect(() => {
@@ -202,21 +220,16 @@ export function Editor({ id, line }: { id: string; line?: number }) {
     view.dispatch({ selection: { anchor: view.state.doc.line(ln).from }, scrollIntoView: true });
   }, [id, line]);
 
-  // Dropping .md/.txt/.html files on the editor inserts their converted
-  // content at the cursor (whole-file import lives in the Library).
-  const drop = useFileDrop(async (files) => {
-    const parts: string[] = [];
-    for (const file of files) {
-      const r = await readImportFile(file);
-      if (r.kind === "doc") parts.push(r.body);
-      else if (r.kind === "skip") toast(`Skipped ${file.name} — ${r.reason}`, "error");
-      else toast(`${file.name} is a backup — restore it from Settings`, "info");
-    }
-    const view = viewRef.current;
-    if (!parts.length || !view) return;
-    view.dispatch({ ...view.state.replaceSelection(parts.join("\n\n")), scrollIntoView: true });
-    toast(`Inserted ${parts.length === 1 ? files[0].name : `${parts.length} files`} at the cursor`, "ok");
-  });
+  // Dropping .md/.txt/.html/.docx files on the editor converts them, then
+  // the Import Review modal lets the author confirm or edit the result
+  // before it lands at the cursor (whole-file import lives in the Library).
+  const drop = useFileDrop((files) =>
+    stageAndReviewForInsert(files, toast, (markdown) => {
+      const view = viewRef.current;
+      if (!view) return;
+      view.dispatch({ ...view.state.replaceSelection(markdown), scrollIntoView: true });
+    }),
+  );
 
   const onInlineEdit = useCallback(
     (edit: InlineEdit) => {
@@ -265,7 +278,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-2 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
-        <IconButton label="Back to library" name="back" size={18} onClick={() => navigate("library")} />
+        <StudioNav />
         <input
           value={doc.title}
           onChange={(e) => onChange({ title: e.target.value })}
@@ -279,11 +292,17 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         <IconButton
           label="Document details & layout"
           name="sliders"
-          active={!settingsCollapsed}
+          active={!effSettingsCollapsed}
           onClick={() => {
             setDetailsOpen(true); // mobile: opens the slide-over modal
-            setSettingsCollapsed(false); // md+: expands (or focuses) the persistent pane
+            exitFocus(); // md+: expands (or focuses) the persistent pane
           }}
+        />
+        <IconButton
+          label={focusMode ? "Exit focus mode" : "Focus mode — hide the toolbar and settings pane for distraction-free writing"}
+          name="focus"
+          active={focusMode}
+          onClick={() => setFocusMode((v) => !v)}
         />
         <Button
           variant="primary"
@@ -316,8 +335,8 @@ export function Editor({ id, line }: { id: string; line?: number }) {
       <div ref={wrapRef} className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Settings pane — md and up only; the mobile equivalent is the <Details> modal below. */}
         {!fullscreen &&
-          (settingsCollapsed ? (
-            <CollapsedRail label="settings panel" icon="chevronRight" side="left" onExpand={() => setSettingsCollapsed(false)} />
+          (effSettingsCollapsed ? (
+            <CollapsedRail label="settings panel" icon="chevronRight" side="left" onExpand={exitFocus} />
           ) : (
             <>
               <div className="hidden md:flex md:min-h-0 md:flex-none md:flex-col md:border-r md:border-edge" style={{ width: settingsWidth }}>
@@ -336,7 +355,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           )}
           {...drop.handlers}
         >
-          <Toolbar getView={() => viewRef.current} />
+          {!focusMode && <Toolbar getView={() => viewRef.current} />}
           <div className="min-h-0 flex-1">
             <CodeMirror
               value={doc.body}
