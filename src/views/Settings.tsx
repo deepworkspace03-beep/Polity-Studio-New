@@ -1,11 +1,10 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
-import { exportBackup, importBackup, saveBrand, saveSettings, useApp } from "../lib/store";
+import { deleteAllDocs, exportBackup, importBackup, saveBrand, saveSettings, useApp } from "../lib/store";
 import { DEFAULT_BRAND } from "../brand/defaults";
-import { PROVIDER_PRESETS } from "../ai/client";
-import type { AiConfig, BrandConfig } from "../lib/types";
+import type { BrandConfig } from "../lib/types";
 import { downloadFile } from "../lib/utils";
-import { Button, Field, IconButton, Segmented, Toggle, inputClass, useToast } from "../components/ui";
+import { Button, Field, IconButton, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -22,15 +21,28 @@ const COLOR_LABELS: Record<keyof BrandConfig["colors"], string> = {
   primarySoft: "Primary soft",
   accent: "Accent",
   accentSoft: "Accent soft",
-  gold: "Gold (highlights)",
+  gold: "Highlight tone",
 };
 
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function Settings() {
-  const { settings, brand } = useApp();
+  const { settings, brand, docs } = useApp();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [usage, setUsage] = useState<number | null>(null);
+  const [confirmWipe, setConfirmWipe] = useState(false);
 
-  const ai = (patch: Partial<AiConfig>) => saveSettings({ ai: { ...settings.ai, ...patch } });
+  useEffect(() => {
+    navigator.storage
+      ?.estimate?.()
+      .then((e) => setUsage(e.usage ?? null))
+      .catch(() => setUsage(null));
+  }, [docs.length]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
@@ -69,22 +81,19 @@ export function Settings() {
             <Field label="Website">
               <input className={inputClass} value={brand.website} onChange={(e) => saveBrand({ website: e.target.value })} />
             </Field>
-            <Field label="Telegram URL">
+            <Field label="Telegram URL" hint="Linked from the icon in every page footer.">
               <input className={inputClass} value={brand.telegram.url} onChange={(e) => saveBrand({ telegram: { ...brand.telegram, url: e.target.value } })} />
             </Field>
-            <Field label="Telegram label">
-              <input className={inputClass} value={brand.telegram.label} onChange={(e) => saveBrand({ telegram: { ...brand.telegram, label: e.target.value } })} />
-            </Field>
-            <Field label="WhatsApp URL">
+            <Field label="WhatsApp URL" hint="Linked from the icon in every page footer.">
               <input className={inputClass} value={brand.whatsapp.url} onChange={(e) => saveBrand({ whatsapp: { ...brand.whatsapp, url: e.target.value } })} />
             </Field>
             <Field label="Default author">
               <input className={inputClass} value={brand.author} onChange={(e) => saveBrand({ author: e.target.value })} />
             </Field>
+            <Field label="Watermark text">
+              <input className={inputClass} value={brand.watermarkText} onChange={(e) => saveBrand({ watermarkText: e.target.value })} />
+            </Field>
           </div>
-          <Field label="Watermark text">
-            <input className={inputClass} value={brand.watermarkText} onChange={(e) => saveBrand({ watermarkText: e.target.value })} />
-          </Field>
           <Field label="Exam list" hint="One per line — offered when filling document details.">
             <textarea
               className={inputClass + " resize-none"}
@@ -121,7 +130,7 @@ export function Settings() {
           </div>
         </Section>
 
-        <Section title="Export defaults" description="Applied to newly created documents — each document can still override them.">
+        <Section title="New document defaults" description="Applied to newly created documents — each document can still override them in Details.">
           <Field label="PDF filename pattern" hint="{title}, {brand} and {date} are replaced automatically.">
             <input className={inputClass} value={settings.fileNamePattern} onChange={(e) => saveSettings({ fileNamePattern: e.target.value })} />
           </Field>
@@ -129,7 +138,6 @@ export function Settings() {
             <Toggle label="Cover page" checked={settings.newDocLayout.cover} onChange={(v) => saveSettings({ newDocLayout: { ...settings.newDocLayout, cover: v } })} />
             <Toggle label="Table of contents" checked={settings.newDocLayout.toc} onChange={(v) => saveSettings({ newDocLayout: { ...settings.newDocLayout, toc: v } })} />
             <Toggle label="Watermark" checked={settings.newDocLayout.watermark} onChange={(v) => saveSettings({ newDocLayout: { ...settings.newDocLayout, watermark: v } })} />
-            <Toggle label="Closing brand page" checked={settings.newDocLayout.closingPage} onChange={(v) => saveSettings({ newDocLayout: { ...settings.newDocLayout, closingPage: v } })} />
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <Field label="Page size">
@@ -158,33 +166,13 @@ export function Settings() {
         </Section>
 
         <Section
-          title="AI assistant"
-          description="Bring your own key. It is stored only on this device and sent only to the endpoint below."
+          title="Your data"
+          description="Documents and settings live in this browser's local database (IndexedDB) — nothing is uploaded anywhere. Exported PDFs are saved by your browser to your device and are never stored by the app."
         >
-          <Field label="Provider">
-            <Segmented
-              value={settings.ai.provider}
-              onChange={(provider) => ai({ provider, baseUrl: PROVIDER_PRESETS[provider].baseUrl })}
-              options={[
-                { value: "openai", label: "OpenAI-compatible" },
-                { value: "anthropic", label: "Anthropic" },
-              ]}
-            />
-          </Field>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Base URL" hint="Any compatible endpoint works (OpenRouter, Groq, local…).">
-              <input className={inputClass} value={settings.ai.baseUrl} onChange={(e) => ai({ baseUrl: e.target.value })} />
-            </Field>
-            <Field label="Model" hint={PROVIDER_PRESETS[settings.ai.provider].modelHint}>
-              <input className={inputClass} value={settings.ai.model} onChange={(e) => ai({ model: e.target.value })} />
-            </Field>
-          </div>
-          <Field label="API key">
-            <input type="password" autoComplete="off" className={inputClass} value={settings.ai.apiKey} onChange={(e) => ai({ apiKey: e.target.value })} placeholder="sk-…" />
-          </Field>
-        </Section>
-
-        <Section title="Your data" description="Everything lives in this browser. Back it up regularly — especially before clearing browser data.">
+          <p className="text-sm text-ink-2">
+            {docs.length} document{docs.length === 1 ? "" : "s"}
+            {usage !== null && <span className="text-faint"> · ~{formatBytes(usage)} of browser storage in use</span>}
+          </p>
           <div className="flex flex-wrap gap-2">
             <Button
               icon="download"
@@ -216,13 +204,41 @@ export function Settings() {
               }}
             />
           </div>
-          <p className="text-xs text-faint">Backups include documents, branding and preferences — API keys are never included.</p>
+          <p className="text-xs text-faint">
+            Back up before clearing browser data — clearing site data deletes your documents.
+          </p>
+          <div className="border-t border-edge pt-4">
+            <Button variant="danger" icon="trash" disabled={docs.length === 0} onClick={() => setConfirmWipe(true)}>
+              Delete all documents…
+            </Button>
+          </div>
         </Section>
 
         <p className="pb-6 text-center text-xs text-faint">
-          Polity Studio v2 · {brand.name} — {brand.initiative}
+          Polity Studio · {brand.name} — {brand.initiative}
         </p>
       </div>
+
+      <Modal open={confirmWipe} onClose={() => setConfirmWipe(false)} title="Delete all documents?">
+        <p className="text-sm text-ink-2">
+          All {docs.length} document{docs.length === 1 ? "" : "s"} will be permanently deleted from this browser.
+          Branding and preferences are kept. This cannot be undone — consider downloading a backup first.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={() => setConfirmWipe(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            className="bg-danger text-white"
+            onClick={async () => {
+              await deleteAllDocs();
+              setConfirmWipe(false);
+              toast("All documents deleted", "info");
+            }}
+          >
+            Delete everything
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

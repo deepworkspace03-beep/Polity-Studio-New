@@ -19,10 +19,10 @@
   padding: 18mm 17mm 15mm;
   background: var(--cv-bg);
   color: var(--cv-ink);
-  --cv-bg: #0b1830;
-  --cv-ink: #f7f2e5;
-  --cv-soft: #c7d2e4;
-  --cv-accent: #d7b052;
+  --cv-bg: #0e1a2f;
+  --cv-ink: #f5f2ea;
+  --cv-soft: #c4cede;
+  --cv-accent: #c9bc9e;
   --cv-line: rgba(255, 255, 255, 0.18);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
   --cv-edition-tx: #10203c;
@@ -169,22 +169,27 @@ body.mode-flow .cover {
   color: var(--cv-ink);
 }
 
-/* ── 01 · Regal (navy + gold, default) ──────────────────────────── */
+/* ── 01 · Regal (oxford navy + champagne platinum, default) ─────────
+   A restrained, library-grade cover: deep navy ground, warm ivory
+   type, and one muted metallic tone — no saturated yellow anywhere. */
 .cover--regal {
-  --cv-bg: linear-gradient(158deg, #0b1830 0%, #132a52 100%);
-  --cv-ink: #f7f2e5;
-  --cv-soft: #c7d2e4;
-  --cv-accent: #d7b052;
-  --cv-line: rgba(215, 176, 82, 0.42);
+  --cv-bg: linear-gradient(160deg, #0d1930 0%, #16294a 58%, #1d3357 100%);
+  --cv-ink: #f5f2ea;
+  --cv-soft: #b9c6da;
+  --cv-accent: #c9bc9e;
+  --cv-line: rgba(201, 188, 158, 0.38);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
-  --cv-edition-tx: #10203c;
+  --cv-edition-tx: #142441;
 }
 .cover--regal .cv-pattern {
   background-image:
-    repeating-linear-gradient(45deg, rgba(215, 176, 82, 0.13) 0 0.5pt, transparent 0.5pt 22px),
-    repeating-linear-gradient(-45deg, rgba(215, 176, 82, 0.13) 0 0.5pt, transparent 0.5pt 22px);
+    linear-gradient(to right, rgba(245, 242, 234, 0.045) 0.4pt, transparent 0.4pt),
+    linear-gradient(to bottom, rgba(245, 242, 234, 0.045) 0.4pt, transparent 0.4pt);
+  background-size: 12mm 12mm;
 }
-.cover--regal .cv-shade { background: radial-gradient(130% 90% at 50% -10%, transparent 45%, rgba(5, 12, 26, 0.55)); }
+.cover--regal .cv-shade {
+  background: radial-gradient(130% 90% at 50% -10%, transparent 45%, rgba(5, 11, 24, 0.5));
+}
 
 /* ── 02 · Aurora (brand gradient) ───────────────────────────────── */
 .cover--aurora {
@@ -239,72 +244,3 @@ body.mode-flow .cover {
   background-size: 13mm 13mm;
 }
 .cover--midnight .cv-shade { background: radial-gradient(120% 80% at 85% 10%, rgba(72, 224, 189, 0.12), transparent 55%); }
-
-/* ═══════════════════════════════════════════════════════════════════
-   BACK PAGE (closing) — brand block, no clutter
-   ═══════════════════════════════════════════════════════════════════ */
-
-.closing {
-  page: closing;
-  break-before: page;
-  /* min-height (not height) — a 100%-height box can overflow the page
-     content box by the chrome padding and spill a blank trailing page. */
-  min-height: calc(100% - 8mm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-.closing__card { max-width: 120mm; }
-.closing__card > .cv-mark { color: var(--c-primary); margin-bottom: 6mm; }
-.closing__brand {
-  border: none;
-  padding: 0;
-  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-size: 17pt;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--c-primary);
-  margin: 0 0 1.5mm;
-}
-.closing__tagline {
-  font-family: "Literata", "Noto Serif Devanagari", serif;
-  font-style: italic;
-  font-size: 10.5pt;
-  color: var(--c-muted);
-  margin: 0 0 7mm;
-}
-.closing__rule {
-  width: 26mm;
-  height: 1.1mm;
-  border-radius: 1mm;
-  background: linear-gradient(90deg, var(--c-accent), var(--c-primary));
-  margin: 0 auto 7mm;
-}
-.closing__site {
-  font-family: "Manrope", sans-serif;
-  font-size: 12pt;
-  font-weight: 800;
-  margin: 0 0 6mm;
-}
-.closing__site a { color: var(--c-accent); border-bottom: none; }
-.closing__links {
-  list-style: none;
-  margin: 0 0 8mm;
-  padding: 0;
-  font-family: "Manrope", sans-serif;
-  font-size: 9.5pt;
-  color: var(--c-muted);
-  display: flex;
-  flex-direction: column;
-  gap: 2mm;
-}
-.closing__links a { color: var(--c-accent); border-bottom: none; }
-.closing__copyright {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 6.8pt;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--c-muted);
-  margin: 0;
-}

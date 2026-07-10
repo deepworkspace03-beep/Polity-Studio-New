@@ -37,39 +37,35 @@ body.mode-flow .run-foot-brand,
 body.mode-flow .run-foot-site { display: none; }
 
 /* ── Page model ──────────────────────────────────────────────────────
-   Header  ·  left: exam/subject        right: current topic
-   Footer  ·  left: brand lockup   center: page X / Total   right: site */
+   Header  ·  left: exam/subject   center: current topic   right: page №
+   Footer  ·  left: brand lockup   center: website   right: social icons */
 
 /* Page size and margins are emitted by the document builder (they vary
    by page-size setting); this block only defines the margin boxes. */
 @page {
   @top-left { content: element(runHeadBook); vertical-align: bottom; }
-  @top-right { content: element(runHeadTopic); vertical-align: bottom; }
-
-  @bottom-left { content: element(runFootBrand); vertical-align: top; }
-  @bottom-center {
+  @top-center { content: element(runHeadTopic); vertical-align: bottom; }
+  @top-right {
     content: counter(page) " / " counter(pages);
     font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
     font-size: 8pt;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    color: var(--c-muted);
-    vertical-align: top;
+    letter-spacing: 0.06em;
+    color: var(--c-primary);
+    vertical-align: bottom;
+    padding-bottom: 2.6pt;
   }
-  @bottom-right { content: element(runFootSite); vertical-align: top; }
+
+  @bottom-left { content: element(runFootBrand); vertical-align: top; }
+  @bottom-center { content: element(runFootSite); vertical-align: top; }
+  @bottom-right { content: element(runFootSocial); vertical-align: top; }
 }
 
-/* Cover and closing pages: full bleed, no chrome. */
+/* Cover page: full bleed, no chrome. */
 @page cover {
   margin: 0;
   @top-left { content: none; }
-  @top-right { content: none; }
-  @bottom-left { content: none; }
-  @bottom-center { content: none; }
-  @bottom-right { content: none; }
-}
-@page closing {
-  @top-left { content: none; }
+  @top-center { content: none; }
   @top-right { content: none; }
   @bottom-left { content: none; }
   @bottom-center { content: none; }
@@ -83,19 +79,19 @@ body.mode-flow .run-foot-site { display: none; }
 }
 
 /* Breathing room between the running header and the body. */
-.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .pagedjs_page_content {
+.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_page_content {
   padding-top: 6mm;
 }
 
 /* Divider rules under the header and above the footer. */
-.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .pagedjs_margin-top {
+.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-top {
   border-bottom: 0.6pt solid var(--c-edge);
 }
-.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .pagedjs_margin-bottom {
+.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-bottom {
   border-top: 0.6pt solid var(--c-edge);
 }
 
-/* Running header — book/exam (left) · current topic (right, set per
+/* Running header — book/exam (left) · current topic (center, set per
    page by the print harness as pages are laid out). */
 .run-head-book,
 .run-head-topic {
@@ -118,10 +114,13 @@ body.mode-flow .run-foot-site { display: none; }
   position: running(runHeadTopic);
   color: var(--c-muted);
   font-weight: 600;
-  text-align: right;
+  text-align: center;
+  max-width: 70mm;
+  margin: 0 auto;
 }
 
-/* Running footer — brand lockup (left) · website (right, clickable). */
+/* Running footer — brand lockup (left) · website (center, clickable) ·
+   social icons (right, clickable). */
 .run-foot-brand {
   position: running(runFootBrand);
   display: flex;
@@ -130,8 +129,11 @@ body.mode-flow .run-foot-site { display: none; }
   padding-top: 2.6pt;
 }
 /* Paged.js forces margin-box children to display:block with a
-   higher-specificity rule; win it back on content pages only. */
-.pagedjs_page:not(.pagedjs_cover_page):not(.pagedjs_closing_page) .run-foot-brand {
+   higher-specificity rule; win it back — but only for the copies
+   inside margin boxes. (The in-flow source elements are hidden by
+   Paged.js with an inline display:none; a broader !important rule
+   here would un-hide them into the page content.) */
+.pagedjs_margin-content > .run-foot-brand {
   display: flex !important;
 }
 .run-foot-brand__mark { width: 15pt; height: 13pt; display: block; flex: none; color: var(--c-primary); opacity: 0.8; }
@@ -152,13 +154,33 @@ body.mode-flow .run-foot-site { display: none; }
 }
 .run-foot-site {
   position: running(runFootSite);
-  padding-top: 2.6pt;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 7pt;
-  letter-spacing: 0.02em;
-  text-align: right;
+  padding-top: 3pt;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 7.4pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: center;
 }
-.run-foot-site a { color: #2e63d6; font-weight: 700; border-bottom: none; }
+.run-foot-site a { color: var(--c-muted); border-bottom: none; }
+.run-foot-social {
+  position: running(runFootSocial);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6pt;
+  padding-top: 3pt;
+}
+.pagedjs_margin-content > .run-foot-social {
+  display: flex !important;
+}
+.run-social { border-bottom: none; display: inline-flex; }
+.run-social__icon {
+  width: 10.5pt;
+  height: 10.5pt;
+  display: block;
+  color: var(--c-primary);
+  opacity: 0.75;
+}
 
 /* Watermark — a pure-vector diagonal mark injected per page by the
    print harness; opacity is baked into the artwork. */
@@ -244,11 +266,24 @@ a {
 
 strong { color: var(--c-primary); font-weight: 700; }
 
+/* ==highlight== */
 mark {
-  background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--c-accent) 22%, transparent) 45%);
+  background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--c-gold) 38%, transparent) 45%);
   color: inherit;
   padding: 0 1pt;
 }
+
+/* ++underline++ */
+ins {
+  text-decoration: underline;
+  text-decoration-thickness: 1pt;
+  text-decoration-color: color-mix(in srgb, var(--c-accent) 70%, transparent);
+  text-underline-offset: 2.5pt;
+}
+
+/* ~~struck~~ · H~2~O · x^2^ */
+s, del { color: var(--c-muted); }
+sub, sup { font-size: 0.68em; line-height: 0; }
 
 ul, ol { margin: 0 0 0.9em; padding-left: 1.35em; }
 li { margin-bottom: 0.3em; }

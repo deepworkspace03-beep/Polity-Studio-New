@@ -2,47 +2,50 @@
 
 **Polity Made Simple · A JRF Club Initiative**
 
-A premium content-creation workspace for educators. Paste raw educational
-content → organize it → beautify it → preview real pages → export
-**print-ready branded PDFs** — theory notes, quick-revision sheets, MCQ
-booklets and flash-card decks.
+A premium desktop-publishing workspace for educators. Paste Markdown
+(from any tool — including external AI assistants) → refine it →
+review the real pages → **download a print-quality branded PDF** —
+theory notes, quick-revision sheets, MCQ booklets and flash-card decks.
 
-> Paste content → Preview → **Export PDF**. That's the whole workflow.
+> Paste Markdown → Preview → **Publish PDF**. That's the whole workflow.
 
-Everything runs **in the browser**: no accounts, no server, no database to
-manage. Documents live in the browser's own storage (with one-tap JSON
-backup/restore), and PDFs are typeset locally with real print pagination —
-running headers and footers, page numbers, a contents page with live page
-references, and the Polity Made Simple watermark on every page.
+Everything runs **in the browser**: no accounts, no server, no database
+to manage. Documents live in the browser's own storage (with one-tap
+JSON backup/restore), and PDFs are typeset locally with real print
+pagination — running headers, a branded footer with clickable social
+links on every page, page numbers, a contents page with live page
+references, and a vector watermark.
 
 ## Highlights
 
-- **Four templates** — Theory Notes, Quick Revision, MCQ Booklet (with
-  parsed questions, difficulty/topic/source chips, answer key and
-  explanations) and Flash Cards.
-- **True typeset PDFs** — Paged.js runs in your browser: covers (4 styles),
-  TOC with page numbers, running chrome, clickable links, vector watermark.
-  Small files, embedded fonts, print-ready.
+- **Four templates** — Theory Notes, Quick Revision, MCQ Booklet (parsed
+  questions, difficulty/topic/source chips, answer key and explanations)
+  and Flash Cards. Library → **Examples** opens a rich showcase of each.
+- **A serious editor** — grouped formatting toolbar (headings, bold,
+  italic, underline, highlight, strikethrough, super/subscript, lists,
+  checklists, quotes, tables, callouts, links, code, dividers, page
+  breaks), keyboard shortcuts (Ctrl+B/I/U/K), and clear-formatting.
+- **A truly live preview** — edits render in place without flashing or
+  losing scroll position, and the preview follows your cursor: edit
+  paragraph five, see paragraph five. The Pages mode shows the exact
+  typeset pages.
+- **Publish flow** — one tap typesets the real pages full-screen for a
+  final review (zoom, page navigation — tablet-friendly), then
+  **Download PDF** hands the exact same document to your browser's PDF
+  engine ("Save as PDF"). Identical fonts, margins and page breaks.
 - **Everything configurable in-app** — branding (names, links, colors,
   exams, watermark), per-document layout (cover style, TOC, watermark,
-  closing page, A4/A5/Letter, text density), export filename pattern.
-- **AI assistant, bring your own key** — beautify, exam notes, summaries,
-  tables, MCQs, flash cards and custom instructions. Works with any
-  OpenAI-compatible endpoint or the Anthropic API; streaming; the key never
-  leaves your device except to the provider you configure.
-- **Made for tablets** — responsive, touch-friendly, installable from the
-  browser menu (Add to Home screen).
+  A4/A5/Letter, text density), export filename pattern.
+- **Made for tablets** — responsive, touch-friendly, installable from
+  the browser menu (Add to Home screen).
 
-## Daily use
+## Markdown support
 
-1. **New document** → pick a template.
-2. Paste or type Markdown. The toolbar covers headings, lists, tables,
-   callouts (`::: definition` … `:::`) and page breaks (`\pagebreak`).
-3. Fill **Details** (exam, session, cover style, layout).
-4. Toggle the preview to **Pages** to see the exact printed pages.
-5. **Export PDF** → the print dialog opens → *Save as PDF*.
-
-Work autosaves continuously. Back up from **Settings → Your data**.
+CommonMark plus: tables, task lists, footnotes, `==highlight==`,
+`++underline++`, `~~strikethrough~~`, `x^2^` superscript, `H~2~O`
+subscript, callout boxes (`::: definition` … `:::` — eight types),
+`\pagebreak`, and autolinked URLs. YAML front matter from external
+tools is stripped automatically.
 
 ## MCQ format
 
@@ -60,6 +63,14 @@ Topic: Greek Political Thought
 Source: UGC-NET Dec 2023
 ```
 
+## Where your data lives
+
+Documents, branding and preferences are stored in **IndexedDB inside
+your browser** — never uploaded. Manage them in Settings → Your data
+(usage meter, backup, restore, delete-all) or delete individual
+documents from the Library. Exported PDFs are files your browser saves
+to your device; the app never keeps copies.
+
 ## Development
 
 Requires Node.js 20+.
@@ -72,23 +83,19 @@ npm start         # serve dist/ (honors $PORT)
 npm run typecheck
 ```
 
-## Deploying on Railway
+## Deploying
 
 The repo ships with `railway.json` — create a Railway service from this
-repository and it builds (`npm run build`) and serves (`npm start`) with no
-further configuration. `PORT` is provided by Railway automatically; there
-are no secrets and no volumes to configure, because all user data lives in
-the browser.
-
-Any other static-capable host (Render, Netlify, Vercel, nginx…) works the
-same way: build and serve `dist/`.
+repository and it builds (`npm run build`) and serves (`npm start`)
+with no further configuration. Any other static-capable host (Render,
+Netlify, Vercel, nginx…) works the same way: build and serve `dist/`.
 
 ## Architecture
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for how it's put together and how
-to add templates, cover styles, AI workflows and more.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for how it's put together and
+how to add templates, cover styles, callouts and more.
 
 ---
 
-*Polity Made Simple — Study Smarter. Learn Faster.*
+*Polity Made Simple — Study Smarter, Learn Faster.*
 *www.politymadesimple.com · Telegram: @politicalsciencenetjrfclub*

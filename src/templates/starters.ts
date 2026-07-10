@@ -38,6 +38,10 @@ Aristotle defined man as a *political animal* (zoon politikon), arguing that hum
 ::: exam
 Political theory questions frequently test Plato, Aristotle, Hobbes, Locke and Rousseau — study the social contract theorists in depth.
 :::
+
+## Formatting Cheatsheet
+
+**bold** · *italic* · ==highlight== · ++underline++ · ~~struck~~ · x^2^ · H~2~O — and \`\\pagebreak\` on its own line starts a new PDF page. Open Library → Examples for a full showcase.
 `,
   },
 

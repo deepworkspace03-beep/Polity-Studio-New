@@ -8,7 +8,7 @@ import { Icon } from "../../components/Icon";
 import { cx } from "../../lib/utils";
 
 const COVER_STYLES: { id: DocLayout["coverStyle"]; label: string; swatch: string }[] = [
-  { id: "regal", label: "Regal", swatch: "linear-gradient(140deg,#0b1830,#132a52 60%,#d7b052 170%)" },
+  { id: "regal", label: "Regal", swatch: "linear-gradient(140deg,#0d1930,#1d3357 60%,#c9bc9e 175%)" },
   { id: "aurora", label: "Aurora", swatch: "linear-gradient(140deg,#123c93,#0d76b2 52%,#0a9f80)" },
   { id: "ivory", label: "Ivory", swatch: "linear-gradient(140deg,#f7f2e6 70%,#b1832c 180%)" },
   { id: "midnight", label: "Midnight", swatch: "linear-gradient(140deg,#141f2e,#1b2b41 60%,#48e0bd 190%)" },
@@ -95,7 +95,6 @@ export function Details({
           )}
           {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
           <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
-          <Toggle label="Closing brand page" checked={doc.layout.closingPage} onChange={(v) => layout({ closingPage: v })} />
           {template.hasAnswers && (
             <Field label="Answers & explanations">
               <Segmented

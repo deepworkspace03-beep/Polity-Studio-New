@@ -19,6 +19,16 @@ export function templeEmblemSvg(className: string): string {
   return `<svg class="${className}" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">${TEMPLE_PATH}</svg>`;
 }
 
+/** Telegram paper-plane glyph — filled vector, inherits currentColor. */
+export function telegramIconSvg(className = ""): string {
+  return `<svg${className ? ` class="${className}"` : ""} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.9 4.1c.3-1.1-.8-2-1.8-1.6L2.5 9.4c-1.2.5-1.1 2.2.1 2.6l4.5 1.4 1.7 5.4c.3 1 1.6 1.3 2.3.5l2.5-2.6 4.6 3.4c.9.6 2.1.2 2.3-.9l3.4-15.1zM8.2 12.5l9.2-5.7c.4-.2.7.3.4.6l-7.6 7-.3 3-1.7-4.9z"/></svg>`;
+}
+
+/** WhatsApp glyph — filled vector, inherits currentColor. */
+export function whatsappIconSvg(className = ""): string {
+  return `<svg${className ? ` class="${className}"` : ""} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.6-6.1c-.3-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.6.8-.8 1-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.4-2.9c-.3-.4 0-.6.2-.8l.5-.6c.1-.2.1-.4 0-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s1 2.5 1.1 2.7a11 11 0 0 0 4.2 3.7c.6.3 1 .4 1.4.5.6.2 1.1.2 1.5.1.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.2-.5-.3z"/></svg>`;
+}
+
 /**
  * Diagonal page watermark — pure vector, rendered inline so the text
  * uses the document's embedded fonts and adds zero bytes per page.

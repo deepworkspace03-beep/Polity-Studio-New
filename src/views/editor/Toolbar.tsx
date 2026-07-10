@@ -1,57 +1,25 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
 import { IconButton } from "../../components/ui";
 import { Icon, type IconName } from "../../components/Icon";
 import { CALLOUTS } from "../../markdown/renderer";
+import {
+  CODE_SNIPPET,
+  TABLE_SNIPPET,
+  clearFormatting,
+  insertBlock,
+  insertLink,
+  setHeading,
+  toggleLinePrefix,
+  wrapSelection,
+} from "./commands";
 
-/* ── Editing helpers (operate on the live CodeMirror view) ─────────── */
-
-function wrap(view: EditorView, before: string, after = before, ph = "text") {
-  const r = view.state.selection.main;
-  const txt = view.state.sliceDoc(r.from, r.to) || ph;
-  view.dispatch({
-    changes: { from: r.from, to: r.to, insert: before + txt + after },
-    selection: { anchor: r.from + before.length, head: r.from + before.length + txt.length },
-  });
-  view.focus();
-}
-
-function linePrefix(view: EditorView, prefix: string, numbered = false) {
-  const r = view.state.selection.main;
-  const first = view.state.doc.lineAt(r.from).number;
-  const last = view.state.doc.lineAt(r.to).number;
-  const changes: { from: number; to?: number; insert?: string }[] = [];
-  let n = 1;
-  for (let ln = first; ln <= last; ln++) {
-    const line = view.state.doc.line(ln);
-    if (!numbered && line.text.startsWith(prefix)) {
-      changes.push({ from: line.from, to: line.from + prefix.length });
-    } else {
-      changes.push({ from: line.from, insert: numbered ? `${n++}. ` : prefix });
-    }
-  }
-  view.dispatch({ changes });
-  view.focus();
-}
-
-function insertBlock(view: EditorView, block: string) {
-  const line = view.state.doc.lineAt(view.state.selection.main.from);
-  const lead = line.length ? "\n\n" : "";
-  const insert = `${lead}${block}\n`;
-  view.dispatch({
-    changes: { from: line.to, insert },
-    selection: { anchor: line.to + insert.length },
-  });
-  view.focus();
-}
-
-const TABLE_SNIPPET = `| Column 1 | Column 2 | Column 3 |
-|---|---|---|
-| Cell | Cell | Cell |
-| Cell | Cell | Cell |`;
-
-/* ── Toolbar ───────────────────────────────────────────────────────── */
+/**
+ * Formatting toolbar — grouped, tooltipped, fully keyboard-reachable.
+ * Every action is a thin call into commands.ts so the same operations
+ * back the keyboard shortcuts.
+ */
 
 interface Action {
   id: string;
@@ -60,17 +28,40 @@ interface Action {
   run: (view: EditorView) => void;
 }
 
-const ACTIONS: Action[] = [
-  { id: "h1", icon: "h1", label: "Heading 1", run: (v) => linePrefix(v, "# ") },
-  { id: "h2", icon: "h2", label: "Heading 2", run: (v) => linePrefix(v, "## ") },
-  { id: "h3", icon: "h3", label: "Heading 3", run: (v) => linePrefix(v, "### ") },
-  { id: "bold", icon: "bold", label: "Bold", run: (v) => wrap(v, "**") },
-  { id: "italic", icon: "italic", label: "Italic", run: (v) => wrap(v, "*") },
-  { id: "quote", icon: "quote", label: "Quote", run: (v) => linePrefix(v, "> ") },
-  { id: "list", icon: "list", label: "Bullet list", run: (v) => linePrefix(v, "- ") },
-  { id: "listOrdered", icon: "listOrdered", label: "Numbered list", run: (v) => linePrefix(v, "", true) },
-  { id: "table", icon: "table", label: "Insert table", run: (v) => insertBlock(v, TABLE_SNIPPET) },
-  { id: "pagebreak", icon: "pagebreak", label: "Page break", run: (v) => insertBlock(v, "\\pagebreak") },
+const GROUPS: Action[][] = [
+  [
+    { id: "undo", icon: "undo", label: "Undo (Ctrl+Z)", run: (v) => void undo(v) },
+    { id: "redo", icon: "redo", label: "Redo (Ctrl+Y)", run: (v) => void redo(v) },
+  ],
+  [
+    { id: "h1", icon: "h1", label: "Chapter heading", run: (v) => setHeading(v, 1) },
+    { id: "h2", icon: "h2", label: "Section heading", run: (v) => setHeading(v, 2) },
+    { id: "h3", icon: "h3", label: "Subsection heading", run: (v) => setHeading(v, 3) },
+  ],
+  [
+    { id: "bold", icon: "bold", label: "Bold (Ctrl+B)", run: (v) => wrapSelection(v, "**") },
+    { id: "italic", icon: "italic", label: "Italic (Ctrl+I)", run: (v) => wrapSelection(v, "*") },
+    { id: "underline", icon: "underline", label: "Underline (Ctrl+U)", run: (v) => wrapSelection(v, "++") },
+    { id: "highlight", icon: "highlighter", label: "Highlight (Ctrl+Shift+H)", run: (v) => wrapSelection(v, "==") },
+    { id: "strike", icon: "strikethrough", label: "Strikethrough", run: (v) => wrapSelection(v, "~~") },
+    { id: "sup", icon: "superscript", label: "Superscript — x^2^", run: (v) => wrapSelection(v, "^", "^", "2") },
+    { id: "sub", icon: "subscript", label: "Subscript — H~2~O", run: (v) => wrapSelection(v, "~", "~", "2") },
+    { id: "codeInline", icon: "code", label: "Inline code", run: (v) => wrapSelection(v, "`") },
+    { id: "clear", icon: "eraser", label: "Clear formatting from selection", run: clearFormatting },
+  ],
+  [
+    { id: "list", icon: "list", label: "Bullet list", run: (v) => toggleLinePrefix(v, "- ") },
+    { id: "listOrdered", icon: "listOrdered", label: "Numbered list", run: (v) => toggleLinePrefix(v, "", true) },
+    { id: "checklist", icon: "checklist", label: "Checklist", run: (v) => toggleLinePrefix(v, "- [ ] ") },
+    { id: "quote", icon: "quote", label: "Quote", run: (v) => toggleLinePrefix(v, "> ") },
+  ],
+  [
+    { id: "link", icon: "link", label: "Link (Ctrl+K)", run: insertLink },
+    { id: "table", icon: "table", label: "Insert table", run: (v) => insertBlock(v, TABLE_SNIPPET) },
+    { id: "codeBlock", icon: "file", label: "Code block", run: (v) => insertBlock(v, CODE_SNIPPET) },
+    { id: "hr", icon: "minus", label: "Divider line", run: (v) => insertBlock(v, "---") },
+    { id: "pagebreak", icon: "pagebreak", label: "Page break (starts a new PDF page)", run: (v) => insertBlock(v, "\\pagebreak") },
+  ],
 ];
 
 export function Toolbar({ getView }: { getView: () => EditorView | null }) {
@@ -93,16 +84,18 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
 
   return (
     <div className="flex items-center gap-0.5 overflow-x-auto border-b border-edge bg-surface px-1.5 py-1 [scrollbar-width:none]">
-      <IconButton label="Undo" name="undo" onClick={withView((v) => undo(v))} />
-      <IconButton label="Redo" name="redo" onClick={withView((v) => redo(v))} />
-      <span className="mx-1 h-5 w-px flex-none bg-edge" />
-      {ACTIONS.map((a) => (
-        <IconButton key={a.id} label={a.label} name={a.icon} onClick={withView(a.run)} />
+      {GROUPS.map((group, gi) => (
+        <Fragment key={gi}>
+          {gi > 0 && <span className="mx-1 h-5 w-px flex-none bg-edge" />}
+          {group.map((a) => (
+            <IconButton key={a.id} label={a.label} name={a.icon} onClick={withView(a.run)} />
+          ))}
+        </Fragment>
       ))}
       <div className="relative" ref={menuRef}>
         <button
-          title="Insert callout"
-          aria-label="Insert callout"
+          title="Insert callout box"
+          aria-label="Insert callout box"
           aria-expanded={calloutsOpen}
           onClick={() => setCalloutsOpen((v) => !v)}
           className="flex items-center gap-1 rounded-lg p-2 text-ink-2 transition-colors hover:bg-raised hover:text-ink"
@@ -111,7 +104,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           <Icon name="chevronDown" size={11} />
         </button>
         {calloutsOpen && (
-          <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-xl border border-edge bg-surface py-1 shadow-xl">
+          <div className="absolute right-0 top-full z-30 mt-1 w-64 rounded-xl border border-edge bg-surface py-1 shadow-xl">
             {Object.entries(CALLOUTS).map(([type, def]) => (
               <button
                 key={type}
@@ -119,10 +112,13 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
                   setCalloutsOpen(false);
                   withView((v) => insertBlock(v, `::: ${type}\nYour text here.\n:::`))();
                 }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-ink hover:bg-raised"
+                className="flex w-full items-start gap-2.5 px-3 py-2 text-left hover:bg-raised"
               >
-                <span className="h-4 w-4 text-accent [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: def.icon }} />
-                {def.label}
+                <span className="mt-0.5 h-4 w-4 flex-none text-accent [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: def.icon }} />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-ink">{def.label}</span>
+                  <span className="block truncate text-xs text-faint">{def.hint}</span>
+                </span>
               </button>
             ))}
           </div>
