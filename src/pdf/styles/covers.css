@@ -38,8 +38,10 @@ body.mode-flow .cover {
   margin-bottom: 40px;
 }
 
-/* Full-bleed background layers */
+/* Full-bleed background layers (the pattern is an inline SVG generated
+   per style — vector in print and in the PDF engine). */
 .cv-pattern, .cv-shade { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.cv-pattern { width: 100%; height: 100%; }
 .cv-emblem {
   position: absolute;
   right: 13mm;
@@ -121,6 +123,8 @@ body.mode-flow .cover {
   margin: 7mm 0 0;
   max-width: 152mm;
 }
+/* Empty subtitle: hidden when printing/paginating, editable in flow. */
+body.mode-paged .cv-guide--empty { display: none; }
 .cv-highlights { list-style: none; margin: 11mm 0 0; padding: 0; display: flex; flex-direction: column; gap: 3.4mm; }
 .cv-highlights li {
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
@@ -181,12 +185,6 @@ body.mode-flow .cover {
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
   --cv-edition-tx: #142441;
 }
-.cover--regal .cv-pattern {
-  background-image:
-    linear-gradient(to right, rgba(245, 242, 234, 0.045) 0.4pt, transparent 0.4pt),
-    linear-gradient(to bottom, rgba(245, 242, 234, 0.045) 0.4pt, transparent 0.4pt);
-  background-size: 12mm 12mm;
-}
 .cover--regal .cv-shade {
   background: radial-gradient(130% 90% at 50% -10%, transparent 45%, rgba(5, 11, 24, 0.5));
 }
@@ -201,9 +199,6 @@ body.mode-flow .cover {
   --cv-title-font: "Manrope", "Noto Sans Devanagari", sans-serif;
   --cv-edition-tx: #0d4b8a;
 }
-.cover--aurora .cv-pattern {
-  background-image: repeating-radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.09) 0 0.5pt, transparent 0.5pt 24px);
-}
 .cover--aurora .cv-shade { background: radial-gradient(120% 80% at 50% 120%, rgba(0, 0, 0, 0.16), transparent 60%); }
 .cover--aurora .cv-edition { background: #ffffff; }
 
@@ -216,11 +211,6 @@ body.mode-flow .cover {
   --cv-line: rgba(24, 39, 65, 0.2);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
   --cv-edition-tx: #ffffff;
-}
-.cover--ivory .cv-pattern {
-  background-image:
-    repeating-linear-gradient(45deg, rgba(177, 131, 44, 0.1) 0 0.5pt, transparent 0.5pt 22px),
-    repeating-linear-gradient(-45deg, rgba(177, 131, 44, 0.1) 0 0.5pt, transparent 0.5pt 22px);
 }
 .cover--ivory .cv-shade { display: none; }
 .cover--ivory .cv-edition { background: #182741; }
@@ -236,11 +226,5 @@ body.mode-flow .cover {
   --cv-line: rgba(255, 255, 255, 0.16);
   --cv-title-font: "Manrope", "Noto Sans Devanagari", sans-serif;
   --cv-edition-tx: #0f1a28;
-}
-.cover--midnight .cv-pattern {
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.05) 0.4pt, transparent 0.4pt),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0.4pt, transparent 0.4pt);
-  background-size: 13mm 13mm;
 }
 .cover--midnight .cv-shade { background: radial-gradient(120% 80% at 85% 10%, rgba(72, 224, 189, 0.12), transparent 55%); }

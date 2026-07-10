@@ -182,8 +182,8 @@ body.mode-flow .run-foot-site { display: none; }
   opacity: 0.75;
 }
 
-/* Watermark — a pure-vector diagonal mark injected per page by the
-   print harness; opacity is baked into the artwork. */
+/* Watermark — a diagonal brand lockup injected per page by the print
+   harness. Real text + vector mark: stays vector in every export path. */
 .page-watermark {
   position: absolute;
   inset: 0;
@@ -193,10 +193,23 @@ body.mode-flow .run-foot-site { display: none; }
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+  color: #808080;
+  opacity: 0.11;
 }
-.page-watermark__art {
-  width: 165%;
+.page-watermark__lockup {
+  display: flex;
+  align-items: center;
+  gap: 16pt;
   flex: none;
+  transform: rotate(-35deg);
+}
+.page-watermark__mark { display: block; flex: none; }
+.page-watermark__text {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 600;
+  font-size: 28pt;
+  letter-spacing: 1.5pt;
+  white-space: nowrap;
 }
 
 /* Manual page break: authors type \pagebreak on its own line. */
@@ -285,11 +298,13 @@ ins {
 s, del { color: var(--c-muted); }
 sub, sup { font-size: 0.68em; line-height: 0; }
 
-ul, ol { margin: 0 0 0.9em; padding-left: 1.35em; }
-li { margin-bottom: 0.3em; }
+/* List markers are real .li-mark spans emitted by the renderer (not
+   ::marker pseudo-boxes) so the PDF engine transcribes them exactly. */
+ul, ol { margin: 0 0 0.9em; padding-left: 1.45em; list-style: none; }
+li { margin-bottom: 0.3em; position: relative; }
 li > ul, li > ol { margin: 0.3em 0 0.35em; }
-ul li::marker { color: var(--c-accent); }
-ol li::marker { color: var(--c-primary); font-weight: 700; font-family: "Manrope", sans-serif; font-size: 0.9em; }
+.li-mark { position: absolute; right: calc(100% + 0.45em); white-space: nowrap; color: var(--c-accent); }
+ol > li > .li-mark { color: var(--c-primary); font-weight: 700; font-family: "Manrope", "Noto Sans Devanagari", sans-serif; font-size: 0.9em; }
 
 .contains-task-list { list-style: none; padding-left: 0.35em; }
 .task-list-item { display: flex; align-items: baseline; gap: 0.5em; }

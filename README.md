@@ -14,7 +14,9 @@ to manage. Documents live in the browser's own storage (with one-tap
 JSON backup/restore), and PDFs are typeset locally with real print
 pagination — running headers, a branded footer with clickable social
 links on every page, page numbers, a contents page with live page
-references, and a vector watermark.
+references, and a vector watermark. The **Download PDF** is a true file
+download — no system print dialog — produced by a built-in vector PDF
+engine, so files are small, open instantly and keep selectable text.
 
 ## Highlights
 
@@ -27,12 +29,18 @@ references, and a vector watermark.
   breaks), keyboard shortcuts (Ctrl+B/I/U/K), and clear-formatting.
 - **A truly live preview** — edits render in place without flashing or
   losing scroll position, and the preview follows your cursor: edit
-  paragraph five, see paragraph five. The Pages mode shows the exact
-  typeset pages.
+  paragraph five, see paragraph five. **Edit inline** too: tap the cover
+  title, subtitle or any heading right in the preview and it writes back
+  to your Markdown. A full-screen toggle turns the preview into the
+  whole workspace.
+- **Pages mode, tablet-ready** — the exact typeset pages with fit-width,
+  fit-page, ± zoom, **pinch-to-zoom**, double-tap and reliable page
+  navigation so a whole page is always in view.
 - **Publish flow** — one tap typesets the real pages full-screen for a
-  final review (zoom, page navigation — tablet-friendly), then
-  **Download PDF** hands the exact same document to your browser's PDF
-  engine ("Save as PDF"). Identical fonts, margins and page breaks.
+  final review, then **Download PDF** transcribes those exact pages into
+  a true vector PDF and downloads it directly (no print dialog).
+  Selectable text, subset fonts, clickable links, a PDF outline, and
+  files ~60% smaller than a browser "Save as PDF".
 - **Everything configurable in-app** — branding (names, links, colors,
   exams, watermark), per-document layout (cover style, TOC, watermark,
   A4/A5/Letter, text density), export filename pattern.
@@ -76,7 +84,8 @@ to your device; the app never keeps copies.
 Requires Node.js 20+.
 
 ```bash
-npm install       # also copies the Paged.js runtime into public/vendor
+npm install       # copies the Paged.js runtime into public/vendor and
+                  # decompresses the fonts to TTF for the PDF engine
 npm run dev       # Vite dev server
 npm run build     # production build → dist/
 npm start         # serve dist/ (honors $PORT)

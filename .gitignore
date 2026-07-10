@@ -1,6 +1,7 @@
 node_modules/
 dist/
 public/vendor/
+public/fonts/ttf/
 *.local
 .env
 .DS_Store

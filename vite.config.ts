@@ -4,6 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: ["pdf-lib", "@pdf-lib/fontkit"],
+  },
   build: {
     target: "es2022",
     rollupOptions: {

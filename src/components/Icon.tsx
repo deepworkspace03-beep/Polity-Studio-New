@@ -48,7 +48,10 @@ const PATHS = {
   minus: "M5 12h14",
   zoomIn: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35M11 8v6M8 11h6",
   zoomOut: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35M8 11h6",
-  fitWidth: "M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3",
+  fitWidth: "M8 12H3m0 0l3-3m-3 3l3 3M16 12h5m0 0l-3-3m3 3l-3 3M3 4h18M3 20h18",
+  fitPage: "M12 8V3m0 0L9 6m3-3l3 3M12 16v5m0 0l-3-3m3 3l3-3M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z",
+  expand: "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",
+  collapse: "M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7",
 } as const;
 
 export type IconName = keyof typeof PATHS;
