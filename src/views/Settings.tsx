@@ -12,6 +12,7 @@ import {
 import { DEFAULT_BRAND } from "../brand/defaults";
 import type { BrandConfig } from "../lib/types";
 import { downloadFile } from "../lib/utils";
+import { buildZip } from "../lib/zip";
 import { Button, Field, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
 import { StudioNav } from "../components/StudioNav";
 
@@ -227,6 +228,29 @@ export function Settings() {
             <Button icon="upload" onClick={() => fileRef.current?.click()}>
               Restore backup
             </Button>
+            <Button
+              icon="file"
+              disabled={docs.length === 0}
+              onClick={() => {
+                // Plain Markdown files, not the app's JSON format — opens in
+                // any editor, not just this app, if you ever need to leave.
+                const used = new Set<string>();
+                const encoder = new TextEncoder();
+                const entries = docs.map((d) => {
+                  const base = (d.title || "Untitled").replace(/[\\/:*?"<>|]/g, "·").trim() || "Untitled";
+                  let name = `${base}.md`;
+                  for (let i = 2; used.has(name); i++) name = `${base} (${i}).md`;
+                  used.add(name);
+                  const body = d.body.trim();
+                  const content = /^#\s+/.test(body) ? body : `# ${d.title || "Untitled"}\n\n${body}`;
+                  return { name, data: encoder.encode(content) };
+                });
+                downloadFile(`polity-studio-markdown-${new Date().toISOString().slice(0, 10)}.zip`, buildZip(entries), "application/zip");
+                toast(`Downloaded ${docs.length} document${docs.length === 1 ? "" : "s"} as Markdown`, "ok");
+              }}
+            >
+              Export all as Markdown (.zip)
+            </Button>
             <input
               ref={fileRef}
               type="file"
@@ -246,7 +270,9 @@ export function Settings() {
             />
           </div>
           <p className="text-xs text-faint">
-            Back up before clearing browser data — clearing site data deletes your documents.
+            Back up before clearing browser data — clearing site data deletes your documents. The JSON backup restores
+            exactly here; the Markdown zip is one plain .md file per document, readable in any editor if you ever
+            need to leave.
           </p>
           <div className="border-t border-edge pt-4">
             <Button variant="danger" icon="trash" disabled={docs.length === 0} onClick={() => setConfirmWipe(true)}>
