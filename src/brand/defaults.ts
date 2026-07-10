@@ -44,6 +44,7 @@ export const DEFAULT_LAYOUT: DocLayout = {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
+  docTheme: "light",
   fileNamePattern: "{title} — {brand}",
   newDocLayout: DEFAULT_LAYOUT,
 };

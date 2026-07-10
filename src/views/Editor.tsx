@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { navigate } from "../lib/router";
 import { flushSaves, updateDoc, useApp } from "../lib/store";
@@ -219,6 +219,11 @@ export function Editor({ id }: { id: string }) {
     }
   }, []);
 
+  // Word-count is a full-text scan — defer it so it never competes with
+  // a keystroke on very large documents.
+  const deferredBody = useDeferredValue(doc?.body ?? "");
+  const stats = useMemo(() => contentStats(deferredBody), [deferredBody]);
+
   if (!doc) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-faint">
@@ -229,8 +234,6 @@ export function Editor({ id }: { id: string }) {
       </div>
     );
   }
-
-  const stats = contentStats(doc.body);
 
   return (
     <div className="flex h-full flex-col">
@@ -244,6 +247,7 @@ export function Editor({ id }: { id: string }) {
           aria-label="Document title"
         />
         <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
+        <IconButton label="Markdown guide" name="help" size={17} onClick={() => navigate("help")} />
         <IconButton
           label="Document details & layout"
           name="sliders"
@@ -332,6 +336,7 @@ export function Editor({ id }: { id: string }) {
           <Preview
             doc={doc}
             brand={brand}
+            theme={settings.docTheme}
             cursorLine={cursorLine}
             onInlineEdit={onInlineEdit}
             onFocusLine={onFocusLine}

@@ -48,11 +48,15 @@ export function watermarkHtml(text: string): string {
  * it stays vector in print and in the PDF engine — CSS repeating
  * gradients would be rasterized by the browser's print pipeline.
  */
-export function coverPatternSvg(style: "grid" | "rings" | "weave", wMm: number, hMm: number, color: string): string {
+export function coverPatternSvg(style: "grid" | "rings" | "weave" | "lines", wMm: number, hMm: number, color: string): string {
   const parts: string[] = [];
   if (style === "grid") {
     const step = 12;
     for (let x = step; x < wMm; x += step) parts.push(`<line x1="${x}" y1="0" x2="${x}" y2="${hMm}"/>`);
+    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y}" x2="${wMm}" y2="${y}"/>`);
+  } else if (style === "lines") {
+    // Laid-paper texture: fine horizontal rules only.
+    const step = 7;
     for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y}" x2="${wMm}" y2="${y}"/>`);
   } else if (style === "rings") {
     const cx = wMm * 0.82;

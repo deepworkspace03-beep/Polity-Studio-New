@@ -28,6 +28,9 @@ export interface BuildOptions {
   purpose?: "preview" | "export";
   /** Document title override used as the print/PDF filename. */
   fileTitle?: string;
+  /** Reading theme — "dark" renders the document on a dark, eye-friendly
+      palette (previews, PDF and HTML alike). Covers keep their own design. */
+  theme?: "light" | "dark";
 }
 
 const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; margin: string }> = {
@@ -37,11 +40,11 @@ const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; marg
 };
 
 /** Vector pattern layer per cover style (SVG so print stays vector). */
-const COVER_PATTERNS: Record<Doc["layout"]["coverStyle"], { kind: "grid" | "rings" | "weave"; color: string }> = {
+const COVER_PATTERNS: Record<Doc["layout"]["coverStyle"], { kind: "grid" | "rings" | "weave" | "lines"; color: string }> = {
   regal: { kind: "grid", color: "rgba(245,242,234,0.045)" },
   aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
-  ivory: { kind: "weave", color: "rgba(177,131,44,0.1)" },
-  midnight: { kind: "grid", color: "rgba(255,255,255,0.05)" },
+  heritage: { kind: "lines", color: "rgba(26,39,64,0.07)" },
+  eclipse: { kind: "rings", color: "rgba(211,166,98,0.08)" },
 };
 
 const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string }> = {
@@ -50,8 +53,29 @@ const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string 
   relaxed: { size: "13.6pt", leading: "1.72" },
 };
 
-function themeVars(brand: BrandConfig): string {
+function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   const c = brand.colors;
+  if (theme === "dark") {
+    // Brand hues are tuned for white paper; on a dark ground they are
+    // lightened with color-mix so headings and accents keep their
+    // identity while staying comfortably readable.
+    return `
+  --c-primary: color-mix(in srgb, ${c.primary} 34%, #D9E4F4);
+  --c-primarySoft: color-mix(in srgb, ${c.primarySoft} 42%, #C6D5EA);
+  --c-accent: color-mix(in srgb, ${c.accent} 72%, #BFE8E4);
+  --c-accentSoft: color-mix(in srgb, ${c.accent} 20%, #131A25);
+  --c-gold: color-mix(in srgb, ${c.gold} 72%, #F0DBA8);
+  --c-text: #DCE4F0;
+  --c-muted: #93A2B5;
+  --c-paper: #131A25;
+  --c-band: #1B2432;
+  --c-edge: #2C3A4E;
+  --c-danger: #E08379;
+  --c-warn: #D9A85A;
+  --c-good: #57C08A;
+  --c-mix: #131A25;
+  --c-th-ink: #EAF1FA;`;
+  }
   return `
   --c-primary: ${c.primary};
   --c-primarySoft: ${c.primarySoft};
@@ -65,7 +89,9 @@ function themeVars(brand: BrandConfig): string {
   --c-edge: #DCE4EC;
   --c-danger: #B4433A;
   --c-warn: #B07C24;
-  --c-good: #177245;`;
+  --c-good: #177245;
+  --c-mix: #FFFFFF;
+  --c-th-ink: #FFFFFF;`;
 }
 
 /* ── Cover ─────────────────────────────────────────────────────────── */
@@ -177,9 +203,13 @@ body.purpose-preview .pagedjs_page {
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
   flex: none;
 }
+/* NOTE: Paged.js is a print polyfill — it applies @media print rules to
+   the paginated screen document too, so an !important zoom reset here
+   would permanently disable the preview's zoom controls. The harness
+   resets zoom imperatively around window.print() instead. */
 @media print {
   body.purpose-preview { background: none; }
-  body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; zoom: 1 !important; }
+  body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; }
   body.purpose-preview .pagedjs_page { box-shadow: none; }
 }`;
 
@@ -224,18 +254,19 @@ ${body.html}`;
 
 /** Everything that requires a full iframe rebuild when it changes —
     used by the preview to decide srcdoc reload vs in-place update. */
-export function buildShellKey(doc: Doc, brand: BrandConfig): string {
+export function buildShellKey(doc: Doc, brand: BrandConfig, theme: "light" | "dark" = "light"): string {
   return [
     doc.template,
     doc.layout.pageSize,
     doc.layout.density,
     doc.lang,
+    theme,
     Object.values(brand.colors).join(","),
   ].join("|");
 }
 
 export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOptions): string {
-  const { mode, purpose = "preview" } = options;
+  const { mode, purpose = "preview", theme = "light" } = options;
   doc = { ...doc, body: stripFrontMatter(doc.body) };
   const template = TEMPLATE_RENDERERS[doc.template];
   const body = template.buildBody(doc);
@@ -244,7 +275,7 @@ export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOp
   const paged = mode === "paged";
 
   const css = `
-:root { ${themeVars(brand)}
+:root { ${themeVars(brand, theme)}
   --body-size: ${density.size};
   --body-leading: ${density.leading};
 }
@@ -282,7 +313,7 @@ ${body.html}`;
 <style>${css}</style>
 ${watermarkTemplate}
 </head>
-<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
+<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
 ${paged ? content : `<div id="doc-root">${content}</div>`}
 ${scripts}
 </body>

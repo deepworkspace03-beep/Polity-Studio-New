@@ -11,15 +11,19 @@ import ins from "markdown-it-ins";
 /* ── Slugs ─────────────────────────────────────────────────────────── */
 
 export function slugify(text: string): string {
-  return (
+  const slug =
     text
       .toLowerCase()
       .trim()
       .replace(/[^\p{L}\p{N}\s-]/gu, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
-      .slice(0, 80) || "section"
-  );
+      .slice(0, 80) || "section";
+  // Ids must be valid CSS identifiers: a heading like "1.1 Doctrine"
+  // would otherwise produce "#11-doctrine", which querySelector rejects —
+  // Paged.js resolves TOC page references with exactly that call, so a
+  // single numbered heading would abort pagination of the whole document.
+  return /^[a-z_\p{L}]/u.test(slug) ? slug : `s-${slug}`;
 }
 
 /* ── Callout boxes ─────────────────────────────────────────────────

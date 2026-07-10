@@ -364,7 +364,7 @@ th {
   font-size: 0.86em;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--c-paper);
+  color: var(--c-th-ink, #FFFFFF);
   background: var(--c-primary);
   padding: 6pt 8pt;
   text-align: left;
@@ -464,14 +464,16 @@ p > img:only-child {
 .callout__body { font-size: 0.96em; }
 .callout__body > p:last-child { margin-bottom: 0; }
 
-.callout--definition { --co-accent: var(--c-accent); --co-bg: color-mix(in srgb, var(--c-accentSoft) 65%, white); }
-.callout--example    { --co-accent: var(--c-primarySoft); --co-bg: color-mix(in srgb, var(--c-band) 75%, white); }
-.callout--important  { --co-accent: var(--c-gold); --co-bg: color-mix(in srgb, var(--c-gold) 9%, white); }
-.callout--summary    { --co-accent: var(--c-primary); --co-bg: color-mix(in srgb, var(--c-primary) 6%, white); }
-.callout--tip        { --co-accent: var(--c-good); --co-bg: color-mix(in srgb, var(--c-good) 7%, white); }
-.callout--warning    { --co-accent: var(--c-danger); --co-bg: color-mix(in srgb, var(--c-danger) 7%, white); }
-.callout--note       { --co-accent: var(--c-muted); --co-bg: color-mix(in srgb, var(--c-band) 80%, white); }
-.callout--exam       { --co-accent: var(--c-primary); --co-bg: color-mix(in srgb, var(--c-gold) 12%, white); }
+/* --c-mix is the theme's "toward paper" mix target (white in light,
+   near-paper in dark) so callout fills stay subtle in both themes. */
+.callout--definition { --co-accent: var(--c-accent); --co-bg: color-mix(in srgb, var(--c-accentSoft) 65%, var(--c-mix, white)); }
+.callout--example    { --co-accent: var(--c-primarySoft); --co-bg: color-mix(in srgb, var(--c-band) 75%, var(--c-mix, white)); }
+.callout--important  { --co-accent: var(--c-gold); --co-bg: color-mix(in srgb, var(--c-gold) 9%, var(--c-mix, white)); }
+.callout--summary    { --co-accent: var(--c-primary); --co-bg: color-mix(in srgb, var(--c-primary) 6%, var(--c-mix, white)); }
+.callout--tip        { --co-accent: var(--c-good); --co-bg: color-mix(in srgb, var(--c-good) 7%, var(--c-mix, white)); }
+.callout--warning    { --co-accent: var(--c-danger); --co-bg: color-mix(in srgb, var(--c-danger) 7%, var(--c-mix, white)); }
+.callout--note       { --co-accent: var(--c-muted); --co-bg: color-mix(in srgb, var(--c-band) 80%, var(--c-mix, white)); }
+.callout--exam       { --co-accent: var(--c-primary); --co-bg: color-mix(in srgb, var(--c-gold) 12%, var(--c-mix, white)); }
 .callout--exam .callout__label { color: var(--c-primary); }
 
 /* ═══════════════════════════════════════════════════════════════════

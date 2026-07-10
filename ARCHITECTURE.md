@@ -40,7 +40,11 @@ and how to extend it.
    exams, watermark text) is data in IndexedDB, edited in Settings, and
    flows into print CSS as `--c-*` variables. Per-document layout
    (cover style, TOC, watermark, page size, density, MCQ answers
-   placement) is data on the document.
+   placement) is data on the document. A global "document reading
+   theme" (Settings → Appearance) re-derives the whole `--c-*` palette
+   for a dark, eye-friendly rendering that flows through previews, PDF
+   and HTML exports alike — brand hues are lightened with `color-mix`
+   so headings and accents keep their identity on the dark ground.
 6. **Vector-only branding.** The temple mark, the social icons in the
    page footer and the diagonal watermark are inline SVG generated from
    `src/brand/marks.ts`. No raster assets ship with the app.
@@ -57,14 +61,14 @@ public/
 └─ vendor/               Paged.js runtime (copied by scripts/sync-vendor.mjs
                          on npm install; gitignored)
 src/
-├─ main.tsx · App.tsx    bootstrap, theme, route switch (3 views)
+├─ main.tsx · App.tsx    bootstrap, theme, route switch (4 views)
 ├─ app.css               Tailwind v4 + design tokens (dark/light)
 ├─ lib/
 │  ├─ types.ts           Doc, DocLayout, BrandConfig, Settings — the model
 │  ├─ db.ts              minimal typed IndexedDB (docs + kv stores)
 │  ├─ store.ts           app store: load, autosave (debounced + pagehide
 │  │                     flush), delete-all, backup/restore
-│  ├─ router.ts          hash router (#/, #/edit/:id, #/settings)
+│  ├─ router.ts          hash router (#/, #/edit/:id, #/settings, #/help)
 │  └─ utils.ts           uid, cx, debounce, dates, download, stats
 ├─ brand/
 │  ├─ defaults.ts        default Polity Made Simple branding + settings
@@ -100,11 +104,16 @@ src/
 │                        notes/revision/mcq/flashcards.css
 ├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast…
 └─ views/
-   ├─ Library.tsx        document grid, search, template picker, Examples
-   ├─ Editor.tsx         header, split/tabbed layout
+   ├─ Library.tsx        home: hero, document grid, search, templates,
+   │                     Examples, theme toggle (no persistent nav chrome)
+   ├─ Editor.tsx         header, three resizable panes (settings pane ·
+   │                     editor · preview), mobile write/preview tabs
    ├─ editor/            CodeMirror wrapper, commands, Toolbar, Preview
    │                     (flow/pages), Details sheet, Publish overlay
-   └─ Settings.tsx       appearance, branding, defaults, your data
+   ├─ Settings.tsx       appearance (incl. document reading theme),
+   │                     branding, defaults, save/restore, your data
+   └─ Help.tsx           Markdown guide: syntax examples, callouts, MCQ
+                         grammar, AI-prompt for generating compatible docs
 ```
 
 ## Publish flow
@@ -149,8 +158,10 @@ typing is never clobbered.
   builder + print CSS entry in `templates/index.ts`. Everything else
   (picker, details options, preview, publish) picks it up.
 - **New cover style** — add a `.cover--<id>` block in
-  `pdf/styles/covers.css` and an entry in the `COVER_STYLES` list in
-  `views/editor/Details.tsx`.
+  `pdf/styles/covers.css`, a pattern entry in `COVER_PATTERNS`
+  (`pdf/document.ts`) and an entry in the `COVER_STYLES` list in
+  `views/editor/Details.tsx`. Retired ids get a mapping in
+  `LEGACY_COVERS` (`lib/store.ts`) so stored documents migrate.
 - **New callout type** — one entry in `CALLOUTS` (`markdown/renderer.ts`)
   plus a `.callout--<type>` color rule in `pdf/styles/print-base.css`.
 - **New example** — one entry in `templates/demos.ts`.
@@ -193,9 +204,25 @@ Two representations of the same typefaces ship, both offline:
   Download, never during editing.
 - The flow preview re-renders in place ~200 ms after the last keystroke
   (innerHTML swap of the content root — no iframe reload, no font
-  refetch). The paged preview re-paginates 1.2 s after the last edit;
-  pagination is the expensive path and is opt-in via the Flow/Pages
-  toggle.
+  refetch), and skips the swap entirely when the rendered HTML didn't
+  change. The paged preview re-paginates ~1.2 s after the last edit.
+  Both debounces scale with document size (up to 1.2 s flow / 5 s
+  paged for very large documents) so typing in a 400-page document
+  never races the expensive work; pagination remains opt-in via the
+  Flow/Pages toggle. The word-count in the editor header is computed
+  behind `useDeferredValue` so the full-text scan never competes with
+  a keystroke.
+- The export hot path resolves fonts per character; a synchronous
+  (family stack, weight, style, codepoint) → face memo turns that into
+  a Map hit after warm-up, which removes millions of microtask
+  allocations on a 400-page export. The transcriber yields to the
+  event loop after every page so the progress bar stays live.
+- The standalone HTML export snapshots the already-paginated DOM from
+  the Publish iframe instead of re-shipping Paged.js (~500 KB saved);
+  it inlines only the font faces whose scripts (latin / latin-ext /
+  Devanagari) actually occur in the text, un-materializes the PDF
+  engine's `<x-pseudo>` boxes, and rides a ~2 KB viewer script (zoom,
+  pinch, page indicator). The file opens instantly — layout is done.
 - Exported PDFs are ~60% smaller than the browser's own print output for
   the same document (e.g. the 10-page notes demo: ~120 KB vs ~210 KB),
   because the engine re-subsets fonts to used glyphs and keeps every

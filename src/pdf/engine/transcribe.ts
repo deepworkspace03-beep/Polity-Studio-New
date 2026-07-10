@@ -460,7 +460,8 @@ class Transcriber {
 
     const fontSize = parseFloat(cs.fontSize);
     if (!fontSize) return;
-    const stack = cs.fontFamily.split(",");
+    const stackKey = cs.fontFamily;
+    const stack = stackKey.split(",");
     const weight = parseInt(cs.fontWeight, 10) || 400;
     const italic = cs.fontStyle.includes("italic") || cs.fontStyle.includes("oblique");
     const letterSpacing = cs.letterSpacing === "normal" ? 0 : parseFloat(cs.letterSpacing) || 0;
@@ -483,7 +484,10 @@ class Transcriber {
       let idx = 0;
       for (const ch of text) {
         const cp = ch.codePointAt(0)!;
-        const face = await this.fonts.resolve(stack, weight, italic, cp);
+        // Hot loop: probe the synchronous memo first — awaiting the
+        // resolver allocates a microtask per character otherwise.
+        let face = this.fonts.cached(stackKey, weight, italic, cp);
+        if (face === undefined) face = await this.fonts.resolve(stack, weight, italic, cp, stackKey);
         if (runFace === undefined) runFace = face;
         else if (face !== runFace) {
           await flush(idx);

@@ -9,13 +9,15 @@ import { useSyncExternalStore } from "react";
 export type Route =
   | { view: "library" }
   | { view: "editor"; id: string }
-  | { view: "settings" };
+  | { view: "settings" }
+  | { view: "help" };
 
 function parse(): Route {
   const hash = window.location.hash.replace(/^#\/?/, "");
   const [head, ...rest] = hash.split("/");
   if (head === "edit" && rest[0]) return { view: "editor", id: decodeURIComponent(rest[0]) };
   if (head === "settings") return { view: "settings" };
+  if (head === "help") return { view: "help" };
   return { view: "library" };
 }
 
@@ -34,6 +36,7 @@ export function useRoute(): Route {
   return useSyncExternalStore(subscribe, () => current);
 }
 
-export function navigate(path: "library" | "settings" | { edit: string }): void {
-  window.location.hash = typeof path === "string" ? (path === "library" ? "#/" : "#/settings") : `#/edit/${encodeURIComponent(path.edit)}`;
+export function navigate(path: "library" | "settings" | "help" | { edit: string }): void {
+  window.location.hash =
+    typeof path === "string" ? (path === "library" ? "#/" : `#/${path}`) : `#/edit/${encodeURIComponent(path.edit)}`;
 }

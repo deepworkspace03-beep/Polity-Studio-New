@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { navigate } from "../lib/router";
-import { createDoc, deleteDoc, deleteDocs, duplicateDoc, mergeDocs, useApp } from "../lib/store";
+import { createDoc, deleteDoc, deleteDocs, duplicateDoc, mergeDocs, saveSettings, useApp } from "../lib/store";
 import { contentStats, cx, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import { DEMOS, type DemoDoc } from "../templates/demos";
@@ -22,7 +22,7 @@ function greeting(): string {
 }
 
 export function Library() {
-  const { docs, brand } = useApp();
+  const { docs, settings } = useApp();
   const toast = useToast();
   const [query, setQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -87,31 +87,38 @@ export function Library() {
     navigate({ edit: doc.id });
   }
 
+  const isDark = settings.theme === "dark" || (settings.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col px-4 py-6 sm:px-6">
-      <header className="mb-6 flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#1C3557] to-[#149C94] text-white">
-          <TempleMark size={24} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-extrabold tracking-tight">Polity Studio</h1>
-          <p className="truncate text-xs text-faint">{brand.name} · {brand.initiative}</p>
-        </div>
+    <div className="mx-auto flex h-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+      <header className="mb-8 flex items-center gap-2.5">
+        <TempleMark size={26} className="flex-none text-accent" />
+        <span className="min-w-0 truncate text-[15px] font-extrabold tracking-tight">Polity Studio</span>
+        <span className="flex-1" />
         {docs.length > 0 &&
           (selectMode ? (
             <Button onClick={exitSelectMode}>Cancel</Button>
           ) : (
-            <IconButton label="Select documents" name="checklist" size={19} onClick={() => setSelectMode(true)} />
+            <IconButton label="Select documents" name="checklist" size={18} onClick={() => setSelectMode(true)} />
           ))}
-        <IconButton label="Settings" name="settings" size={19} onClick={() => navigate("settings")} />
+        <IconButton label="Markdown guide & help" name="help" size={18} onClick={() => navigate("help")} />
+        <IconButton
+          label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+          name={isDark ? "sun" : "moon"}
+          size={18}
+          onClick={() => saveSettings({ theme: isDark ? "light" : "dark" })}
+        />
+        <IconButton label="Settings" name="settings" size={18} onClick={() => navigate("settings")} />
       </header>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold">{greeting()}</h2>
-          <p className="mt-0.5 text-sm text-faint">Paste your Markdown, get a beautiful branded PDF.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-[27px]">{greeting()}</h1>
+          <p className="mt-1.5 max-w-md text-sm text-faint">
+            Turn your Markdown into a beautifully branded, exam-ready PDF.
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-none gap-2">
           <Button icon="eye" onClick={() => setExamplesOpen(true)}>
             Examples
           </Button>
@@ -135,9 +142,7 @@ export function Library() {
 
       {docs.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-edge px-6 py-16 text-center">
-          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent">
-            <TempleMark size={30} />
-          </span>
+          <TempleMark size={44} className="mb-4 text-accent/70" />
           <h3 className="text-base font-bold">Your studio is empty</h3>
           <p className="mt-1 max-w-sm text-sm text-faint">
             Create your first document and turn raw notes into an exam-ready PDF in minutes — or open an example to see

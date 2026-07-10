@@ -10,8 +10,8 @@ import { cx } from "../../lib/utils";
 const COVER_STYLES: { id: DocLayout["coverStyle"]; label: string; swatch: string }[] = [
   { id: "regal", label: "Regal", swatch: "linear-gradient(140deg,#0d1930,#1d3357 60%,#c9bc9e 175%)" },
   { id: "aurora", label: "Aurora", swatch: "linear-gradient(140deg,#123c93,#0d76b2 52%,#0a9f80)" },
-  { id: "ivory", label: "Ivory", swatch: "linear-gradient(140deg,#f7f2e6 70%,#b1832c 180%)" },
-  { id: "midnight", label: "Midnight", swatch: "linear-gradient(140deg,#141f2e,#1b2b41 60%,#48e0bd 190%)" },
+  { id: "heritage", label: "Heritage", swatch: "linear-gradient(150deg,#faf8f2 55%,#8a6d3b 200%)" },
+  { id: "eclipse", label: "Eclipse", swatch: "linear-gradient(160deg,#0c1017,#1a2434 62%,#d3a662 210%)" },
 ];
 
 /** The settings form itself — shared verbatim by the mobile modal and the
