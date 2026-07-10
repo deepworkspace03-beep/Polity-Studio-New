@@ -32,6 +32,7 @@ export function Preview({
   onFocusLine,
   fullscreen,
   onToggleFullscreen,
+  onCollapse,
 }: {
   doc: Doc;
   brand: BrandConfig;
@@ -43,6 +44,8 @@ export function Preview({
   onFocusLine: (line: number, focusEditor: boolean) => void;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
+  /** Tucks the preview pane away to a slim rail (desktop/tablet three-pane layout only). */
+  onCollapse?: () => void;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
   const [srcDoc, setSrcDoc] = useState("");
@@ -202,6 +205,9 @@ export function Preview({
           active={fullscreen}
           onClick={onToggleFullscreen}
         />
+        {onCollapse && !fullscreen && (
+          <IconButton label="Collapse preview panel" name="chevronRight" size={15} className="hidden md:inline-flex" onClick={onCollapse} />
+        )}
       </div>
       <iframe
         ref={frameRef}

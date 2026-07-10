@@ -221,13 +221,22 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
+  // Split from the keydown effect below: keying focus off `onClose` too
+  // (as a naive exhaustive-deps effect would) re-focuses the panel on
+  // every parent re-render — i.e. every keystroke in any field the modal
+  // contains — which yanks focus out of the input and, on mobile, closes
+  // the on-screen keyboard.
+  useEffect(() => {
+    if (!open) return;
+    ref.current?.focus();
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    ref.current?.focus();
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
