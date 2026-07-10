@@ -123,6 +123,31 @@ function getRenderer(): MarkdownIt {
     });
   }
 
+  // List markers as real elements (not ::marker pseudo-boxes) so the
+  // PDF engine can transcribe them and their styling is consistent
+  // across preview and export. Task-list items keep their checkboxes.
+  md.core.ruler.push("studio_list_marks", (state) => {
+    const stack: { ordered: boolean; index: number }[] = [];
+    for (const token of state.tokens) {
+      if (token.type === "bullet_list_open") stack.push({ ordered: false, index: 0 });
+      else if (token.type === "ordered_list_open") {
+        stack.push({ ordered: true, index: Number(token.attrGet("start") ?? 1) });
+      } else if (token.type === "bullet_list_close" || token.type === "ordered_list_close") stack.pop();
+      else if (token.type === "list_item_open" && stack.length) {
+        const list = stack[stack.length - 1];
+        token.meta = { ...token.meta, mark: list.ordered ? `${list.index++}.` : "•" };
+      }
+    }
+  });
+  const defaultListItem =
+    md.renderer.rules.list_item_open || ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+  md.renderer.rules.list_item_open = (tokens, idx, options, env, self) => {
+    const open = defaultListItem(tokens, idx, options, env, self);
+    const mark = tokens[idx].meta?.mark;
+    if (!mark || (tokens[idx].attrGet("class") || "").includes("task-list-item")) return open;
+    return `${open}<span class="li-mark" aria-hidden="true">${mark}</span>`;
+  };
+
   // `\pagebreak` (or `\newpage`) alone on a line forces a page break.
   md.core.ruler.push("studio_pagebreak", (state) => {
     const tokens = state.tokens;
@@ -142,10 +167,16 @@ function getRenderer(): MarkdownIt {
 
   // Source line mapping — every block-level element carries data-line
   // (1-based) so the preview can follow the editor cursor precisely.
+  // Headings additionally carry data-edit-line so the flow preview can
+  // offer inline editing that writes straight back to that source line.
   md.core.ruler.push("studio_line_map", (state) => {
     for (const token of state.tokens) {
       if (token.map && token.nesting === 1) {
-        token.attrSet("data-line", String(token.map[0] + 1));
+        const line = String(token.map[0] + 1);
+        token.attrSet("data-line", line);
+        if (token.type === "heading_open" && ["h1", "h2", "h3"].includes(token.tag)) {
+          token.attrSet("data-edit-line", line);
+        }
       }
     }
   });

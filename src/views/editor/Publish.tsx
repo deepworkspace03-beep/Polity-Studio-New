@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrandConfig, Doc, Settings } from "../../lib/types";
 import { buildDocumentHtml } from "../../pdf/document";
+import { downloadFile } from "../../lib/utils";
 import { Button, IconButton, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 
 /**
- * Publish — the export flow. Opens full screen, immediately typesets
- * the real pages (Paged.js), lets the author review every page with
- * zoom + page navigation, then hands the typeset document to the
- * browser's PDF engine ("Save as PDF"). The review pane and the PDF are
- * the same document, so what you approve is exactly what you download.
+ * Publish — the export flow. Opens full screen, typesets the real pages
+ * (Paged.js), lets the author review every page with zoom + page
+ * navigation, then transcribes the exact typeset pages into a true
+ * vector PDF and downloads it directly (no system print dialog). The
+ * review pane and the PDF are the same document, so what you approve is
+ * exactly what you download.
  */
 
 export function buildFileTitle(doc: Doc, brand: BrandConfig, settings: Settings): string {
@@ -20,9 +22,8 @@ export function buildFileTitle(doc: Doc, brand: BrandConfig, settings: Settings)
   return raw.replace(/[\\/:*?"<>|]/g, "·").trim() || "Untitled";
 }
 
-type Phase = "layout" | "ready" | "error";
-
-const ZOOM_STEPS = [0.5, 0.65, 0.8, 1, 1.2, 1.5, 2];
+type Phase = "layout" | "ready" | "exporting" | "error";
+type ZoomMode = "fit-width" | "fit-page" | "custom";
 
 export function Publish({
   doc,
@@ -41,8 +42,9 @@ export function Publish({
   const [error, setError] = useState("");
   const [pages, setPages] = useState(0);
   const [current, setCurrent] = useState(1);
-  const [zoom, setZoom] = useState<number>(1);
-  const [fit, setFit] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
+  const [progress, setProgress] = useState(0);
 
   const fileTitle = useMemo(() => buildFileTitle(doc, brand, settings), [doc, brand, settings]);
   // Snapshot at open — the overlay owns the screen, the doc can't change.
@@ -70,6 +72,7 @@ export function Publish({
         setCurrent(d.page);
       } else if (d?.type === "zoom" && typeof d.zoom === "number") {
         setZoom(d.zoom);
+        setZoomMode(d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom");
       }
     };
     window.addEventListener("message", onMessage);
@@ -78,27 +81,17 @@ export function Publish({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && phase !== "exporting") onClose();
+      else if (e.key === "ArrowRight" || e.key === "PageDown") goTo(current + 1);
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") goTo(current - 1);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, phase, current, pages]);
 
-  function setZoomMode(next: number | "fit") {
-    if (next === "fit") {
-      setFit(true);
-      post({ type: "set-zoom", zoom: "fit" });
-    } else {
-      setFit(false);
-      setZoom(next);
-      post({ type: "set-zoom", zoom: next });
-    }
-  }
-
-  function zoomBy(dir: 1 | -1) {
-    const idx = ZOOM_STEPS.findIndex((z) => z >= zoom - 0.01);
-    const next = ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, (idx < 0 ? 3 : idx) + dir))];
-    setZoomMode(next);
+  function setZoomModeCmd(next: ZoomMode | number) {
+    post({ type: "set-zoom", zoom: next === "custom" ? zoom : next });
   }
 
   function goTo(page: number) {
@@ -107,9 +100,29 @@ export function Publish({
     post({ type: "go-to-page", page: p });
   }
 
-  function downloadPdf() {
-    post({ type: "print" });
-    toast("Choose “Save as PDF” to download your document.", "info");
+  async function downloadPdf() {
+    const win = frameRef.current?.contentWindow;
+    const srcDoc = win?.document;
+    if (!srcDoc) return;
+    setPhase("exporting");
+    setProgress(0);
+    try {
+      // The PDF engine (pdf-lib + fontkit) loads only on first export.
+      const { exportPaginatedPdf } = await import("../../pdf/engine");
+      const result = await exportPaginatedPdf(
+        srcDoc,
+        { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: doc.lang },
+        (done, total) => setProgress(total ? done / total : 0),
+      );
+      downloadFile(`${fileTitle}.pdf`, result.blob, "application/pdf");
+      toast(`Downloaded · ${result.pages} pages · ${(result.bytes / 1024).toFixed(0)} KB`, "ok");
+      setPhase("ready");
+    } catch (err) {
+      console.error("[publish] export failed", err);
+      toast("Export hit a problem — falling back to print.", "error");
+      setPhase("ready");
+      post({ type: "print" });
+    }
   }
 
   return (
@@ -119,16 +132,25 @@ export function Publish({
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-bold leading-tight">{doc.title || "Untitled"}</h2>
           <p className="truncate text-xs text-faint">
-            {phase === "layout" ? "Typesetting pages…" : phase === "ready" ? `${pages} page${pages === 1 ? "" : "s"} · ready to download` : "Layout failed"}
+            {phase === "layout"
+              ? "Typesetting pages…"
+              : phase === "exporting"
+                ? `Building vector PDF… ${Math.round(progress * 100)}%`
+                : phase === "ready"
+                  ? `${pages} page${pages === 1 ? "" : "s"} · vector PDF, opens instantly`
+                  : "Layout failed"}
           </p>
         </div>
 
-        {phase === "ready" && (
+        {phase !== "error" && phase !== "layout" && (
           <>
-            <div className="hidden items-center gap-0.5 sm:flex" role="group" aria-label="Zoom">
-              <IconButton label="Zoom out" name="zoomOut" size={15} onClick={() => zoomBy(-1)} />
-              <IconButton label="Fit to width" name="fitWidth" size={15} active={fit} onClick={() => setZoomMode("fit")} />
-              <IconButton label="Zoom in" name="zoomIn" size={15} onClick={() => zoomBy(1)} />
+            <div className="hidden items-center gap-0.5 rounded-lg border border-edge p-0.5 sm:flex" role="group" aria-label="Zoom">
+              <IconButton label="Zoom out" name="zoomOut" size={15} onClick={() => post({ type: "zoom-by", factor: 0.9 })} />
+              <span className="min-w-11 text-center text-xs font-semibold tabular-nums text-ink-2">{Math.round(zoom * 100)}%</span>
+              <IconButton label="Zoom in" name="zoomIn" size={15} onClick={() => post({ type: "zoom-by", factor: 1.1 })} />
+              <span className="mx-0.5 h-4 w-px bg-edge" />
+              <IconButton label="Fit width" name="fitWidth" size={15} active={zoomMode === "fit-width"} onClick={() => setZoomModeCmd("fit-width")} />
+              <IconButton label="Fit page" name="fitPage" size={15} active={zoomMode === "fit-page"} onClick={() => setZoomModeCmd("fit-page")} />
             </div>
             <div className="flex items-center gap-0.5" role="group" aria-label="Page navigation">
               <IconButton label="Previous page" name="chevronLeft" size={15} onClick={() => goTo(current - 1)} />
@@ -140,8 +162,14 @@ export function Publish({
           </>
         )}
 
-        <Button variant="primary" icon="download" onClick={downloadPdf} disabled={phase !== "ready"} className="px-2.5 sm:px-3">
-          <span className="hidden sm:inline">Download PDF</span>
+        <Button
+          variant="primary"
+          icon={phase === "exporting" ? "loader" : "download"}
+          onClick={downloadPdf}
+          disabled={phase !== "ready"}
+          className="px-2.5 sm:px-3"
+        >
+          <span className="hidden sm:inline">{phase === "exporting" ? "Exporting…" : "Download PDF"}</span>
           <span className="sm:hidden">PDF</span>
         </Button>
       </header>
@@ -158,6 +186,11 @@ export function Publish({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg/85">
             <Icon name="loader" size={22} className="animate-spin text-accent" />
             <p className="text-sm text-ink-2">Typesetting your pages…</p>
+          </div>
+        )}
+        {phase === "exporting" && (
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-edge">
+            <div className="h-full bg-accent transition-[width] duration-150" style={{ width: `${progress * 100}%` }} />
           </div>
         )}
         {phase === "error" && (

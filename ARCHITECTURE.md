@@ -9,15 +9,24 @@ and how to extend it.
    pagination, PDF export — runs in the browser. There is no server, no
    database, no auth surface, nothing to patch or migrate. Deployment is
    "serve a folder", which any host does reliably.
-2. **The PDF engine is Paged.js in the user's browser.** It runs in a
-   same-origin iframe and the paginated result is handed to the
-   browser's own print-to-PDF engine. This is the only client-side path
-   that produces *vector* PDFs — selectable text, embedded subset fonts,
-   clickable links, small files — with running headers/footers
-   (`position: running()`), `counter(pages)`, TOC page references
-   (`target-counter`), named full-bleed pages and a per-page watermark.
-   Raster approaches (html2canvas et al.) were rejected: fuzzy type,
-   megabyte files, no text layer.
+2. **Paged.js typesets; a custom engine writes the PDF.** Paged.js runs
+   in a same-origin iframe and produces the exact paginated DOM —
+   running headers/footers (`position: running()`), `counter(pages)`,
+   TOC page references (`target-counter`), named full-bleed pages and a
+   per-page watermark. Instead of handing that to the browser's
+   print-to-PDF (which forces a system dialog and cannot name the file),
+   the engine in `src/pdf/engine/` **transcribes the laid-out DOM into a
+   true vector PDF** with `pdf-lib` + `fontkit`: it walks the DOM in
+   paint order and replays backgrounds, borders, CSS gradients (as PDF
+   shadings), inline SVG, images and word-positioned text runs measured
+   with `Range.getClientRects()`. The result downloads directly as a
+   `Blob` — no print dialog, exact filename, selectable text, subset
+   fonts, clickable links and a PDF outline. Files are ~60% smaller than
+   the browser's own print output because fonts are re-subset to only
+   the glyphs used and every graphic stays vector. Raster approaches
+   (html2canvas et al.) were rejected: fuzzy type, megabyte files, no
+   text layer. The browser print path survives as a fallback if
+   pagination fails.
 3. **One builder, three consumers.** `buildDocumentHtml()` produces a
    self-contained HTML document used by the flow preview, the Publish
    review and the PDF download. The pages you approve in Publish are
@@ -77,9 +86,16 @@ src/
 │  │                     also buildDocContent/buildShellKey for the
 │  │                     incremental flow preview
 │  ├─ harness.ts         scripts inlined into the iframes: paged harness
-│  │                     (running topic, watermark, zoom, page nav,
-│  │                     cursor sync, completion signalling) and flow
-│  │                     preview harness (in-place updates, cursor sync)
+│  │                     (running topic, watermark, fit/pinch zoom, page
+│  │                     nav, cursor sync, completion signalling) and
+│  │                     flow preview harness (in-place updates, cursor
+│  │                     sync, inline contenteditable → doc/markdown)
+│  ├─ engine/            the vector PDF engine (lazy chunk, loads on
+│  │                     first export): index (entry) · transcribe (DOM
+│  │                     walker) · canvas (CSS-space → PDF operators) ·
+│  │                     fonts (fontkit subset + CSS face matching) ·
+│  │                     gradient · svg · materialize (pseudo-elements) ·
+│  │                     geometry
 │  └─ styles/            print-base.css (foundation) · covers.css ·
 │                        notes/revision/mcq/flashcards.css
 ├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast…
@@ -98,14 +114,25 @@ Publish PDF
   → buildDocumentHtml(mode: "paged", purpose: "preview", fileTitle)
   → full-screen iframe; Paged.js paginates; harness stamps watermark +
     running topics, reports pages
-  → author reviews the exact pages (zoom, fit, page navigation)
-  → Download PDF → the same iframe prints (print CSS strips the desk
-    background/zoom) → "Save as PDF"; the document <title> is the
-    suggested filename
+  → author reviews the exact pages (fit-width/fit-page, ± zoom,
+    pinch-to-zoom, page navigation)
+  → Download PDF → exportPaginatedPdf(iframe.document) transcribes the
+    laid-out pages into a vector PDF and downloads it as a Blob; the
+    file name is the resolved fileNamePattern
 ```
 
 If pagination fails on unusual content, Publish offers a simplified
-continuous-layout export as a fallback.
+continuous-layout export (browser print) as a fallback; the engine also
+falls back to print if transcription throws.
+
+## Inline editing
+
+In the flow preview, the cover title/subtitle and every heading are
+`contenteditable`. The flow harness posts each committed edit to the
+host; the Editor writes it straight back — title/subtitle to the doc
+fields, headings to their source line in the Markdown (the `#`s are
+preserved). While an element is focused the host pauses content swaps so
+typing is never clobbered.
 
 ## Page chrome
 
@@ -145,16 +172,32 @@ old AI settings) clean themselves up.
 Exported PDFs are never stored by the app — they go through the
 browser's save dialog straight to the user's device.
 
+## Fonts
+
+Two representations of the same typefaces ship, both offline:
+
+- `public/fonts/*.woff2` — the subset webfonts the UI and both previews
+  render with, served with `unicode-range` so Devanagari loads only when
+  Hindi text appears.
+- `public/fonts/ttf/*.ttf` — decompressed at `postinstall` by
+  `scripts/sync-vendor.mjs` (via `wawoff2`) and gitignored. The PDF
+  engine embeds raw TTF because fontkit's subsetter is unreliable on
+  WOFF2-reconstructed glyph tables. These are fetched only on export and
+  re-subset to the glyphs actually used.
+
 ## Performance notes
 
 - Initial route loads no editor code: CodeMirror, markdown-it and the
-  editor views are separate lazy chunks.
-- The flow preview re-renders in place ~220 ms after the last keystroke
+  editor views are separate lazy chunks. The PDF engine (`pdf-lib` +
+  `fontkit`, ~0.5 MB gzip) is its own chunk that loads only on the first
+  Download, never during editing.
+- The flow preview re-renders in place ~200 ms after the last keystroke
   (innerHTML swap of the content root — no iframe reload, no font
-  refetch). The paged preview re-paginates 1.4 s after the last edit;
+  refetch). The paged preview re-paginates 1.2 s after the last edit;
   pagination is the expensive path and is opt-in via the Flow/Pages
   toggle.
-- Fonts are subsetted woff2 served locally with `unicode-range`, so
-  Devanagari fonts download only when Hindi text is used.
-- PDFs stay small (~300 KB for a 12-page illustrated document) because
-  every graphic is vector and fonts are subsets.
+- Exported PDFs are ~60% smaller than the browser's own print output for
+  the same document (e.g. the 10-page notes demo: ~120 KB vs ~210 KB),
+  because the engine re-subsets fonts to used glyphs and keeps every
+  graphic vector. Export is ~1 s for a 10-page document, all on the main
+  thread inside the export overlay with a progress bar.

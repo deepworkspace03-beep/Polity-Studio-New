@@ -30,24 +30,41 @@ export function whatsappIconSvg(className = ""): string {
 }
 
 /**
- * Diagonal page watermark — pure vector, rendered inline so the text
- * uses the document's embedded fonts and adds zero bytes per page.
- * Preserves the original diagonal "© Polity Made Simple" treatment.
+ * Diagonal page watermark — an HTML lockup (vector temple + real text)
+ * rotated with CSS, so both the browser's print engine and the PDF
+ * transcriber reproduce it as vector art using the document fonts.
  */
-export function watermarkSvg(text: string): string {
-  return `<svg class="page-watermark__art" viewBox="0 0 500 500" aria-hidden="true">
-  <g fill="#808080" opacity="0.11" transform="translate(250, 250) rotate(-35)">
-    <g transform="translate(-115, -12)">
-      <g transform="translate(0, -2)">
-        <path d="M 3 10 L 12 3 L 21 10 Z" />
-        <rect x="3" y="11.5" width="18" height="2" rx="1" />
-        <rect x="5.5" y="14.5" width="2" height="5" rx="0.75" />
-        <rect x="11" y="14.5" width="2" height="5" rx="0.75" />
-        <rect x="16.5" y="14.5" width="2" height="5" rx="0.75" />
-        <rect x="3" y="20.5" width="18" height="2" rx="1" />
-      </g>
-      <text x="32" y="20" font-family="Manrope, sans-serif" font-size="15" font-weight="600" letter-spacing="0.8">${escapeHtml(text)}</text>
-    </g>
-  </g>
-</svg>`;
+export function watermarkHtml(text: string): string {
+  return `<div class="page-watermark" aria-hidden="true">
+  <div class="page-watermark__lockup">
+    ${templeMarkSvg("34pt", "page-watermark__mark")}
+    <span class="page-watermark__text">${escapeHtml(text)}</span>
+  </div>
+</div>`;
+}
+
+/**
+ * Full-bleed cover pattern layer, generated as inline SVG (mm units) so
+ * it stays vector in print and in the PDF engine — CSS repeating
+ * gradients would be rasterized by the browser's print pipeline.
+ */
+export function coverPatternSvg(style: "grid" | "rings" | "weave", wMm: number, hMm: number, color: string): string {
+  const parts: string[] = [];
+  if (style === "grid") {
+    const step = 12;
+    for (let x = step; x < wMm; x += step) parts.push(`<line x1="${x}" y1="0" x2="${x}" y2="${hMm}"/>`);
+    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y}" x2="${wMm}" y2="${y}"/>`);
+  } else if (style === "rings") {
+    const cx = wMm * 0.82;
+    const cy = hMm * 0.1;
+    const max = Math.hypot(wMm, hMm);
+    for (let r = 6.4; r < max; r += 6.4) parts.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none"/>`);
+  } else {
+    const step = 5.8;
+    for (let d = -hMm; d < wMm + hMm; d += step) {
+      parts.push(`<line x1="${d.toFixed(1)}" y1="0" x2="${(d + hMm).toFixed(1)}" y2="${hMm}"/>`);
+      parts.push(`<line x1="${d.toFixed(1)}" y1="${hMm}" x2="${(d + hMm).toFixed(1)}" y2="0"/>`);
+    }
+  }
+  return `<svg class="cv-pattern" viewBox="0 0 ${wMm} ${hMm}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" stroke="${color}" stroke-width="0.16">${parts.join("")}</svg>`;
 }

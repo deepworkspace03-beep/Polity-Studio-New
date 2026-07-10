@@ -13,12 +13,10 @@
   background: white;
 }
 .fcard__front {
-  display: flex;
-  align-items: baseline;
-  gap: 2.5mm;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-weight: 800;
   font-size: 1.02em;
+  line-height: 1.35;
   color: var(--c-primary);
   background: color-mix(in srgb, var(--c-accentSoft) 60%, white);
   border-bottom: 1pt dashed var(--c-edge);
@@ -29,6 +27,7 @@
   font-weight: 400;
   font-size: 0.72em;
   color: var(--c-accent);
+  margin-right: 2.5mm;
 }
 .fcard__back { padding: 3.5mm 4mm; font-size: 0.9em; }
 .fcard__back p { margin-bottom: 0.5em; }

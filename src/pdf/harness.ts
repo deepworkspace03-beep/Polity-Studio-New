@@ -42,22 +42,85 @@ export const HARNESS_JS = String.raw`(function () {
     return;
   }
 
-  /* ── Zoom (preview only) ── zoom keeps layout math simple compared
-     to transform: scaled pages keep real geometry for scrolling. */
-  var zoomMode = "fit";
+  /* ── Zoom (preview only) ─────────────────────────────────────────
+     "fit-width" | "fit-page" | number. CSS zoom keeps real geometry so
+     scrolling, page navigation and the export transcriber all stay
+     accurate. Pinch and ctrl+wheel drive an explicit factor. */
+  var zoomMode = "fit-width";
+  var MIN_Z = 0.25, MAX_Z = 3;
+  function fitFactors() {
+    var page = document.querySelector(".pagedjs_page");
+    if (!page) return { width: 1, page: 1 };
+    var vw = document.documentElement.clientWidth;
+    var vh = document.documentElement.clientHeight;
+    return {
+      width: Math.max(MIN_Z, Math.min(MAX_Z, (vw - 24) / (page.offsetWidth + 8))),
+      page: Math.max(MIN_Z, Math.min(MAX_Z, Math.min((vw - 24) / (page.offsetWidth + 8), (vh - 24) / (page.offsetHeight + 8)))),
+    };
+  }
+  function currentFactor() {
+    var f = fitFactors();
+    if (zoomMode === "fit-width") return f.width;
+    if (zoomMode === "fit-page") return f.page;
+    return Math.max(MIN_Z, Math.min(MAX_Z, zoomMode));
+  }
   function applyZoom() {
     if (!isPreview) return;
     var pages = document.querySelector(".pagedjs_pages");
-    var page = document.querySelector(".pagedjs_page");
-    if (!pages || !page) return;
-    var z = zoomMode === "fit"
-      ? Math.min(1.35, (document.documentElement.clientWidth - 28) / (page.offsetWidth + 26))
-      : zoomMode;
+    if (!pages) return;
+    var z = currentFactor();
     pages.style.zoom = z;
-    try { parent.postMessage({ type: "zoom", zoom: z, fit: zoomMode === "fit" }, "*"); } catch (e) {}
+    try {
+      parent.postMessage({ type: "zoom", zoom: z, mode: typeof zoomMode === "number" ? "custom" : zoomMode }, "*");
+    } catch (e) {}
   }
+  function setZoom(mode) { zoomMode = mode; applyZoom(); }
   window.addEventListener("resize", function () {
-    if (zoomMode === "fit") applyZoom();
+    if (typeof zoomMode === "string") applyZoom();
+  });
+
+  // Pinch-to-zoom + ctrl/⌘+wheel — anchored so the focus point holds.
+  function zoomAround(factor, clientX, clientY) {
+    var prev = currentFactor();
+    var next = Math.max(MIN_Z, Math.min(MAX_Z, factor));
+    if (Math.abs(next - prev) < 0.001) return;
+    var sx = window.scrollX, sy = window.scrollY;
+    var docX = (sx + clientX) / prev, docY = (sy + clientY) / prev;
+    zoomMode = next;
+    applyZoom();
+    window.scrollTo(docX * next - clientX, docY * next - clientY);
+  }
+  window.addEventListener("wheel", function (e) {
+    if (!isPreview || !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    zoomAround(currentFactor() * (e.deltaY < 0 ? 1.1 : 0.9), e.clientX, e.clientY);
+  }, { passive: false });
+
+  var pinchDist = 0, pinchZoom = 1, pinchCX = 0, pinchCY = 0;
+  window.addEventListener("touchstart", function (e) {
+    if (e.touches.length === 2) {
+      var a = e.touches[0], b = e.touches[1];
+      pinchDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      pinchZoom = currentFactor();
+      pinchCX = (a.clientX + b.clientX) / 2;
+      pinchCY = (a.clientY + b.clientY) / 2;
+    }
+  }, { passive: true });
+  window.addEventListener("touchmove", function (e) {
+    if (e.touches.length === 2 && pinchDist > 0) {
+      e.preventDefault();
+      var a = e.touches[0], b = e.touches[1];
+      var d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      zoomAround(pinchZoom * (d / pinchDist), pinchCX, pinchCY);
+    }
+  }, { passive: false });
+  window.addEventListener("touchend", function (e) { if (e.touches.length < 2) pinchDist = 0; }, { passive: true });
+
+  // Double-tap / double-click toggles fit-width ⇄ 100%.
+  window.addEventListener("dblclick", function (e) {
+    if (!isPreview) return;
+    setZoom(typeof zoomMode === "number" ? "fit-width" : 1);
+    e.preventDefault();
   });
 
   function pageEls() {
@@ -106,7 +169,8 @@ export const HARNESS_JS = String.raw`(function () {
 
   window.addEventListener("message", function (e) {
     var d = e.data || {};
-    if (d.type === "set-zoom") { zoomMode = d.zoom; applyZoom(); }
+    if (d.type === "set-zoom") setZoom(d.zoom);
+    else if (d.type === "zoom-by") zoomAround(currentFactor() * d.factor, document.documentElement.clientWidth / 2, document.documentElement.clientHeight / 2);
     else if (d.type === "go-to-page") goToPage(d.page);
     else if (d.type === "scroll-to-line") scrollToLine(d.line);
     else if (d.type === "print") { window.focus(); window.print(); }
@@ -159,6 +223,7 @@ export const HARNESS_JS = String.raw`(function () {
 export const PREVIEW_JS = String.raw`(function () {
   var root = document.getElementById("doc-root");
   var flashTimer = null;
+  var editing = false;
 
   // Closest source line at or above the cursor (full scan — nested
   // renders emit fragment-relative numbers that must not win).
@@ -184,14 +249,53 @@ export const PREVIEW_JS = String.raw`(function () {
     flashTimer = setTimeout(function () { best.classList.remove("preview-here"); }, 1700);
   }
 
+  /* ── Inline editing ──────────────────────────────────────────────
+     Editable elements carry data-edit ("title" | "subtitle" | a field
+     name) or data-edit-line (a heading source line). Focus pauses host
+     content swaps; commit posts the new text back for the host to write
+     into the doc / markdown. Plain text only — no rich paste. */
+  function editableEls() {
+    return root.querySelectorAll("[data-edit], [data-edit-line]");
+  }
+  function commit(el) {
+    var text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    var msg = { type: "inline-edit", text: text };
+    if (el.hasAttribute("data-edit-line")) msg.line = parseInt(el.getAttribute("data-edit-line"), 10);
+    else msg.field = el.getAttribute("data-edit");
+    try { parent.postMessage(msg, "*"); } catch (e) {}
+  }
+  function wireEditables() {
+    editableEls().forEach(function (el) {
+      if (el.__wired) return;
+      el.__wired = true;
+      el.setAttribute("contenteditable", "plaintext-only");
+      el.setAttribute("spellcheck", "false");
+      el.classList.add("inline-editable");
+      el.addEventListener("focus", function () { editing = true; try { parent.postMessage({ type: "edit-focus" }, "*"); } catch (e) {} });
+      el.addEventListener("blur", function () { editing = false; commit(el); try { parent.postMessage({ type: "edit-blur" }, "*"); } catch (e) {} });
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+        else if (e.key === "Escape") { e.preventDefault(); el.blur(); }
+      });
+      el.addEventListener("paste", function (e) {
+        e.preventDefault();
+        var t = (e.clipboardData || window.clipboardData).getData("text/plain").replace(/[\r\n]+/g, " ");
+        document.execCommand("insertText", false, t);
+      });
+    });
+  }
+
   window.addEventListener("message", function (e) {
     var d = e.data || {};
     if (d.type === "update" && typeof d.html === "string") {
+      if (editing) return; // never clobber an element being edited
       root.innerHTML = d.html;
+      wireEditables();
     } else if (d.type === "scroll-to-line" && typeof d.line === "number") {
-      scrollToLine(d.line);
+      if (!editing) scrollToLine(d.line);
     }
   });
 
+  wireEditables();
   try { parent.postMessage({ type: "preview-ready" }, "*"); } catch (e) { /* detached */ }
 })();`;

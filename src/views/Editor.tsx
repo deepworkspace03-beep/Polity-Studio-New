@@ -7,11 +7,21 @@ import type { Doc } from "../lib/types";
 import { Button, IconButton, Segmented, useToast } from "../components/ui";
 import { CodeMirror } from "./editor/CodeMirror";
 import { Toolbar } from "./editor/Toolbar";
-import { Preview } from "./editor/Preview";
+import { Preview, type InlineEdit } from "./editor/Preview";
 import { Details } from "./editor/Details";
 import { Publish } from "./editor/Publish";
 
 type Tab = "write" | "preview";
+
+/** Rewrites the text of one heading source line, preserving its `#`s. */
+function patchHeadingLine(body: string, line: number, text: string): string {
+  const lines = body.split("\n");
+  if (line < 1 || line > lines.length) return body;
+  const m = lines[line - 1].match(/^(\s*#{1,6}\s+)/);
+  if (!m) return body;
+  lines[line - 1] = m[1] + text;
+  return lines.join("\n");
+}
 
 export function Editor({ id }: { id: string }) {
   const { docs, brand, settings } = useApp();
@@ -22,9 +32,22 @@ export function Editor({ id }: { id: string }) {
   const [tab, setTab] = useState<Tab>("write");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [cursorLine, setCursorLine] = useState(1);
 
   const onChange = useCallback((patch: Partial<Doc>) => updateDoc(id, patch), [id]);
+
+  const onInlineEdit = useCallback(
+    (edit: InlineEdit) => {
+      if ("field" in edit) {
+        if (edit.field === "title" || edit.field === "subtitle") updateDoc(id, { [edit.field]: edit.text });
+      } else {
+        const current = docs.find((d) => d.id === id);
+        if (current) updateDoc(id, { body: patchHeadingLine(current.body, edit.line, edit.text) });
+      }
+    },
+    [id, docs],
+  );
 
   if (!doc) {
     return (
@@ -65,21 +88,29 @@ export function Editor({ id }: { id: string }) {
         </Button>
       </header>
 
-      {/* Write / Preview switch on small screens */}
-      <div className="flex justify-center border-b border-edge bg-surface py-1.5 lg:hidden">
-        <Segmented
-          size="sm"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "write", label: "Write", icon: "edit" },
-            { value: "preview", label: "Preview", icon: "eye" },
-          ]}
-        />
-      </div>
+      {/* Write / Preview switch on small screens (hidden in full-screen preview) */}
+      {!fullscreen && (
+        <div className="flex justify-center border-b border-edge bg-surface py-1.5 lg:hidden">
+          <Segmented
+            size="sm"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "write", label: "Write", icon: "edit" },
+              { value: "preview", label: "Preview", icon: "eye" },
+            ]}
+          />
+        </div>
+      )}
 
       <div className="relative flex min-h-0 flex-1">
-        <div className={cx("min-w-0 flex-1 flex-col lg:flex lg:w-1/2 lg:border-r lg:border-edge", tab === "write" ? "flex" : "hidden")}>
+        <div
+          className={cx(
+            "min-w-0 flex-1 flex-col lg:w-1/2 lg:border-r lg:border-edge",
+            fullscreen ? "hidden" : "lg:flex",
+            tab === "write" ? "flex" : "hidden",
+          )}
+        >
           <Toolbar getView={() => viewRef.current} />
           <div className="min-h-0 flex-1">
             <CodeMirror
@@ -94,8 +125,21 @@ export function Editor({ id }: { id: string }) {
             />
           </div>
         </div>
-        <div className={cx("min-w-0 flex-1 lg:block lg:w-1/2", tab === "preview" ? "block" : "hidden")}>
-          <Preview doc={doc} brand={brand} cursorLine={cursorLine} />
+        <div
+          className={cx(
+            "min-w-0 flex-1",
+            fullscreen ? "block lg:w-full" : "lg:block lg:w-1/2",
+            tab === "preview" || fullscreen ? "block" : "hidden",
+          )}
+        >
+          <Preview
+            doc={doc}
+            brand={brand}
+            cursorLine={cursorLine}
+            onInlineEdit={onInlineEdit}
+            fullscreen={fullscreen}
+            onToggleFullscreen={() => setFullscreen((v) => !v)}
+          />
         </div>
       </div>
 

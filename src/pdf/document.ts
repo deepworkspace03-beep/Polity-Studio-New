@@ -1,6 +1,6 @@
 import type { BrandConfig, Doc, PageSize } from "../lib/types";
 import { escapeHtml } from "../lib/utils";
-import { telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkSvg, whatsappIconSvg } from "../brand/marks";
+import { coverPatternSvg, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
 import { extractToc } from "../markdown/renderer";
 import { TEMPLATE_RENDERERS } from "../templates";
 import { TEMPLATE_META } from "../templates/meta";
@@ -30,10 +30,18 @@ export interface BuildOptions {
   fileTitle?: string;
 }
 
-const PAGE_GEOMETRY: Record<PageSize, { size: string; margin: string }> = {
-  a4: { size: "210mm 297mm", margin: "21mm 15mm 23mm 15mm" },
-  a5: { size: "148mm 210mm", margin: "16mm 12mm 18mm 12mm" },
-  letter: { size: "216mm 279mm", margin: "21mm 16mm 23mm 16mm" },
+const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; margin: string }> = {
+  a4: { w: 210, h: 297, size: "210mm 297mm", margin: "21mm 15mm 23mm 15mm" },
+  a5: { w: 148, h: 210, size: "148mm 210mm", margin: "16mm 12mm 18mm 12mm" },
+  letter: { w: 216, h: 279, size: "216mm 279mm", margin: "21mm 16mm 23mm 16mm" },
+};
+
+/** Vector pattern layer per cover style (SVG so print stays vector). */
+const COVER_PATTERNS: Record<Doc["layout"]["coverStyle"], { kind: "grid" | "rings" | "weave"; color: string }> = {
+  regal: { kind: "grid", color: "rgba(245,242,234,0.045)" },
+  aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
+  ivory: { kind: "weave", color: "rgba(177,131,44,0.1)" },
+  midnight: { kind: "grid", color: "rgba(255,255,255,0.05)" },
 };
 
 const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string }> = {
@@ -68,9 +76,12 @@ function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
   const author = doc.author || brand.author;
 
+  const pattern = COVER_PATTERNS[doc.layout.coverStyle];
+  const geo = PAGE_GEOMETRY[doc.layout.pageSize];
+
   return `
 <section class="cover cover--${doc.layout.coverStyle}">
-  <div class="cv-pattern" aria-hidden="true"></div>
+  ${coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color)}
   <div class="cv-shade" aria-hidden="true"></div>
   ${templeEmblemSvg("cv-emblem")}
   <header class="cv-top">
@@ -85,8 +96,8 @@ function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   </header>
   <div class="cv-body">
     ${eyebrow}
-    <h1 class="cv-exam">${escapeHtml(doc.title || "Untitled")}</h1>
-    ${doc.subtitle ? `<p class="cv-guide">${escapeHtml(doc.subtitle)}</p>` : ""}
+    <h1 class="cv-exam" data-edit="title">${escapeHtml(doc.title || "Untitled")}</h1>
+    <p class="cv-guide${doc.subtitle ? "" : " cv-guide--empty"}" data-edit="subtitle" data-placeholder="Add a subtitle…">${escapeHtml(doc.subtitle)}</p>
     <ul class="cv-highlights">
       ${coverLines.map((h) => `<li>${escapeHtml(h)}</li>`).join("\n      ")}
     </ul>
@@ -172,7 +183,7 @@ body.purpose-preview .pagedjs_page {
   body.purpose-preview .pagedjs_page { box-shadow: none; }
 }`;
 
-/** Cursor-follow highlight used by the flow preview. */
+/** Cursor-follow highlight + inline-editing affordances (flow only). */
 const FLOW_PREVIEW_CSS = `
 [data-line].preview-here {
   animation: preview-here 1.6s ease-out;
@@ -181,7 +192,19 @@ const FLOW_PREVIEW_CSS = `
 @keyframes preview-here {
   0% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-accent) 35%, transparent); }
   100% { box-shadow: 0 0 0 4px transparent; }
-}`;
+}
+/* Inline editing: subtle hover hint, clear focus ring, placeholder. */
+.inline-editable { border-radius: 4px; transition: box-shadow 0.12s, background 0.12s; cursor: text; }
+.inline-editable:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent) 22%, transparent); }
+.inline-editable:focus { outline: none; box-shadow: 0 0 0 2px var(--c-accent); background: color-mix(in srgb, var(--c-accent) 7%, transparent); }
+.cv-exam.inline-editable:hover, .cv-guide.inline-editable:hover { box-shadow: 0 0 0 2px rgba(255,255,255,0.4); }
+.cv-exam.inline-editable:focus, .cv-guide.inline-editable:focus { box-shadow: 0 0 0 2px rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+.cv-guide--empty::before, [data-edit]:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.55;
+  font-style: italic;
+}
+.cv-guide--empty { display: block !important; }`;
 
 /** Content pasted from other tools often carries YAML front matter —
     it is metadata, never body text, so drop it before rendering. */
@@ -235,7 +258,7 @@ ${paged ? PAGED_PREVIEW_CSS : FLOW_PREVIEW_CSS}`;
   // after the last section would earn its own blank trailing page
   // during pagination.
   const watermarkTemplate = paged
-    ? `<template id="watermark-template"><div class="page-watermark" aria-hidden="true">${watermarkSvg(brand.watermarkText)}</div></template>`
+    ? `<template id="watermark-template">${watermarkHtml(brand.watermarkText)}</template>`
     : "";
   const scripts = paged
     ? `<script src="/vendor/paged.polyfill.min.js"></script>
