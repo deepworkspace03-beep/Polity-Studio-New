@@ -35,6 +35,53 @@ export function Button({
   );
 }
 
+/** Desktop gets the native `title` tooltip on hover for free; touch
+    devices don't reliably show it, so a long press reveals the same
+    text in a small bubble instead. Shared by IconButton and Segmented. */
+function useLongPressHint() {
+  const [show, setShow] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  return {
+    show,
+    handlers: {
+      onPointerDown: (e: React.PointerEvent) => {
+        if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+        clear();
+        timer.current = setTimeout(() => setShow(true), 500);
+      },
+      onPointerUp: () => {
+        clear();
+        setShow(false);
+      },
+      onPointerLeave: () => {
+        clear();
+        setShow(false);
+      },
+      onPointerCancel: () => {
+        clear();
+        setShow(false);
+      },
+      onContextMenu: (e: React.MouseEvent) => {
+        if (show) e.preventDefault();
+      },
+    },
+  };
+}
+
+/** Small dark bubble anchored above the trigger, shown while `show` is true. */
+function HintBubble({ show, text }: { show: boolean; text: string }) {
+  if (!show) return null;
+  return (
+    <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-56 -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-center text-[11px] font-medium leading-snug text-bg shadow-lg">
+      {text}
+    </span>
+  );
+}
+
 /** Square icon-only button for toolbars. */
 export function IconButton({
   label,
@@ -44,18 +91,21 @@ export function IconButton({
   active,
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; name: IconName; size?: number; active?: boolean }) {
+  const hint = useLongPressHint();
   return (
     <button
       title={label}
       aria-label={label}
       className={cx(
-        "rounded-lg p-2 transition-colors",
+        "relative rounded-lg p-2 transition-colors",
         active ? "bg-accent/15 text-accent" : "text-ink-2 hover:bg-raised hover:text-ink",
         className,
       )}
+      {...hint.handlers}
       {...rest}
     >
       <Icon name={name} size={size} />
+      <HintBubble show={hint.show} text={label} />
     </button>
   );
 }
@@ -102,13 +152,45 @@ export function Toggle({ label, checked, onChange }: { label: string; checked: b
   );
 }
 
+function SegmentedOption<T extends string>({
+  option,
+  active,
+  size,
+  onSelect,
+}: {
+  option: { value: T; label: string; icon?: IconName; hint?: string };
+  active: boolean;
+  size: "sm" | "md";
+  onSelect: () => void;
+}) {
+  const longPress = useLongPressHint();
+  return (
+    <button
+      role="radio"
+      aria-checked={active}
+      title={option.hint}
+      onClick={onSelect}
+      className={cx(
+        "relative flex items-center gap-1.5 font-medium transition-colors",
+        size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
+        active ? "bg-accent text-accent-ink" : "text-ink-2 hover:bg-raised",
+      )}
+      {...(option.hint ? longPress.handlers : undefined)}
+    >
+      {option.icon && <Icon name={option.icon} size={13} />}
+      {option.label}
+      {option.hint && <HintBubble show={longPress.show} text={option.hint} />}
+    </button>
+  );
+}
+
 export function Segmented<T extends string>({
   options,
   value,
   onChange,
   size = "md",
 }: {
-  options: { value: T; label: string; icon?: IconName }[];
+  options: { value: T; label: string; icon?: IconName; /** Long-press (touch) / hover (desktop) description. */ hint?: string }[];
   value: T;
   onChange: (v: T) => void;
   size?: "sm" | "md";
@@ -116,20 +198,7 @@ export function Segmented<T extends string>({
   return (
     <div className="inline-flex overflow-hidden rounded-lg border border-edge bg-surface" role="radiogroup">
       {options.map((o) => (
-        <button
-          key={o.value}
-          role="radio"
-          aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cx(
-            "flex items-center gap-1.5 font-medium transition-colors",
-            size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
-            value === o.value ? "bg-accent text-accent-ink" : "text-ink-2 hover:bg-raised",
-          )}
-        >
-          {o.icon && <Icon name={o.icon} size={13} />}
-          {o.label}
-        </button>
+        <SegmentedOption key={o.value} option={o} active={value === o.value} size={size} onSelect={() => onChange(o.value)} />
       ))}
     </div>
   );

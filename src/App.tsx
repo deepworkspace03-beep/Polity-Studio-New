@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useRoute } from "./lib/router";
 import { useApp } from "./lib/store";
 import { ToastProvider } from "./components/ui";
+import { Nav } from "./components/layout/Nav";
 import { Library } from "./views/Library";
 
 const Editor = lazy(() => import("./views/Editor").then((m) => ({ default: m.Editor })));
@@ -39,15 +40,20 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-faint">Loading…</div>}>
-        {route.view === "editor" ? (
-          <Editor id={route.id} />
-        ) : route.view === "settings" ? (
-          <Settings />
-        ) : (
-          <Library />
-        )}
-      </Suspense>
+      <div className="flex h-full">
+        <Nav />
+        <div className="min-w-0 flex-1">
+          <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-faint">Loading…</div>}>
+            {route.view === "editor" ? (
+              <Editor id={route.id} />
+            ) : route.view === "settings" ? (
+              <Settings />
+            ) : (
+              <Library />
+            )}
+          </Suspense>
+        </div>
+      </div>
     </ToastProvider>
   );
 }

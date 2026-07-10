@@ -29,6 +29,7 @@ export function Preview({
   brand,
   cursorLine,
   onInlineEdit,
+  onFocusLine,
   fullscreen,
   onToggleFullscreen,
 }: {
@@ -36,6 +37,10 @@ export function Preview({
   brand: BrandConfig;
   cursorLine: number;
   onInlineEdit: (edit: InlineEdit) => void;
+  /** Preview → editor: the reader clicked a sourced element. `focusEditor`
+      is false for elements that are themselves inline-editable (moving
+      DOM focus to CodeMirror would blur the contenteditable mid-click). */
+  onFocusLine: (line: number, focusEditor: boolean) => void;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
 }) {
@@ -54,6 +59,16 @@ export function Preview({
   cursorRef.current = cursorLine;
   const onEditRef = useRef(onInlineEdit);
   onEditRef.current = onInlineEdit;
+  const onFocusLineRef = useRef(onFocusLine);
+  onFocusLineRef.current = onFocusLine;
+  // The zoom the reader last chose — reapplied after every repagination
+  // rebuild, which otherwise silently reset it back to fit-width.
+  const zoomCmdRef = useRef<ZoomMode | number | null>(null);
+  // Snapshot of zoomCmdRef taken right before a rebuild, consumed once on
+  // that rebuild's paged-done. A fresh iframe announces its own default
+  // zoom before paged-done fires, which would clobber zoomCmdRef itself —
+  // this frozen copy survives that.
+  const pendingZoomRestoreRef = useRef<ZoomMode | number | null>(null);
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
 
@@ -71,6 +86,7 @@ export function Preview({
         if (mode === "pages") {
           shellKeyRef.current = shellKey;
           readyRef.current = false;
+          pendingZoomRestoreRef.current = zoomCmdRef.current;
           setSrcDoc(buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview" }));
         } else if (rebuild) {
           shellKeyRef.current = shellKey;
@@ -105,12 +121,20 @@ export function Preview({
         readyRef.current = true;
         setPaginating(false);
         setPages(typeof d.pages === "number" && d.pages > 0 ? d.pages : null);
+        // Repagination reloads the iframe from scratch, which resets its
+        // zoom to fit-width — restore whatever the reader last chose.
+        if (pendingZoomRestoreRef.current !== null) {
+          post({ type: "set-zoom", zoom: pendingZoomRestoreRef.current });
+          pendingZoomRestoreRef.current = null;
+        }
         if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "page-visible") {
         setCurrent(d.page);
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
         setZoom(d.zoom);
-        setZoomMode(d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom");
+        const nextMode = d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom";
+        setZoomMode(nextMode);
+        zoomCmdRef.current = nextMode === "custom" ? d.zoom : nextMode;
       } else if (d.type === "edit-focus") {
         editingRef.current = true;
       } else if (d.type === "edit-blur") {
@@ -118,6 +142,8 @@ export function Preview({
       } else if (d.type === "inline-edit") {
         if (typeof d.line === "number") onEditRef.current({ line: d.line, text: d.text });
         else if (typeof d.field === "string") onEditRef.current({ field: d.field, text: d.text });
+      } else if (d.type === "preview-click" && typeof d.line === "number") {
+        onFocusLineRef.current(d.line, !d.editable);
       }
     };
     window.addEventListener("message", onMessage);
@@ -141,8 +167,8 @@ export function Preview({
           value={mode}
           onChange={setMode}
           options={[
-            { value: "flow", label: "Flow" },
-            { value: "pages", label: "Pages" },
+            { value: "flow", label: "Flow", hint: "Continuous live view — click or tap any line to edit it inline, updates instantly as you type." },
+            { value: "pages", label: "Pages", hint: "Exact paginated view with running headers, footers and watermark — this is what you'll publish. Pinch or use +/− to zoom." },
           ]}
         />
 

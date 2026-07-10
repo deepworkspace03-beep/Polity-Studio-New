@@ -160,6 +160,39 @@ export function deleteDoc(id: string): void {
   void db.deleteDoc(id);
 }
 
+/** Bulk delete (Library select mode) — one state update, deletes run in
+    parallel rather than serially re-rendering per document. */
+export function deleteDocs(ids: string[]): void {
+  const set = new Set(ids);
+  setState({ ...state, docs: state.docs.filter((d) => !set.has(d.id)) });
+  void Promise.all(ids.map((id) => db.deleteDoc(id)));
+}
+
+/** Combines two or more documents into one new document, each source
+    separated by a manual page break so the merged PDF starts each part
+    on its own page. Takes the first (most recently updated) selected
+    document's template and layout — merging across templates isn't
+    meaningful since each has its own body grammar (MCQ vs flashcards…). */
+export function mergeDocs(ids: string[]): Doc | null {
+  const selected = ids.map((id) => state.docs.find((d) => d.id === id)).filter((d): d is Doc => !!d);
+  if (selected.length < 2) return null;
+  const base = selected[0];
+  const body = selected.map((d) => d.body.trim()).join("\n\n\\pagebreak\n\n");
+  const doc = createDoc({
+    template: base.template,
+    title: `${base.title || "Untitled"} + ${selected.length - 1} more`,
+    body,
+    subtitle: base.subtitle,
+    exam: base.exam,
+    paper: base.paper,
+    session: base.session,
+    author: base.author,
+    lang: base.lang,
+    layout: { ...base.layout },
+  });
+  return doc;
+}
+
 export async function deleteAllDocs(): Promise<void> {
   const ids = state.docs.map((d) => d.id);
   setState({ ...state, docs: [] });
