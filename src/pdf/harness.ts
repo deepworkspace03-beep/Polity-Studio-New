@@ -173,7 +173,15 @@ export const HARNESS_JS = String.raw`(function () {
     else if (d.type === "zoom-by") zoomAround(currentFactor() * d.factor, document.documentElement.clientWidth / 2, document.documentElement.clientHeight / 2);
     else if (d.type === "go-to-page") goToPage(d.page);
     else if (d.type === "scroll-to-line") scrollToLine(d.line);
-    else if (d.type === "print") { window.focus(); window.print(); }
+    else if (d.type === "print") {
+      // Print at 1:1 — the preview zoom must not scale the paper.
+      var pages = document.querySelector(".pagedjs_pages");
+      var prev = pages ? pages.style.zoom : "";
+      if (pages) pages.style.zoom = "1";
+      window.focus();
+      window.print();
+      if (pages) pages.style.zoom = prev;
+    }
   });
 
   // Preview → editor: clicking any sourced element reports its line so
@@ -231,6 +239,96 @@ export const HARNESS_JS = String.raw`(function () {
   }
   window.addEventListener("error", unblock);
   window.addEventListener("unhandledrejection", unblock);
+})();`;
+
+/**
+ * VIEWER_JS — the tiny reader script embedded in standalone HTML
+ * exports. The pages are already laid out (the export snapshots the
+ * paginated DOM), so all this does is zoom (fit-width by default,
+ * ctrl/⌘+wheel, pinch, double-click) and a floating page indicator.
+ * ~2 KB instead of shipping the 500 KB Paged.js runtime.
+ */
+export const VIEWER_JS = String.raw`(function () {
+  var root = document.querySelector(".pagedjs_pages");
+  var pages = document.querySelectorAll(".pagedjs_page");
+  if (!root || !pages.length) return;
+  var MIN = 0.25, MAX = 3, mode = "fit-width";
+
+  function fit() {
+    var p = pages[0];
+    return Math.max(MIN, Math.min(MAX, (document.documentElement.clientWidth - 24) / (p.offsetWidth + 8)));
+  }
+  function factor() { return mode === "fit-width" ? fit() : Math.max(MIN, Math.min(MAX, mode)); }
+  function apply() { root.style.zoom = factor(); }
+
+  function zoomAround(next, cx, cy) {
+    var prev = factor();
+    next = Math.max(MIN, Math.min(MAX, next));
+    if (Math.abs(next - prev) < 0.001) return;
+    var sx = window.scrollX, sy = window.scrollY;
+    mode = next;
+    apply();
+    window.scrollTo(((sx + cx) / prev) * next - cx, ((sy + cy) / prev) * next - cy);
+  }
+  window.addEventListener("resize", function () { if (mode === "fit-width") apply(); });
+  window.addEventListener("wheel", function (e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    zoomAround(factor() * (e.deltaY < 0 ? 1.1 : 0.9), e.clientX, e.clientY);
+  }, { passive: false });
+  window.addEventListener("dblclick", function () { mode = typeof mode === "number" ? "fit-width" : 1; apply(); });
+
+  var pd = 0, pz = 1, px = 0, py = 0;
+  window.addEventListener("touchstart", function (e) {
+    if (e.touches.length === 2) {
+      var a = e.touches[0], b = e.touches[1];
+      pd = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      pz = factor(); px = (a.clientX + b.clientX) / 2; py = (a.clientY + b.clientY) / 2;
+    }
+  }, { passive: true });
+  window.addEventListener("touchmove", function (e) {
+    if (e.touches.length === 2 && pd > 0) {
+      e.preventDefault();
+      var a = e.touches[0], b = e.touches[1];
+      zoomAround(pz * (Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) / pd), px, py);
+    }
+  }, { passive: false });
+  window.addEventListener("touchend", function (e) { if (e.touches.length < 2) pd = 0; }, { passive: true });
+
+  // Floating page indicator + zoom controls.
+  var bar = document.createElement("div");
+  bar.setAttribute("style", "position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;background:rgba(17,21,28,0.92);color:#dfe6ef;border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:4px 6px;font:600 12px/1 system-ui,sans-serif;z-index:9;user-select:none;");
+  function btn(txt, title, fn) {
+    var b = document.createElement("button");
+    b.textContent = txt; b.title = title;
+    b.setAttribute("style", "all:unset;cursor:pointer;padding:4px 8px;border-radius:999px;");
+    b.addEventListener("click", fn);
+    return b;
+  }
+  var label = document.createElement("span");
+  label.setAttribute("style", "padding:0 8px;font-variant-numeric:tabular-nums;");
+  function setLabel(n) { label.textContent = n + " / " + pages.length; }
+  setLabel(1);
+  bar.appendChild(btn("−", "Zoom out", function () { zoomAround(factor() * 0.9, innerWidth / 2, innerHeight / 2); }));
+  bar.appendChild(btn("+", "Zoom in", function () { zoomAround(factor() * 1.1, innerWidth / 2, innerHeight / 2); }));
+  bar.appendChild(btn("⤢", "Fit width", function () { mode = "fit-width"; apply(); }));
+  bar.appendChild(label);
+  document.body.appendChild(bar);
+
+  var t = null;
+  window.addEventListener("scroll", function () {
+    if (t) return;
+    t = setTimeout(function () {
+      t = null;
+      var mid = window.innerHeight / 2;
+      for (var i = 0; i < pages.length; i++) {
+        var r = pages[i].getBoundingClientRect();
+        if (r.top <= mid && r.bottom >= mid) { setLabel(i + 1); return; }
+      }
+    }, 120);
+  }, { passive: true });
+
+  apply();
 })();`;
 
 export const PREVIEW_JS = String.raw`(function () {

@@ -92,6 +92,23 @@ function withDefaults<T extends object>(defaults: T, stored: unknown): T {
   return out as T;
 }
 
+/** Retired cover styles map onto their closest current replacement so
+    older documents (and backups) keep a sensible cover. */
+const LEGACY_COVERS: Record<string, Doc["layout"]["coverStyle"]> = {
+  ivory: "heritage",
+  midnight: "eclipse",
+};
+
+function normalizeDoc(doc: Doc): Doc {
+  const mapped = LEGACY_COVERS[doc.layout.coverStyle as string];
+  return mapped ? { ...doc, layout: { ...doc.layout, coverStyle: mapped } } : doc;
+}
+
+function normalizeSettings(settings: Settings): Settings {
+  const mapped = LEGACY_COVERS[settings.newDocLayout.coverStyle as string];
+  return mapped ? { ...settings, newDocLayout: { ...settings.newDocLayout, coverStyle: mapped } } : settings;
+}
+
 export async function initStore(): Promise<void> {
   try {
     const [docs, settings, brand] = await Promise.all([
@@ -101,8 +118,8 @@ export async function initStore(): Promise<void> {
     ]);
     setState({
       ready: true,
-      docs: docs.map((d) => withDefaults(blankDoc(), d)).sort((a, b) => b.updatedAt - a.updatedAt),
-      settings: withDefaults(DEFAULT_SETTINGS, settings),
+      docs: docs.map((d) => normalizeDoc(withDefaults(blankDoc(), d))).sort((a, b) => b.updatedAt - a.updatedAt),
+      settings: normalizeSettings(withDefaults(DEFAULT_SETTINGS, settings)),
       brand: withDefaults(DEFAULT_BRAND, brand),
     });
   } catch (err) {
@@ -223,6 +240,20 @@ export function saveBrand(patch: Partial<BrandConfig>): void {
   void db.putKv("brand", brand);
 }
 
+/** Explicit save — settings/brand already persist on every change; this
+    re-writes both records so "Save" gives a definite, observable commit. */
+export async function persistSettingsNow(): Promise<void> {
+  await Promise.all([db.putKv("settings", state.settings), db.putKv("brand", state.brand)]);
+}
+
+/** Restores factory settings and branding. Documents are untouched. */
+export async function resetSettingsAndBrand(): Promise<void> {
+  const settings = { ...DEFAULT_SETTINGS, newDocLayout: { ...DEFAULT_SETTINGS.newDocLayout } };
+  const brand = { ...DEFAULT_BRAND, colors: { ...DEFAULT_BRAND.colors }, telegram: { ...DEFAULT_BRAND.telegram }, whatsapp: { ...DEFAULT_BRAND.whatsapp }, exams: [...DEFAULT_BRAND.exams] };
+  setState({ ...state, settings, brand });
+  await Promise.all([db.putKv("settings", settings), db.putKv("brand", brand)]);
+}
+
 /* ── Backup / restore ─────────────────────────────────────────────── */
 
 interface Backup {
@@ -256,10 +287,10 @@ export async function importBackup(json: string): Promise<number> {
   const byId = new Map(state.docs.map((d) => [d.id, d]));
   for (const doc of data.docs) {
     if (!doc.id || typeof doc.body !== "string") continue;
-    byId.set(doc.id, withDefaults(byId.get(doc.id) ?? { ...blankDoc(), id: doc.id }, doc));
+    byId.set(doc.id, normalizeDoc(withDefaults(byId.get(doc.id) ?? { ...blankDoc(), id: doc.id }, doc)));
   }
   const docs = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
-  const settings = withDefaults(state.settings, data.settings);
+  const settings = normalizeSettings(withDefaults(state.settings, data.settings));
   const brand = withDefaults(state.brand, data.brand);
   setState({ ...state, docs, settings, brand });
   await Promise.all([...docs.map((d) => db.putDoc(d)), db.putKv("settings", settings), db.putKv("brand", brand)]);

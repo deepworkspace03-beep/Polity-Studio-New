@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { navigate } from "../lib/router";
-import { deleteAllDocs, exportBackup, importBackup, saveBrand, saveSettings, useApp } from "../lib/store";
+import {
+  deleteAllDocs,
+  exportBackup,
+  importBackup,
+  persistSettingsNow,
+  resetSettingsAndBrand,
+  saveBrand,
+  saveSettings,
+  useApp,
+} from "../lib/store";
 import { DEFAULT_BRAND } from "../brand/defaults";
 import type { BrandConfig } from "../lib/types";
 import { downloadFile } from "../lib/utils";
@@ -36,6 +45,7 @@ export function Settings() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [usage, setUsage] = useState<number | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     navigator.storage
@@ -48,7 +58,21 @@ export function Settings() {
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
       <header className="mb-6 flex items-center gap-2">
         <IconButton label="Back to library" name="back" size={18} onClick={() => navigate("library")} />
-        <h1 className="text-xl font-bold">Settings</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-bold">Settings</h1>
+          <p className="text-xs text-faint">Every change saves automatically.</p>
+        </div>
+        <Button onClick={() => setConfirmReset(true)}>Restore defaults</Button>
+        <Button
+          variant="primary"
+          icon="check"
+          onClick={async () => {
+            await persistSettingsNow();
+            toast("Settings saved", "ok");
+          }}
+        >
+          Save
+        </Button>
       </header>
 
       <div className="space-y-5">
@@ -62,6 +86,23 @@ export function Settings() {
                 { value: "dark", label: "Dark", icon: "moon" },
                 { value: "light", label: "Light", icon: "sun" },
                 { value: "system", label: "Auto", icon: "monitor" },
+              ]}
+            />
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-sm">
+              Document reading theme
+              <span className="mt-0.5 block max-w-xs text-xs text-faint">
+                Dark renders the document itself — previews, PDF and HTML exports — on an eye-friendly dark palette.
+                Covers keep their own design.
+              </span>
+            </span>
+            <Segmented
+              value={settings.docTheme}
+              onChange={(docTheme) => saveSettings({ docTheme })}
+              options={[
+                { value: "light", label: "Light", icon: "sun" },
+                { value: "dark", label: "Dark", icon: "moon" },
               ]}
             />
           </div>
@@ -218,6 +259,26 @@ export function Settings() {
           Polity Studio · {brand.name} — {brand.initiative}
         </p>
       </div>
+
+      <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="Restore default settings?">
+        <p className="text-sm text-ink-2">
+          Appearance, branding, colors and new-document defaults will be reset to the Polity Made Simple factory
+          values. Your documents are not touched.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={() => setConfirmReset(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={async () => {
+              await resetSettingsAndBrand();
+              setConfirmReset(false);
+              toast("Settings restored to defaults", "ok");
+            }}
+          >
+            Restore defaults
+          </Button>
+        </div>
+      </Modal>
 
       <Modal open={confirmWipe} onClose={() => setConfirmWipe(false)} title="Delete all documents?">
         <p className="text-sm text-ink-2">

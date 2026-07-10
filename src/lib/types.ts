@@ -2,7 +2,7 @@
 
 export type TemplateId = "notes" | "revision" | "mcq" | "flashcards";
 
-export type CoverStyle = "regal" | "aurora" | "ivory" | "midnight";
+export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse";
 export type PageSize = "a4" | "a5" | "letter";
 export type Density = "compact" | "comfort" | "relaxed";
 export type AnswersMode = "inline" | "end" | "none";
@@ -68,9 +68,13 @@ export interface BrandConfig {
 /* ── App settings ─────────────────────────────────────────────────── */
 
 export type UiTheme = "dark" | "light" | "system";
+export type DocTheme = "light" | "dark";
 
 export interface Settings {
   theme: UiTheme;
+  /** Reading theme for previews and exports — "dark" renders the
+      document itself (pages, PDF, HTML) on a dark, eye-friendly palette. */
+  docTheme: DocTheme;
   /** Filename pattern for exports; {title}, {brand} and {date} are replaced. */
   fileNamePattern: string;
   /** Layout applied to newly created documents. */
