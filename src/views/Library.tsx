@@ -29,6 +29,7 @@ export function Library() {
   const { docs, settings } = useApp();
   const toast = useToast();
   const [query, setQuery] = useState("");
+  const [templateFilter, setTemplateFilter] = useState<TemplateId | "all">("all");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
@@ -39,9 +40,16 @@ export function Library() {
   // Content-aware: matches body text as well as title/metadata, ranked.
   const filtered = useMemo(() => {
     const q = query.trim();
-    if (!q) return docs;
-    return searchDocs(docs, q, 200).map((h) => h.doc);
-  }, [docs, query]);
+    const base = q ? searchDocs(docs, q, 200).map((h) => h.doc) : docs;
+    return templateFilter === "all" ? base : base.filter((d) => d.template === templateFilter);
+  }, [docs, query, templateFilter]);
+
+  // Only worth showing the type filter once the library actually mixes
+  // document types — a single-type library has nothing to filter.
+  const templatesInUse = useMemo(() => {
+    const present = new Set(docs.map((d) => d.template));
+    return TEMPLATE_META_LIST.filter((t) => present.has(t.id));
+  }, [docs]);
 
   const drop = useFileDrop((files) => stageAndReview(files, toast, (doc) => navigate({ edit: doc.id })));
 
@@ -153,6 +161,33 @@ export function Library() {
         </div>
       )}
 
+      {templatesInUse.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Filter by document type">
+          <button
+            onClick={() => setTemplateFilter("all")}
+            className={cx(
+              "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              templateFilter === "all" ? "bg-accent text-accent-ink" : "bg-raised text-ink-2 hover:text-ink",
+            )}
+          >
+            All
+          </button>
+          {templatesInUse.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTemplateFilter((cur) => (cur === t.id ? "all" : t.id))}
+              className={cx(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                templateFilter === t.id ? "bg-accent text-accent-ink" : "bg-raised text-ink-2 hover:text-ink",
+              )}
+            >
+              <TemplateGlyph id={t.id} className="h-3 w-3" />
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {docs.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-edge px-6 py-16 text-center">
           <TempleMark size={44} className="mb-4 text-accent/70" />
@@ -171,7 +206,9 @@ export function Library() {
           </div>
         </div>
       ) : filtered.length === 0 ? (
-        <p className="py-16 text-center text-sm text-faint">No documents match “{query}”.</p>
+        <p className="py-16 text-center text-sm text-faint">
+          {query ? `No documents match “${query}”.` : "No documents of this type."}
+        </p>
       ) : (
         <ul className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((doc) => {
