@@ -130,4 +130,8 @@ export interface Settings {
   fileNamePattern: string;
   /** Layout applied to newly created documents. */
   newDocLayout: DocLayout;
+  /** Polity AI Engine base URL (e.g. https://engine.example). When set,
+      Smart Import can convert PDFs, scans and images through the engine;
+      empty means the feature is off and import stays fully offline. */
+  aiEngineUrl?: string;
 }

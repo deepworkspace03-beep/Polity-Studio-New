@@ -10,6 +10,7 @@ import {
   useApp,
 } from "../lib/store";
 import { DEFAULT_BRAND } from "../brand/defaults";
+import { aiEngineConfigured, fetchEngineInfo } from "../lib/aiEngine";
 import type { BrandConfig } from "../lib/types";
 import { downloadFile } from "../lib/utils";
 import { buildZip } from "../lib/zip";
@@ -38,6 +39,54 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Optional connection to Polity AI Engine — the separate service that
+    converts PDFs, scans and images. Empty URL = feature off; import stays
+    fully offline. */
+function SmartImportSection({ url, toast }: { url: string; toast: ReturnType<typeof useToast> }) {
+  const [testing, setTesting] = useState(false);
+
+  async function test() {
+    if (!aiEngineConfigured(url)) {
+      toast("Enter the engine URL first", "info");
+      return;
+    }
+    setTesting(true);
+    try {
+      const info = await fetchEngineInfo(url);
+      const formats = info.extensions.filter((e) => ["pdf", "png", "jpg", "jpeg", "tiff", "webp", "pptx"].includes(e));
+      toast(formats.length ? `Connected — handles ${formats.join(", ")}` : "Connected", "ok");
+    } catch (err) {
+      toast(`Couldn't reach the engine — ${(err as Error).message}`, "error");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <Section
+      title="Smart Import engine"
+      description="Optional. Connect Polity AI Engine to import PDFs, scanned books and images — they’re converted to editable Markdown in the background. Leave empty to keep import fully offline (Word, HTML, text and paste always work without it)."
+    >
+      <Field label="Engine URL" hint="The address of your deployed Polity AI Engine, e.g. https://engine.up.railway.app">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            className={inputClass}
+            value={url}
+            placeholder="https://…"
+            inputMode="url"
+            autoCapitalize="none"
+            spellCheck={false}
+            onChange={(e) => saveSettings({ aiEngineUrl: e.target.value.trim() })}
+          />
+          <Button onClick={test} disabled={testing}>
+            {testing ? "Testing…" : "Test connection"}
+          </Button>
+        </div>
+      </Field>
+    </Section>
+  );
 }
 
 export function Settings() {
@@ -206,6 +255,8 @@ export function Settings() {
             </Field>
           </div>
         </Section>
+
+        <SmartImportSection url={settings.aiEngineUrl ?? ""} toast={toast} />
 
         <Section
           title="Your data"
