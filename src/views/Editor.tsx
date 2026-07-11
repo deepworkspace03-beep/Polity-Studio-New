@@ -133,14 +133,26 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   const [previewWidth, setPreviewWidth] = usePersisted<number>("ps2:pane:previewWidth", DEFAULT_PREVIEW_WIDTH);
   const [settingsCollapsed, setSettingsCollapsed] = usePersisted<boolean>("ps2:pane:settingsCollapsed", false);
   const [previewCollapsed, setPreviewCollapsed] = usePersisted<boolean>("ps2:pane:previewCollapsed", false);
-  // Distraction-free toggle: hides the formatting toolbar and tucks the
-  // settings pane away without disturbing its own persisted collapse
-  // state, so turning focus mode off restores exactly what was open.
+  // Full Workspace toggle: hides the formatting toolbar, tucks the
+  // settings pane away (without disturbing its own persisted collapse
+  // state, so turning it off restores exactly what was open) and — where
+  // the browser allows it — requests real full-screen so tablet/laptop
+  // chrome gets out of the way too. Most valuable on a tablet like the
+  // Galaxy Tab S9 FE+, where the address bar otherwise eats writing room.
   const [focusMode, setFocusMode] = usePersisted<boolean>("ps2:editor:focusMode", false);
   const effSettingsCollapsed = settingsCollapsed || focusMode;
   const exitFocus = () => {
     setFocusMode(false);
     setSettingsCollapsed(false);
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+  };
+  const toggleFocusMode = () => {
+    const next = !focusMode;
+    setFocusMode(next);
+    // Fullscreen support varies (iOS Safari has none); focus mode itself
+    // still works without it, so a missing/rejected request is silent.
+    if (next) document.documentElement.requestFullscreen?.()?.catch(() => {});
+    else if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   };
   // "Reset to Default Settings" — restores the three-pane workspace
   // (widths, collapse state, focus mode) to first-run defaults without
@@ -151,6 +163,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
     setSettingsCollapsed(false);
     setPreviewCollapsed(false);
     setFocusMode(false);
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     toast("Workspace layout reset", "ok");
   };
 
@@ -313,10 +326,10 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           }}
         />
         <IconButton
-          label={focusMode ? "Exit focus mode" : "Focus mode — hide the toolbar and settings pane for distraction-free writing"}
+          label={focusMode ? "Exit Full Workspace mode" : "Full Workspace mode — hides the toolbar, settings pane and browser chrome for distraction-free writing"}
           name="focus"
           active={focusMode}
-          onClick={() => setFocusMode((v) => !v)}
+          onClick={toggleFocusMode}
         />
         <Button
           variant="primary"

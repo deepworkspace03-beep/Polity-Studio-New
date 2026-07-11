@@ -4,7 +4,7 @@ import { useApp } from "../../lib/store";
 import { DEFAULT_COVER_DESIGN, seedCoverDesign } from "../../brand/defaults";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
-import { Field, IconButton, Segmented, Toggle, inputClass, useToast } from "../../components/ui";
+import { Field, HintBubble, IconButton, Segmented, Toggle, inputClass, useLongPressHint, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { cx } from "../../lib/utils";
 
@@ -65,6 +65,25 @@ async function fileToLogo(file: File): Promise<string> {
   }
 }
 
+/** Icon-only swatch — title covers desktop hover, the shared long-press
+    hint covers touch (Tab-class devices don't reliably show `title`). */
+function SwatchButton({ label, swatch, onClick }: { label: string; swatch: string; onClick: () => void }) {
+  const hint = useLongPressHint();
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className="relative h-5 w-8 rounded border border-black/20"
+      style={{ background: swatch }}
+      {...hint.handlers}
+    >
+      <HintBubble show={hint.show} text={label} />
+    </button>
+  );
+}
+
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex flex-col items-center gap-1 rounded-lg border border-edge p-2">
@@ -87,13 +106,11 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         <span className="text-xs font-semibold text-ink-2">Start from</span>
         <div className="flex gap-1.5">
           {COVER_STYLES.map((s) => (
-            <button
+            <SwatchButton
               key={s.id}
-              type="button"
-              title={`Reset the design to the ${s.label} palette`}
+              label={`Reset the design to the ${s.label} palette`}
+              swatch={s.swatch}
               onClick={() => onChange({ layout: { ...doc.layout, coverDesign: seedCoverDesign(s.id) } })}
-              className="h-5 w-8 rounded border border-black/20"
-              style={{ background: s.swatch }}
             />
           ))}
         </div>
@@ -259,7 +276,7 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         <Field label="Author">
           <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
         </Field>
-        <Field label="Language">
+        <Field label="Language" hint="Sets the PDF/HTML document language for accessibility (screen readers) and search engines — it doesn't translate your content.">
           <Segmented
             value={doc.lang}
             onChange={(lang) => onChange({ lang })}

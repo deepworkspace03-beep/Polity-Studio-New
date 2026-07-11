@@ -7,7 +7,14 @@
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0c1118" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- iOS ignores the manifest for install chrome; these mirror it so the
+         home-screen icon, status bar and app title match Android/desktop. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Polity Studio" />
     <link rel="stylesheet" href="/fonts/fonts.css" />
     <link rel="preload" href="/fonts/Manrope-600-latin.woff2" as="font" type="font/woff2" crossorigin />
     <title>Polity Studio</title>
