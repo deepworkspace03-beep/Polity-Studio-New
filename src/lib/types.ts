@@ -75,6 +75,13 @@ export interface Doc {
   session: string;
   author: string;
   lang: "en" | "hi";
+  /** Per-document publisher/institute name shown on the cover. Absent =
+      use the global brand name (Settings → Branding). */
+  institute?: string;
+  /** Cover highlight lines ("Premium Study Notes", "120 Questions"…).
+      Absent = use the template's default selling points; an empty array
+      hides them. Editable per document so every cover word is authorable. */
+  coverLines?: string[];
   layout: DocLayout;
   createdAt: number;
   updatedAt: number;

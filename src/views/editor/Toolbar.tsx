@@ -6,6 +6,7 @@ import { HintBubble, IconButton, useLongPressHint, useToast } from "../../compon
 import { Icon, type IconName } from "../../components/Icon";
 import { CALLOUTS } from "../../markdown/renderer";
 import { IMPORT_ACCEPT } from "../../lib/importer";
+import { imageFileToMarkdown } from "../../lib/image";
 import { stageAndReviewForInsert } from "../../components/ImportReview";
 import {
   CODE_SNIPPET,
@@ -76,6 +77,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
   const [calloutsOpen, setCalloutsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const calloutHint = useLongPressHint();
 
@@ -99,6 +101,18 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
       if (!view) return;
       view.dispatch({ ...view.state.replaceSelection(markdown), scrollIntoView: true });
     });
+  }
+
+  async function insertImages(files: File[]) {
+    const view = getView();
+    if (!view || files.length === 0) return;
+    try {
+      const parts = await Promise.all(files.map((f) => imageFileToMarkdown(f)));
+      view.dispatch({ ...view.state.replaceSelection(parts.join("")), scrollIntoView: true });
+      toast(`Inserted ${files.length} image${files.length === 1 ? "" : "s"}`, "ok");
+    } catch {
+      toast("Couldn't read that image — try a PNG, JPEG or SVG", "error");
+    }
   }
 
   return (
@@ -176,6 +190,11 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
       />
       <span className="mx-1 h-5 w-px flex-none bg-edge" />
       <IconButton
+        label="Insert image — upload a picture; also paste or drag & drop into the editor"
+        name="image"
+        onClick={() => imageRef.current?.click()}
+      />
+      <IconButton
         label="Insert file — Markdown, text, HTML or Word (.docx) at the cursor"
         name="upload"
         onClick={() => fileRef.current?.click()}
@@ -189,6 +208,18 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           const file = e.target.files?.[0];
           e.target.value = "";
           if (file) void insertFile(file);
+        }}
+      />
+      <input
+        ref={imageRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = "";
+          if (files.length) void insertImages(files);
         }}
       />
     </div>

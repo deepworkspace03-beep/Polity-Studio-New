@@ -78,19 +78,23 @@ export interface CodeMirrorProps {
   onSaveShortcut?: () => void;
   /** Fired when a paste was auto-converted/tidied, with a summary line. */
   onSmartPaste?: (summary: string) => void;
+  /** Fired when image files are pasted — the host inserts them at the cursor. */
+  onImageFiles?: (files: File[]) => void;
   viewRef: React.MutableRefObject<EditorView | null>;
 }
 
-export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, viewRef }: CodeMirrorProps) {
+export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   const onCursorRef = useRef(onCursorLine);
   const onSaveRef = useRef(onSaveShortcut);
   const onSmartPasteRef = useRef(onSmartPaste);
+  const onImageFilesRef = useRef(onImageFiles);
   onChangeRef.current = onChange;
   onCursorRef.current = onCursorLine;
   onSaveRef.current = onSaveShortcut;
   onSmartPasteRef.current = onSmartPaste;
+  onImageFilesRef.current = onImageFiles;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -127,6 +131,15 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
             paste: (event, view) => {
               const dt = event.clipboardData;
               if (!dt) return false;
+              // Screenshot / copied image on the clipboard → insert inline.
+              // Handled before text so pasting an image never falls through
+              // to (empty) text handling.
+              const images = [...(dt.files ?? [])].filter((f) => f.type.startsWith("image/"));
+              if (images.length) {
+                event.preventDefault();
+                onImageFilesRef.current?.(images);
+                return true;
+              }
               const result = smartPaste(dt.getData("text/html"), dt.getData("text/plain"));
               if (!result) return false;
               event.preventDefault();

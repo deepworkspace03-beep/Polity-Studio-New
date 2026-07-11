@@ -179,11 +179,17 @@ function customCoverVars(d: CoverDesign): string {
   ].join(";")}"`;
 }
 
-function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
+function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): string {
   if (!doc.layout.cover) return "";
   const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
   const author = doc.author || brand.author;
+  const institute = doc.institute?.trim() || brand.name;
+  // Language label — Hindi shows हिन्दी; English intentionally shows nothing.
+  const langLabel = doc.lang === "hi" ? `<span class="cv-lang">हिन्दी</span>` : "";
+  // Author-authored highlight lines override the template's defaults; an
+  // explicit empty array hides them entirely.
+  const coverLines = (doc.coverLines ?? defaultCoverLines).map((l) => l.trim()).filter(Boolean);
   const geo = PAGE_GEOMETRY[doc.layout.pageSize];
 
   // The four preset styles are CSS palettes; "custom" carries its whole
@@ -214,19 +220,22 @@ function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
     <div class="cv-pub">
       ${mark}
       <div class="cv-pub__words">
-        <b>${escapeHtml(brand.name.toUpperCase())}</b>
+        <b>${escapeHtml(institute.toUpperCase())}</b>
         <span>${escapeHtml(brand.initiative)}</span>
       </div>
     </div>
-    <span class="cv-edition">${escapeHtml(doc.session || String(new Date().getFullYear()))}</span>
+    <div class="cv-top__meta">
+      ${langLabel}
+      <span class="cv-edition">${escapeHtml(doc.session || String(new Date().getFullYear()))}</span>
+    </div>
   </header>
   <div class="cv-body">
     ${eyebrow}
     <h1 class="cv-exam" data-edit="title">${escapeHtml(doc.title || "Untitled")}</h1>
     <p class="cv-guide${doc.subtitle ? "" : " cv-guide--empty"}" data-edit="subtitle" data-placeholder="Add a subtitle…">${escapeHtml(doc.subtitle)}</p>
-    <ul class="cv-highlights">
+    ${coverLines.length ? `<ul class="cv-highlights">
       ${coverLines.map((h) => `<li>${escapeHtml(h)}</li>`).join("\n      ")}
-    </ul>
+    </ul>` : ""}
   </div>
   <div class="cv-foot">
     <a class="cv-foot__site" href="${escapeHtml(brand.website)}">${escapeHtml(brand.website.replace(/^https?:\/\//, ""))}</a>

@@ -3,6 +3,7 @@ import type { EditorView } from "@codemirror/view";
 import { navigate } from "../lib/router";
 import { flushSaves, updateDoc, useApp } from "../lib/store";
 import { contentStats, cx } from "../lib/utils";
+import { imageFileToMarkdown, isImageFile } from "../lib/image";
 import type { Doc } from "../lib/types";
 import { Button, DropOverlay, IconButton, Segmented, useFileDrop, useToast } from "../components/ui";
 import { Icon, type IconName } from "../components/Icon";
@@ -231,6 +232,39 @@ export function Editor({ id, line }: { id: string; line?: number }) {
 
   const onChange = useCallback((patch: Partial<Doc>) => updateDoc(id, patch), [id]);
 
+  // Settings-pane Undo — captures the pre-change value of each field a
+  // settings edit touches so the most recent change can be reverted. Only
+  // the settings pane (Details) routes through this; body/title/inline
+  // edits keep their own CodeMirror/field undo, so this stack stays a
+  // clean, predictable history of layout & metadata changes.
+  const docRef = useRef(doc);
+  docRef.current = doc;
+  const undoStack = useRef<Partial<Doc>[]>([]);
+  const [undoDepth, setUndoDepth] = useState(0);
+  useEffect(() => {
+    undoStack.current = [];
+    setUndoDepth(0);
+  }, [id]);
+  const settingsChange = useCallback(
+    (patch: Partial<Doc>) => {
+      const cur = docRef.current;
+      if (cur) {
+        const prev: Record<string, unknown> = {};
+        for (const k of Object.keys(patch)) prev[k] = (cur as unknown as Record<string, unknown>)[k];
+        undoStack.current.push(prev as Partial<Doc>);
+        if (undoStack.current.length > 50) undoStack.current.shift();
+        setUndoDepth(undoStack.current.length);
+      }
+      updateDoc(id, patch);
+    },
+    [id],
+  );
+  const undoSettings = useCallback(() => {
+    const prev = undoStack.current.pop();
+    setUndoDepth(undoStack.current.length);
+    if (prev) updateDoc(id, prev);
+  }, [id]);
+
   // Remembers the open document + cursor line for "Resume last session"
   // (debounced so rapid cursor movement doesn't spam localStorage).
   useEffect(() => {
@@ -247,16 +281,37 @@ export function Editor({ id, line }: { id: string; line?: number }) {
     view.dispatch({ selection: { anchor: view.state.doc.line(ln).from }, scrollIntoView: true });
   }, [id, line]);
 
-  // Dropping .md/.txt/.html/.docx files on the editor converts them, then
-  // the Import Review modal lets the author confirm or edit the result
-  // before it lands at the cursor (whole-file import lives in the Library).
-  const drop = useFileDrop((files) =>
-    stageAndReviewForInsert(files, toast, (markdown) => {
+  /** Insert one or more images at the cursor as self-contained data-URI
+      Markdown — shared by drag-drop, clipboard paste and the toolbar. */
+  const insertImages = useCallback(
+    async (files: File[]) => {
       const view = viewRef.current;
-      if (!view) return;
-      view.dispatch({ ...view.state.replaceSelection(markdown), scrollIntoView: true });
-    }),
+      if (!view || files.length === 0) return;
+      try {
+        const parts = await Promise.all(files.map((f) => imageFileToMarkdown(f)));
+        view.dispatch({ ...view.state.replaceSelection(parts.join("")), scrollIntoView: true });
+        toast(`Inserted ${files.length} image${files.length === 1 ? "" : "s"}`, "ok");
+      } catch {
+        toast("Couldn't read that image — try a PNG, JPEG or SVG", "error");
+      }
+    },
+    [toast],
   );
+
+  // Dropping files on the editor: images insert inline; .md/.txt/.html/.docx
+  // go through the Import Review modal so the author can confirm or edit the
+  // converted Markdown before it lands (whole-file import lives in the Library).
+  const drop = useFileDrop((files) => {
+    const images = files.filter(isImageFile);
+    const rest = files.filter((f) => !isImageFile(f));
+    if (images.length) void insertImages(images);
+    if (rest.length)
+      void stageAndReviewForInsert(rest, toast, (markdown) => {
+        const view = viewRef.current;
+        if (!view) return;
+        view.dispatch({ ...view.state.replaceSelection(markdown), scrollIntoView: true });
+      });
+  });
 
   const onInlineEdit = useCallback(
     (edit: InlineEdit) => {
@@ -367,7 +422,14 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           ) : (
             <>
               <div className="hidden md:flex md:min-h-0 md:flex-none md:flex-col md:border-r md:border-edge" style={{ width: settingsWidth }}>
-                <DetailsPane doc={doc} onChange={onChange} onCollapse={() => setSettingsCollapsed(true)} onResetLayout={resetLayout} />
+                <DetailsPane
+                  doc={doc}
+                  onChange={settingsChange}
+                  onCollapse={() => setSettingsCollapsed(true)}
+                  onResetLayout={resetLayout}
+                  onUndo={undoSettings}
+                  canUndo={undoDepth > 0}
+                />
               </div>
               <PaneResizer label="Resize settings panel" onDrag={resizeSettings} />
             </>
@@ -393,6 +455,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
                 toast("Saved", "ok");
               }}
               onSmartPaste={(summary) => toast(`${summary} — Ctrl+Z restores the original`, "ok")}
+              onImageFiles={insertImages}
               viewRef={viewRef}
             />
           </div>
@@ -427,7 +490,14 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         )}
       </div>
 
-      <Details open={detailsOpen} onClose={() => setDetailsOpen(false)} doc={doc} onChange={onChange} />
+      <Details
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        doc={doc}
+        onChange={settingsChange}
+        onUndo={undoSettings}
+        canUndo={undoDepth > 0}
+      />
 
       {publishOpen && <Publish doc={doc} brand={brand} settings={settings} onClose={() => setPublishOpen(false)} />}
     </div>

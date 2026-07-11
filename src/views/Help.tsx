@@ -211,6 +211,10 @@ The supreme authority of a state
 within its territory.
 :::`;
 
+const IMAGE_EXAMPLE = `![Separation of powers](diagram.png "Fig 1 — the three organs")
+
+![Map](india.png){width=60% align=center}`;
+
 const STRUCTURE_EXAMPLE = `# Chapter Title        ← starts the TOC
 Intro paragraph…
 
@@ -266,6 +270,16 @@ export function Help() {
             lists use <code className="font-mono">- [ ]</code> / <code className="font-mono">- [x]</code>, and footnotes use{" "}
             <code className="font-mono">[^1]</code> markers with a matching <code className="font-mono">[^1]: note</code> line —
             collected at the end as "Notes &amp; References".
+          </p>
+        </Section>
+
+        <Section title="Images" intro="Paste a screenshot, drag a picture in, or use the toolbar image button — it's stored inside the document and embeds in the PDF.">
+          <Snippet>{IMAGE_EXAMPLE}</Snippet>
+          <p className="text-xs text-faint">
+            A standalone image becomes a centered figure. Add a caption in quotes, and control size &amp; placement with an
+            optional <code className="font-mono">{"{width=60% align=left}"}</code> (also <code className="font-mono">align=center|right</code>,{" "}
+            <code className="font-mono">fit=cover</code>). Images are downscaled and saved as data URIs, so they travel with the
+            document and render identically in the preview and the exported PDF — no web links, nothing to break offline.
           </p>
         </Section>
 
@@ -363,7 +377,7 @@ export function Help() {
             <li><b>Two options on one line</b> (<code className="font-mono text-xs">A) x B) y</code>) — Smart Import repairs this when you paste a real exam paper, but ask your AI for one option per line to be safe.</li>
             <li><b>No correct answer marked</b> — without a trailing <code className="font-mono text-xs">*</code> or an <code className="font-mono text-xs">Answer:</code> line, the question prints with no key entry. The Booklet check in the settings pane flags these.</li>
             <li><b>Raw HTML</b> (<code className="font-mono text-xs">&lt;br&gt;</code>, <code className="font-mono text-xs">&lt;table&gt;</code>) — ignored by design; use Markdown tables and blank lines instead.</li>
-            <li><b>Images from the web</b> — they may not survive PDF export (offline/cross-origin); prefer text, tables and callouts.</li>
+            <li><b>Linking an image by web URL</b> — a remote <code className="font-mono text-xs">![](https://…)</code> can fail on export (offline/cross-origin). Paste, drag in or upload the picture instead — it's embedded in the document and always survives.</li>
             <li><b>An unclosed callout</b> — every <code className="font-mono text-xs">::: type</code> needs its closing <code className="font-mono text-xs">:::</code> line, or the rest of the document lands inside the box.</li>
           </ul>
         </Section>

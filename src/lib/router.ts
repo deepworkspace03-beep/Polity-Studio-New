@@ -28,6 +28,27 @@ function parse(): Route {
 
 let current = typeof window !== "undefined" ? parse() : ({ view: "library" } as Route);
 
+/** Number of in-app navigations pushed onto browser history this session.
+    Lets the Back button return to the previous Studio page without ever
+    stepping out of the app (history.back() could otherwise leave the
+    site) — when it's zero there is nothing of ours to go back to. */
+let internalDepth = 0;
+
+/** True when a Back action can return to a previous in-app page. */
+export function canGoBack(): boolean {
+  return internalDepth > 0;
+}
+
+/** Returns to the previous in-app page. Returns false (without navigating)
+    when there is no in-app history, so callers can explain instead of
+    redirecting somewhere the user didn't expect. */
+export function goBack(): boolean {
+  if (internalDepth <= 0) return false;
+  internalDepth--;
+  window.history.back();
+  return true;
+}
+
 function subscribe(cb: () => void): () => void {
   const onChange = () => {
     current = parse();
@@ -42,10 +63,14 @@ export function useRoute(): Route {
 }
 
 export function navigate(path: "library" | "settings" | "help" | { edit: string; line?: number }): void {
-  window.location.hash =
+  const next =
     typeof path === "string"
       ? path === "library"
         ? "#/"
         : `#/${path}`
       : `#/edit/${encodeURIComponent(path.edit)}${path.line ? `/${path.line}` : ""}`;
+  // Only a real hash change pushes a history entry; navigating to the page
+  // you're already on wouldn't, so it shouldn't grow the back depth either.
+  if (next !== window.location.hash) internalDepth++;
+  window.location.hash = next;
 }

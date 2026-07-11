@@ -412,6 +412,33 @@ p > img:only-child {
   border-radius: 6pt;
 }
 
+/* Standalone-image figures (see renderer.ts § studio_figures). --fig-w is
+   the author's optional width; alignment is a modifier class. break-inside
+   keeps an image and its caption on one page. */
+.md-figure {
+  margin: 1.2em 0;
+  break-inside: avoid;
+  max-width: 100%;
+}
+.md-figure img {
+  display: block;
+  width: var(--fig-w, auto);
+  max-width: 100%;
+  border-radius: 6pt;
+}
+.md-figure--center { text-align: center; }
+.md-figure--center img { margin-inline: auto; }
+.md-figure--right img { margin-inline: auto 0; }
+.md-figure--left img { margin-inline: 0 auto; }
+.md-figure img.md-img--cover { object-fit: cover; aspect-ratio: 16 / 9; }
+.md-figure figcaption {
+  margin-top: 0.5em;
+  font-size: 0.85em;
+  color: var(--c-muted);
+  font-style: italic;
+  text-align: center;
+}
+
 /* ── Footnotes (rendered as endnotes) ────────────────────────────── */
 
 .footnote-ref a, a.footnote-backref { border-bottom: none; font-weight: 700; }

@@ -143,6 +143,11 @@ function blankDoc(): Doc {
     session: "",
     author: state.brand.author,
     lang: "en",
+    // Present-but-undefined so the schema merge in withDefaults() preserves
+    // an author's per-document cover overrides across reloads (a key it
+    // doesn't know about gets silently dropped).
+    institute: undefined,
+    coverLines: undefined,
     layout: { ...state.settings.newDocLayout },
     createdAt: now,
     updatedAt: now,
