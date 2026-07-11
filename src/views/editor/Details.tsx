@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { CoverColors, Doc, DocLayout } from "../../lib/types";
+import type { CoverColors, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
 import { useApp } from "../../lib/store";
+import { DEFAULT_COVER_DESIGN, seedCoverDesign } from "../../brand/defaults";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
-import { Field, IconButton, Segmented, Toggle, inputClass } from "../../components/ui";
+import { Field, IconButton, Segmented, Toggle, inputClass, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { cx } from "../../lib/utils";
 
-const COVER_STYLES: { id: DocLayout["coverStyle"]; label: string; swatch: string }[] = [
+const COVER_STYLES: { id: Exclude<DocLayout["coverStyle"], "custom">; label: string; swatch: string }[] = [
   { id: "regal", label: "Regal", swatch: "linear-gradient(140deg,#0d1930,#1d3357 60%,#c9bc9e 175%)" },
   { id: "aurora", label: "Aurora", swatch: "linear-gradient(140deg,#123c93,#0d76b2 52%,#0a9f80)" },
   { id: "heritage", label: "Heritage", swatch: "linear-gradient(150deg,#faf8f2 55%,#8a6d3b 200%)" },
@@ -19,6 +20,165 @@ const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: str
   { key: "ink", label: "Heading & title", fallback: "#f5f2ea" },
   { key: "accent", label: "Accent", fallback: "#c9bc9e" },
 ];
+
+/* ── Cover Designer (the "Custom" style) ──────────────────────────────
+   Fully parameterises the shared cover skeleton — background gradient,
+   ink/accent, vector pattern, title typography, alignment, frame,
+   emblem and an optional uploaded logo. The flow preview is the live
+   canvas: every change re-renders the cover in place. */
+
+const PATTERN_OPTIONS: { value: CoverPattern; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "grid", label: "Grid" },
+  { value: "lines", label: "Lines" },
+  { value: "rings", label: "Rings" },
+  { value: "weave", label: "Weave" },
+];
+
+const TITLE_SIZES: { value: string; label: string }[] = [
+  { value: "0.8", label: "S" },
+  { value: "1", label: "M" },
+  { value: "1.15", label: "L" },
+  { value: "1.3", label: "XL" },
+];
+
+/** Downscale an uploaded logo to ≤320 px and store it as a PNG data URI
+    (PNG keeps transparency; the PDF engine embeds it as-is). */
+async function fileToLogo(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = () => rej(new Error("not an image"));
+      img.src = url;
+    });
+    if (!img.naturalWidth) throw new Error("image has no size");
+    const scale = Math.min(1, 320 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="flex flex-col items-center gap-1 rounded-lg border border-edge p-2">
+      <input type="color" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="h-7 w-full cursor-pointer rounded border-0 bg-transparent p-0" />
+      <span className="text-center text-[10.5px] font-semibold text-ink-2">{label}</span>
+    </label>
+  );
+}
+
+function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
+  const toast = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const design: CoverDesign = { ...DEFAULT_COVER_DESIGN, ...doc.layout.coverDesign };
+  const set = (patch: Partial<CoverDesign>) =>
+    onChange({ layout: { ...doc.layout, coverDesign: { ...design, ...patch } } });
+
+  return (
+    <div className="space-y-3 rounded-xl border border-edge p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-ink-2">Start from</span>
+        <div className="flex gap-1.5">
+          {COVER_STYLES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              title={`Reset the design to the ${s.label} palette`}
+              onClick={() => onChange({ layout: { ...doc.layout, coverDesign: seedCoverDesign(s.id) } })}
+              className="h-5 w-8 rounded border border-black/20"
+              style={{ background: s.swatch }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <ColorField label="Background 1" value={design.bg1} onChange={(bg1) => set({ bg1 })} />
+        <ColorField label="Background 2" value={design.bg2} onChange={(bg2) => set({ bg2 })} />
+        <ColorField label="Text" value={design.ink} onChange={(ink) => set({ ink })} />
+        <ColorField label="Accent" value={design.accent} onChange={(accent) => set({ accent })} />
+      </div>
+      <Field label={`Gradient angle — ${design.angle}°`}>
+        <input type="range" min={0} max={360} step={5} value={design.angle} onChange={(e) => set({ angle: Number(e.target.value) })} className="w-full" />
+      </Field>
+      <Field label="Pattern">
+        <Segmented size="sm" value={design.pattern} onChange={(pattern) => set({ pattern })} options={PATTERN_OPTIONS} />
+      </Field>
+      {design.pattern !== "none" && (
+        <Field label={`Pattern strength — ${Math.round(design.patternOpacity * 100)}%`}>
+          <input type="range" min={1} max={30} step={1} value={Math.round(design.patternOpacity * 100)} onChange={(e) => set({ patternOpacity: Number(e.target.value) / 100 })} className="w-full" />
+        </Field>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Title font">
+          <Segmented
+            size="sm"
+            value={design.titleFont}
+            onChange={(titleFont) => set({ titleFont })}
+            options={[
+              { value: "serif", label: "Serif" },
+              { value: "sans", label: "Sans" },
+            ]}
+          />
+        </Field>
+        <Field label="Title size">
+          <Segmented size="sm" value={String(design.titleScale)} onChange={(v) => set({ titleScale: Number(v) })} options={TITLE_SIZES} />
+        </Field>
+      </div>
+      <Field label="Alignment">
+        <Segmented
+          size="sm"
+          value={design.align}
+          onChange={(align) => set({ align })}
+          options={[
+            { value: "left", label: "Left" },
+            { value: "center", label: "Centered" },
+          ]}
+        />
+      </Field>
+      <Toggle label="Hairline frame" checked={design.frame} onChange={(frame) => set({ frame })} />
+      <Toggle label="Temple emblem" checked={design.emblem} onChange={(emblem) => set({ emblem })} />
+      <div className="flex items-center gap-2">
+        {design.logo && <img src={design.logo} alt="Logo" className="h-8 w-8 rounded border border-edge object-contain" />}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="rounded-lg border border-edge px-2.5 py-1.5 text-xs font-semibold text-ink-2 hover:border-faint"
+        >
+          {design.logo ? "Replace logo" : "Upload logo…"}
+        </button>
+        {design.logo && (
+          <button type="button" onClick={() => set({ logo: undefined })} className="text-xs font-medium text-faint underline decoration-dotted">
+            Remove
+          </button>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            try {
+              set({ logo: await fileToLogo(file) });
+            } catch {
+              toast("Couldn't read that image — try a PNG, JPEG or SVG", "error");
+            }
+          }}
+        />
+      </div>
+      <p className="text-[10.5px] leading-relaxed text-faint">The logo replaces the temple mark next to the publication name. Everything here previews live on the cover.</p>
+    </div>
+  );
+}
 
 /** Optional per-document overrides on top of the chosen cover style's own
     palette — each field is independent and falls back to the style's own
@@ -129,9 +289,30 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
                 {s.label}
               </button>
             ))}
+            <button
+              onClick={() =>
+                layout({
+                  coverStyle: "custom",
+                  // First visit seeds the designer from the preset the author
+                  // was on; afterwards their design is kept as-is.
+                  coverDesign: doc.layout.coverDesign ?? seedCoverDesign(doc.layout.coverStyle),
+                })
+              }
+              className={cx(
+                "col-span-2 flex items-center justify-center gap-2 rounded-lg border p-1.5 text-[11px] font-semibold",
+                doc.layout.coverStyle === "custom" ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
+              )}
+            >
+              <span
+                className="h-5 w-10 rounded-md border border-black/10"
+                style={{ background: "conic-gradient(from 210deg,#0d1930,#123c93,#0a9f80,#c9bc9e,#0d1930)" }}
+              />
+              Custom — design your own
+            </button>
           </div>
         )}
-        {doc.layout.cover && (
+        {doc.layout.cover && doc.layout.coverStyle === "custom" && <CoverDesigner doc={doc} onChange={onChange} />}
+        {doc.layout.cover && doc.layout.coverStyle !== "custom" && (
           <div>
             <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
             <CoverColorPicker doc={doc} onChange={onChange} />

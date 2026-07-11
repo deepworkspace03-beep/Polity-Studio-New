@@ -126,6 +126,69 @@ const FLASHCARD_PROMPT = `Write an active-recall flashcard deck as Markdown for 
 
 Topic: <your topic here>. Write <N> cards covering the most exam-relevant terms and questions.`;
 
+const PYQ_PROMPT = `Write solved previous-year questions (PYQs) as Markdown for a PDF publishing tool, using exactly this grammar per question:
+
+Q1. <question text>
+A) <option>
+B) <option> *        ← put the trailing * on the correct option
+C) <option>
+D) <option>
+Source: <exam + year, e.g. UGC-NET Dec 2023>
+Solution: <2–5 sentences: why the answer is right and why the tempting options are wrong; a small Markdown table is allowed>
+
+- Group questions by paper/topic under "##" section headings.
+- Every question needs a Source line (exam + year) and a Solution.
+- Exactly one correct option per question, one option per line.
+- No raw HTML, no YAML front matter, no difficulty labels.
+
+Exam & topic: <your exam and topic here>. Reproduce <N> genuine previous-year questions with faithful wording where possible.`;
+
+/** The complete authoring contract, in one copyable block — paste it
+    into any AI tool before your request and the reply imports clean.
+    Keep this in lockstep with markdown/renderer.ts and markdown/mcq.ts. */
+const MASTER_SPEC = `POLITY STUDIO — MARKDOWN SPECIFICATION
+Follow these rules exactly. Output plain Markdown only — no code fence around the document, no raw HTML, no YAML front matter.
+
+STRUCTURE
+- "# Title" once at the top (becomes the document title).
+- "## Section" and "### Sub-section" build the table of contents and the running page header.
+- "\\pagebreak" alone on a line forces a new PDF page.
+
+TEXT
+- **bold** key terms · *italic* emphasis · ==highlight== must-remember phrases · ++underline++ · ~~strikethrough~~
+- x^2^ superscript · H~2~O subscript · \`inline code\`
+- [text](https://example.com) links · "> " quotations
+- Footnotes: [^1] in the text plus a matching "[^1]: note" line below.
+
+LISTS & TABLES
+- "- item" bullets · "1. item" numbered · "- [ ]" / "- [x]" task lists.
+- GitHub-style tables with a |---|---| separator row; keep cells short.
+
+CALLOUTS (colored boxes)
+::: definition Optional Title
+Body text.
+:::
+Types: definition · example · important · summary · tip · warning · note · exam.
+
+QUESTIONS (for MCQ / PYQ documents)
+Q1. Question text?
+A) option
+B) option *        ← trailing * marks the correct option (or add "Answer: B")
+C) option
+D) option
+Solution: worked explanation ("Explanation:" also works)
+Topic: short tag
+Source: UPSC 2021
+- One option per line, A)–E) or 1)–5). Group questions under "##" headings.
+
+FLASHCARDS
+- Each "##" heading is a card front; the text under it is the back.
+
+AVOID
+- Raw HTML, YAML front matter (--- blocks), images from the web.
+- Bold question numbers like "**Q1.**" — write "Q1." plainly.
+- Code fences unless showing actual code.`;
+
 const MCQ_EXAMPLE = `## Section A — Greek Political Thought
 
 Q. Who called man "a political animal"?
@@ -218,6 +281,20 @@ export function Help() {
           </p>
         </Section>
 
+        <Section
+          title="Write with AI — Claude, Gemini, ChatGPT"
+          intro="Generate content anywhere, paste it here, publish. The spec below is the whole contract — any AI that follows it produces a document that imports with zero manual formatting."
+        >
+          <ol className="list-decimal space-y-1.5 pl-5 text-sm text-ink-2">
+            <li>Copy the specification below and paste it at the start of your chat (Claude, Google Gemini, ChatGPT — any of them).</li>
+            <li>Add your request, e.g. <em>"Notes on Federalism in India, exam-oriented, ~2000 words"</em> — or use a tuned per-template prompt from the next section.</li>
+            <li>Copy the AI's reply and paste it into a new document here — Smart Paste cleans up whatever the chat window adds.</li>
+            <li>Pick the matching template (Notes, MCQ, PYQ…), check the preview, publish.</li>
+          </ol>
+          <Snippet>{MASTER_SPEC}</Snippet>
+          <CopyButton text={MASTER_SPEC} label="Copy specification" />
+        </Section>
+
         <Section title="Templates, one by one" intro="Each template has its own body grammar and its own tuned AI prompt below.">
           <TemplateGuide
             name="Theory Notes"
@@ -257,7 +334,7 @@ export function Help() {
                 automatically.
               </span>
             }
-            prompt={MCQ_PROMPT}
+            prompt={PYQ_PROMPT}
           />
           <TemplateGuide
             name="Flash Cards"
@@ -279,6 +356,18 @@ export function Help() {
           <Snippet>{FLASHCARD_EXAMPLE}</Snippet>
         </Section>
 
+        <Section title="Common mistakes" intro="The handful of things that trip up imported content — all easy to avoid.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>The whole reply wrapped in a code fence</b> — some chat UIs copy Markdown inside ``` fences. Delete the fence lines; otherwise the document renders as one code block.</li>
+            <li><b>Bold question numbers</b> (<code className="font-mono text-xs">**Q1.**</code>) — the question parser needs a plain <code className="font-mono text-xs">Q1.</code> at the start of the line.</li>
+            <li><b>Two options on one line</b> (<code className="font-mono text-xs">A) x B) y</code>) — Smart Import repairs this when you paste a real exam paper, but ask your AI for one option per line to be safe.</li>
+            <li><b>No correct answer marked</b> — without a trailing <code className="font-mono text-xs">*</code> or an <code className="font-mono text-xs">Answer:</code> line, the question prints with no key entry. The Booklet check in the settings pane flags these.</li>
+            <li><b>Raw HTML</b> (<code className="font-mono text-xs">&lt;br&gt;</code>, <code className="font-mono text-xs">&lt;table&gt;</code>) — ignored by design; use Markdown tables and blank lines instead.</li>
+            <li><b>Images from the web</b> — they may not survive PDF export (offline/cross-origin); prefer text, tables and callouts.</li>
+            <li><b>An unclosed callout</b> — every <code className="font-mono text-xs">::: type</code> needs its closing <code className="font-mono text-xs">:::</code> line, or the rest of the document lands inside the box.</li>
+          </ul>
+        </Section>
+
         <Section title="Working efficiently" intro="The workspace has a few features worth knowing about.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
@@ -297,7 +386,8 @@ export function Help() {
         <Section title="Branding, covers & the dark reading theme" intro="Settings → Branding drives every export; Details drives one document.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li>Cover style, table of contents, watermark, page size and text density are all per-document, in the settings pane (the sliders icon).</li>
-            <li>Each cover style now also accepts optional background, heading and accent color overrides, right below the style picker — leave any of them unset to keep the style's own palette.</li>
+            <li>Each cover style also accepts optional background, heading and accent color overrides, right below the style picker — leave any of them unset to keep the style's own palette.</li>
+            <li><b>Custom — design your own</b> opens the Cover Designer: background gradient (two colors + angle), text and accent colors, a vector pattern with adjustable strength, title font and size, left or centered layout, a hairline frame, the temple emblem, and your own uploaded logo. It starts from the preset you were using and previews live on the cover.</li>
             <li>Settings → Appearance has two separate themes: the <b>app theme</b> (this UI) and the <b>document reading theme</b> (how previews, PDFs and HTML exports render) — the preview toolbar's sun/moon icon toggles the latter without leaving the editor.</li>
             <li>Institute name, links, watermark text and the PDF color palette live in Settings → Branding and apply to every document.</li>
           </ul>

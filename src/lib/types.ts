@@ -2,7 +2,39 @@
 
 export type TemplateId = "notes" | "revision" | "mcq" | "pyq" | "flashcards";
 
-export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse";
+export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse" | "custom";
+
+export type CoverPattern = "none" | "grid" | "lines" | "rings" | "weave";
+
+/** The "custom" cover style: a complete design authored in the Cover
+    Designer (Details → Cover style → Custom). Every field always has a
+    concrete value so the designer UI never juggles fallbacks; the four
+    preset styles keep using CSS palettes in covers.css instead. */
+export interface CoverDesign {
+  /** Background gradient stops — set both to the same color for a solid. */
+  bg1: string;
+  bg2: string;
+  /** Gradient direction in degrees. */
+  angle: number;
+  /** Title + body text color. */
+  ink: string;
+  /** Eyebrow, bullets, edition badge and rules. */
+  accent: string;
+  pattern: CoverPattern;
+  /** Pattern line opacity, 0–0.3. */
+  patternOpacity: number;
+  titleFont: "serif" | "sans";
+  /** Multiplies the 44 pt base title size (0.8 – 1.3). */
+  titleScale: number;
+  align: "left" | "center";
+  /** Hairline frame inset from the page edge. */
+  frame: boolean;
+  /** Temple emblem watermark in the lower-right. */
+  emblem: boolean;
+  /** Small data-URI image replacing the temple mark in the publisher
+      lockup (uploaded in the designer, downscaled before storing). */
+  logo?: string;
+}
 export type PageSize = "a4" | "a5" | "letter";
 export type Density = "compact" | "comfort" | "relaxed";
 export type AnswersMode = "inline" | "end" | "none";
@@ -22,6 +54,8 @@ export interface DocLayout {
   coverStyle: CoverStyle;
   /** Custom cover palette overrides — absent/empty means "use the style default". */
   coverColors?: CoverColors;
+  /** Full design for coverStyle "custom" — ignored by the preset styles. */
+  coverDesign?: CoverDesign;
   toc: boolean;
   watermark: boolean;
   pageSize: PageSize;
