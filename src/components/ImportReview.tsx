@@ -1,6 +1,7 @@
-import { useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { createDoc } from "../lib/store";
 import { IMPORT_ACCEPT, promoteLeadingTitle, stageImportFiles, type StagedDoc } from "../lib/importer";
+import { normalizeMarkdown, reviewMarkdown } from "../lib/markdownReview";
 import type { Doc } from "../lib/types";
 import { TEMPLATE_META_LIST } from "../templates/meta";
 import { cx } from "../lib/utils";
@@ -82,6 +83,10 @@ export async function stageAndReviewForInsert(files: File[], toast: Toast, onIns
   });
 }
 
+function Stat({ label }: { label: string }) {
+  return <span className="whitespace-nowrap tabular-nums">{label}</span>;
+}
+
 export function ImportReviewModal() {
   const s = useSyncExternalStore(subscribe, () => state);
   if (!s) return null;
@@ -92,9 +97,14 @@ function ReviewBody({ items, mode, onConfirm }: { items: StagedDoc[]; mode: Mode
   const [docs, setDocs] = useState(items);
   const [active, setActive] = useState(0);
   const current = docs[active];
+  const review = useMemo(() => reviewMarkdown(current.body), [current.body]);
 
   function patch(i: number, next: Partial<StagedDoc>) {
     setDocs((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...next } : d)));
+  }
+
+  function normalize() {
+    patch(active, { body: normalizeMarkdown(current.body).markdown });
   }
 
   function close() {
@@ -148,6 +158,32 @@ function ReviewBody({ items, mode, onConfirm }: { items: StagedDoc[]; mode: Mode
             </div>
           )}
           <p className="text-xs text-faint">{current.summary}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-faint">
+            <Stat label={`${review.words.toLocaleString()} words`} />
+            <Stat label={`${review.readingMinutes} min read`} />
+            <Stat label={`~${review.pages} ${review.pages === 1 ? "page" : "pages"}`} />
+            {review.headings > 0 && <Stat label={`${review.headings} headings`} />}
+            {review.tables > 0 && <Stat label={`${review.tables} tables`} />}
+            {review.images > 0 && <Stat label={`${review.images} images`} />}
+            {review.links > 0 && <Stat label={`${review.links} links`} />}
+            {review.codeBlocks > 0 && <Stat label={`${review.codeBlocks} code`} />}
+            {review.fixable > 0 && (
+              <button
+                onClick={normalize}
+                className="rounded-full bg-raised px-2 py-0.5 font-medium text-ink-2 hover:text-ink"
+                title="Fix heading spacing, stray whitespace and blank lines"
+              >
+                Normalize · {review.fixable} {review.fixable === 1 ? "fix" : "fixes"}
+              </button>
+            )}
+          </div>
+          {review.warnings.length > 0 && (
+            <ul className="flex flex-col gap-0.5 text-[11px] text-amber-600 dark:text-amber-500">
+              {review.warnings.map((w, i) => (
+                <li key={i}>⚠ {w}</li>
+              ))}
+            </ul>
+          )}
           <textarea
             value={current.body}
             onChange={(e) => patch(active, { body: e.target.value })}
