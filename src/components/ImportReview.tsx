@@ -1,12 +1,13 @@
 import { useState, useSyncExternalStore } from "react";
 import { createDoc } from "../lib/store";
-import { IMPORT_ACCEPT, promoteLeadingTitle, stageImportFiles, type StagedDoc } from "../lib/importer";
+import { IMPORT_ACCEPT, promoteLeadingTitle, stageImportFiles, type FileProcessor, type StagedDoc } from "../lib/importer";
 import { ENGINE_ACCEPT, createEngineProcessor } from "../lib/aiEngine";
 import { getSettings } from "../lib/store";
 import type { Doc } from "../lib/types";
 import { TEMPLATE_META_LIST } from "../templates/meta";
 import { cx } from "../lib/utils";
 import { Button, Modal, inputClass } from "./ui";
+import { failProcessing, showProcessing, succeedProcessing, updateProcessing } from "./ProcessingStatus";
 
 /**
  * Import Review — the checkpoint between "a file landed" and "a document
@@ -49,13 +50,35 @@ function openImportReview(items: StagedDoc[], mode: Mode, onConfirm: (items: Sta
   setState({ id: ++nextId, items, mode, onConfirm });
 }
 
+/** The configured engine processor, wrapped to drive the staged-progress
+    dialog (components/ProcessingStatus.tsx) around each conversion — the
+    one place a file's real upload/processing state becomes visible,
+    instead of the picker just going quiet until it's done or fails. */
+function engineProcessor(): FileProcessor | undefined {
+  const processor = createEngineProcessor(getSettings().aiEngineUrl);
+  if (!processor) return undefined;
+  return {
+    supports: processor.supports,
+    async process(file) {
+      showProcessing(file.name);
+      try {
+        const result = await processor.process(file, (p) => updateProcessing(p.fraction, p.stage));
+        succeedProcessing();
+        return result;
+      } catch (err) {
+        failProcessing(err);
+        throw err;
+      }
+    },
+  };
+}
+
 /** Stages files (converting + restoring backups as before) then, if
     anything is left to review, opens the modal; confirming creates the
     documents. Used by both the file picker and drag-and-drop onto the
     Library. */
 export async function stageAndReview(files: File[], toast: Toast, onOpen: (doc: Doc) => void): Promise<void> {
-  const processor = createEngineProcessor(getSettings().aiEngineUrl) ?? undefined;
-  const staged = promoteLeadingTitle(await stageImportFiles(files, toast, processor));
+  const staged = promoteLeadingTitle(await stageImportFiles(files, toast, engineProcessor()));
   if (!staged.length) return;
   openImportReview(staged, "create", (finalItems) => {
     const created = finalItems.map((d) => createDoc({ template: d.template, title: d.title || "Untitled", body: d.body }));
@@ -79,8 +102,7 @@ export function pickAndImportFiles(toast: Toast, onOpen: (doc: Doc) => void): vo
 /** Stages files for insertion at the editor cursor rather than as new
     documents — same conversion + review step, different destination. */
 export async function stageAndReviewForInsert(files: File[], toast: Toast, onInsert: (markdown: string) => void): Promise<void> {
-  const processor = createEngineProcessor(getSettings().aiEngineUrl) ?? undefined;
-  const staged = await stageImportFiles(files, toast, processor);
+  const staged = await stageImportFiles(files, toast, engineProcessor());
   if (!staged.length) return;
   openImportReview(staged, "insert", (finalItems) => {
     onInsert(finalItems.map((d) => d.body).join("\n\n"));

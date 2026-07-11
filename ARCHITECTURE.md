@@ -279,6 +279,24 @@ client-side path. The engine's Markdown flows into the exact same Import
 Review checkpoint as every other import, so the user never learns which
 parser ran.
 
+**Processing UX** (`components/ProcessingStatus.tsx`): converting a PDF
+or scan takes real time and can fail in several genuinely different ways
+(no network, file too large, engine ran out of memory, timed out), so a
+bare toast either goes quiet for too long or — worse — surfaces the raw
+`fetch` failure ("Failed to fetch") with no explanation. `aiEngine.ts`
+names *why* something failed precisely at the point each is detected
+(`FailureKind` — never guessed afterwards from a message string) and
+`stageLabel()` maps only the stage strings the engine actually reports
+to user-facing copy — it doesn't invent progress steps the backend never
+signals. `components/ImportReview.tsx` wraps the engine processor
+(`engineProcessor()`) to drive `showProcessing` / `updateProcessing` /
+`succeedProcessing` / `failProcessing` around each conversion; a failure
+stays open with a title, plain-language explanation and a concrete next
+step, while success auto-closes. This keeps `aiEngine.ts` a pure
+network/data layer and `importer.ts` DOM-unaware — `ImportReview.tsx` is
+the one place UI and the engine calls meet, matching its existing role
+as the review-modal orchestrator.
+
 ## Storage & data safety
 
 IndexedDB database `polity-studio`: `docs` (one record per document)
