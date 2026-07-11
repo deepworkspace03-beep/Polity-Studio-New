@@ -40,7 +40,7 @@ body.mode-flow .cover {
 }
 /* In the (often narrow) flow preview the cover scales with its pane —
    print typography is pt-fixed and would otherwise break mid-word. */
-body.mode-flow .cv-exam { font-size: clamp(16pt, 9.5cqw, 44pt); }
+body.mode-flow .cv-exam { font-size: clamp(16pt, calc(9.5cqw * var(--cv-title-scale, 1)), calc(44pt * var(--cv-title-scale, 1))); }
 body.mode-flow .cv-guide { font-size: clamp(10pt, 3.8cqw, 16.5pt); }
 body.mode-flow .cv-eyebrow { font-size: clamp(7pt, 2.6cqw, 11pt); }
 body.mode-flow .cv-highlights li { font-size: clamp(8pt, 2.8cqw, 12pt); }
@@ -113,7 +113,7 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
 .cv-exam {
   font-family: var(--cv-title-font);
   font-weight: 800;
-  font-size: 44pt;
+  font-size: calc(44pt * var(--cv-title-scale, 1));
   line-height: 1.04;
   letter-spacing: -0.02em;
   margin: 0;
@@ -269,3 +269,34 @@ body.mode-paged .cv-guide--empty { display: none; }
   z-index: 0;
 }
 .cover--eclipse .cv-emblem { color: #d3a662; opacity: 0.1; }
+
+/* ── 05 · Custom (the Cover Designer) ───────────────────────────────
+   Rendered entirely from inline --cv-* variables written by
+   customCoverVars() in pdf/document.ts; these rules only cover the
+   structural options a variable can't express. No shade layer — the
+   author's colors stay exactly as picked. */
+.cover--custom .cv-shade { background: none; }
+.cv-logo {
+  display: block;
+  height: 13mm;
+  width: auto;
+  max-width: 42mm;
+  object-fit: contain;
+}
+.cover--framed::after {
+  content: "";
+  position: absolute;
+  inset: 9mm;
+  border: 0.6pt solid var(--cv-line);
+  pointer-events: none;
+  z-index: 0;
+}
+.cover--center .cv-body { align-items: center; text-align: center; }
+.cover--center .cv-guide { margin-left: auto; margin-right: auto; }
+.cover--center .cv-highlights li { padding-left: 0; }
+.cover--center .cv-highlights li::before {
+  position: static;
+  display: inline-block;
+  margin-right: 3mm;
+  margin-bottom: 0.06em;
+}

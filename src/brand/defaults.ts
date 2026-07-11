@@ -1,4 +1,4 @@
-import type { BrandConfig, DocLayout, Settings } from "../lib/types";
+import type { BrandConfig, CoverDesign, CoverStyle, DocLayout, Settings } from "../lib/types";
 
 /** Bundled default branding — Polity Made Simple. Every value is
     editable in-app (Settings → Branding) and stored locally. */
@@ -39,12 +39,43 @@ export const DEFAULT_LAYOUT: DocLayout = {
   // whatever an author picks in Details → Cover colors across reloads —
   // a key withDefaults() doesn't know about gets silently dropped.
   coverColors: undefined,
+  // Same reason: the key must exist here or withDefaults() drops a saved
+  // custom cover design on reload.
+  coverDesign: undefined,
   toc: true,
   watermark: true,
   pageSize: "a4",
   density: "comfort",
   answers: "end",
 };
+
+/* ── Cover Designer seeds ─────────────────────────────────────────────
+   Switching to the "Custom" cover starts from the palette of the preset
+   the author was using, so the designer never opens on a blank slate. */
+
+export const DEFAULT_COVER_DESIGN: CoverDesign = {
+  bg1: "#0d1930",
+  bg2: "#1d3357",
+  angle: 160,
+  ink: "#f5f2ea",
+  accent: "#c9bc9e",
+  pattern: "grid",
+  patternOpacity: 0.05,
+  titleFont: "serif",
+  titleScale: 1,
+  align: "left",
+  frame: false,
+  emblem: true,
+};
+
+export function seedCoverDesign(from: CoverStyle): CoverDesign {
+  const seeds: Partial<Record<CoverStyle, Partial<CoverDesign>>> = {
+    aurora: { bg1: "#123c93", bg2: "#0a9f80", angle: 158, ink: "#ffffff", accent: "#eafff6", pattern: "rings", patternOpacity: 0.09, titleFont: "sans" },
+    heritage: { bg1: "#faf8f2", bg2: "#f2eee2", angle: 168, ink: "#1a2740", accent: "#8a6d3b", pattern: "lines", patternOpacity: 0.07, frame: true },
+    eclipse: { bg1: "#0c1017", bg2: "#1a2434", angle: 172, ink: "#f0f3f9", accent: "#d3a662", pattern: "rings", patternOpacity: 0.08, frame: true },
+  };
+  return { ...DEFAULT_COVER_DESIGN, ...seeds[from] };
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",

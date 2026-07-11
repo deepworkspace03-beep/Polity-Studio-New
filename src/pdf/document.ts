@@ -1,4 +1,5 @@
-import type { BrandConfig, CoverColors, Doc, PageSize } from "../lib/types";
+import type { BrandConfig, CoverColors, CoverDesign, Doc, PageSize } from "../lib/types";
+import { DEFAULT_COVER_DESIGN } from "../brand/defaults";
 import { escapeHtml } from "../lib/utils";
 import { coverPatternSvg, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
 import { extractToc } from "../markdown/renderer";
@@ -39,8 +40,9 @@ const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; marg
   letter: { w: 216, h: 279, size: "216mm 279mm", margin: "21mm 16mm 23mm 16mm" },
 };
 
-/** Vector pattern layer per cover style (SVG so print stays vector). */
-const COVER_PATTERNS: Record<Doc["layout"]["coverStyle"], { kind: "grid" | "rings" | "weave" | "lines"; color: string }> = {
+/** Vector pattern layer per cover style (SVG so print stays vector).
+    "custom" is absent — its pattern comes from the CoverDesign. */
+const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { kind: "grid" | "rings" | "weave" | "lines"; color: string }> = {
   regal: { kind: "grid", color: "rgba(245,242,234,0.045)" },
   aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
   heritage: { kind: "lines", color: "rgba(26,39,64,0.07)" },
@@ -126,23 +128,91 @@ function coverColorVars(colors: CoverColors | undefined): string {
   return vars.length ? ` style="${vars.join(";")}"` : "";
 }
 
+/* ── Custom cover (the Cover Designer) ─────────────────────────────── */
+
+/** Designs come from the UI's color inputs, but also from restored JSON
+    backups — accept only literal hex colors before injecting them into
+    the srcdoc's style attribute. */
+function safeHex(c: unknown, fallback: string): string {
+  return typeof c === "string" && /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(c.trim()) ? c.trim() : fallback;
+}
+
+function clampNum(n: unknown, min: number, max: number, fallback: number): number {
+  return typeof n === "number" && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.slice(1);
+  const full = h.length <= 4 ? [...h].map((ch) => ch + ch).join("") : h;
+  const n = parseInt(full.slice(0, 6), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha.toFixed(3)})`;
+}
+
+/** Sanitized copy of a stored design over the schema defaults. */
+function resolveDesign(design: CoverDesign | undefined): CoverDesign {
+  const d = { ...DEFAULT_COVER_DESIGN, ...design };
+  return {
+    ...d,
+    bg1: safeHex(d.bg1, DEFAULT_COVER_DESIGN.bg1),
+    bg2: safeHex(d.bg2, DEFAULT_COVER_DESIGN.bg2),
+    ink: safeHex(d.ink, DEFAULT_COVER_DESIGN.ink),
+    accent: safeHex(d.accent, DEFAULT_COVER_DESIGN.accent),
+    angle: clampNum(d.angle, 0, 360, 160),
+    patternOpacity: clampNum(d.patternOpacity, 0, 0.3, 0.05),
+    titleScale: clampNum(d.titleScale, 0.6, 1.5, 1),
+    logo: typeof d.logo === "string" && d.logo.startsWith("data:image/") ? d.logo : undefined,
+  };
+}
+
+function customCoverVars(d: CoverDesign): string {
+  const bg = d.bg1.toLowerCase() === d.bg2.toLowerCase() ? d.bg1 : `linear-gradient(${d.angle}deg, ${d.bg1} 0%, ${d.bg2} 100%)`;
+  const font = d.titleFont === "sans" ? '"Manrope", "Noto Sans Devanagari", sans-serif' : '"Literata", "Noto Serif Devanagari", serif';
+  return ` style="${[
+    `--cv-bg:${bg}`,
+    `--cv-ink:${d.ink}`,
+    `--cv-soft:color-mix(in srgb, ${d.ink} 78%, transparent)`,
+    `--cv-accent:${d.accent}`,
+    `--cv-line:color-mix(in srgb, ${d.ink} 30%, transparent)`,
+    `--cv-edition-tx:${pickBadgeInk(d.accent)}`,
+    `--cv-title-font:${font.replace(/"/g, "&quot;")}`,
+    `--cv-title-scale:${d.titleScale}`,
+  ].join(";")}"`;
+}
+
 function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   if (!doc.layout.cover) return "";
   const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
   const author = doc.author || brand.author;
-
-  const pattern = COVER_PATTERNS[doc.layout.coverStyle];
   const geo = PAGE_GEOMETRY[doc.layout.pageSize];
 
+  // The four preset styles are CSS palettes; "custom" carries its whole
+  // design on the doc and is rendered from inline --cv-* variables.
+  const design = doc.layout.coverStyle === "custom" ? resolveDesign(doc.layout.coverDesign) : null;
+  const pattern = design
+    ? design.pattern === "none"
+      ? null
+      : { kind: design.pattern, color: hexToRgba(design.ink, design.patternOpacity) }
+    : COVER_PATTERNS[doc.layout.coverStyle as Exclude<Doc["layout"]["coverStyle"], "custom">];
+  const classes = [
+    `cover--${doc.layout.coverStyle}`,
+    design?.align === "center" ? "cover--center" : "",
+    design?.frame ? "cover--framed" : "",
+  ].filter(Boolean).join(" ");
+  const styleAttr = design ? customCoverVars(design) : coverColorVars(doc.layout.coverColors);
+  const emblem = design && !design.emblem ? "" : templeEmblemSvg("cv-emblem");
+  const mark = design?.logo
+    ? `<img class="cv-logo" src="${escapeHtml(design.logo)}" alt="">`
+    : templeMarkSvg("13mm", "cv-mark");
+
   return `
-<section class="cover cover--${doc.layout.coverStyle}"${coverColorVars(doc.layout.coverColors)}>
-  ${coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color)}
+<section class="cover ${classes}"${styleAttr}>
+  ${pattern ? coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color) : ""}
   <div class="cv-shade" aria-hidden="true"></div>
-  ${templeEmblemSvg("cv-emblem")}
+  ${emblem}
   <header class="cv-top">
     <div class="cv-pub">
-      ${templeMarkSvg("13mm", "cv-mark")}
+      ${mark}
       <div class="cv-pub__words">
         <b>${escapeHtml(brand.name.toUpperCase())}</b>
         <span>${escapeHtml(brand.initiative)}</span>

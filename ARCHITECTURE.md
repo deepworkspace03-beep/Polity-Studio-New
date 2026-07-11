@@ -147,7 +147,7 @@ src/
    ├─ editor/            CodeMirror wrapper (incl. find & replace via
    │                     @codemirror/search), commands, Toolbar, Preview
    │                     (flow/pages + doc-theme toggle), Details sheet
-   │                     (incl. per-document cover color overrides),
+   │                     (cover color overrides + the Cover Designer),
    │                     Publish overlay
    ├─ Settings.tsx       appearance (incl. document reading theme),
    │                     branding, defaults, save/restore, your data
@@ -201,6 +201,16 @@ typing is never clobbered.
   (`pdf/document.ts`) and an entry in the `COVER_STYLES` list in
   `views/editor/Details.tsx`. Retired ids get a mapping in
   `LEGACY_COVERS` (`lib/store.ts`) so stored documents migrate.
+- **The "custom" cover** is not a CSS palette: it is a full
+  per-document design (`CoverDesign` in `lib/types.ts` — gradient,
+  ink/accent, pattern, typography, alignment, frame, emblem, logo)
+  written as inline `--cv-*` variables by `customCoverVars()`
+  (`pdf/document.ts`) onto the shared cover skeleton, and edited in
+  the Cover Designer (`views/editor/Details.tsx`), seeded from the
+  preset the author was using. Colors from restored backups are
+  sanitized (`resolveDesign`) before they reach the srcdoc. Extend it
+  by adding a field to `CoverDesign`, a control in `CoverDesigner`,
+  and a variable/class in `customCoverVars()` + `covers.css`.
 - **New callout type** — one entry in `CALLOUTS` (`markdown/renderer.ts`)
   plus a `.callout--<type>` color rule in `pdf/styles/print-base.css`.
 - **New example** — one entry in `templates/demos.ts`.
