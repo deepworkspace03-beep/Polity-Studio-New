@@ -4,7 +4,6 @@ import { useApp } from "./lib/store";
 import { ToastProvider } from "./components/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { ImportReviewModal } from "./components/ImportReview";
-import { ProcessingStatusModal } from "./components/ProcessingStatus";
 import { Library } from "./views/Library";
 
 const Editor = lazy(() => import("./views/Editor").then((m) => ({ default: m.Editor })));
@@ -58,7 +57,6 @@ export default function App() {
       </div>
       <CommandPalette />
       <ImportReviewModal />
-      <ProcessingStatusModal />
     </ToastProvider>
   );
 }
