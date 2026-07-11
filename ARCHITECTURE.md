@@ -70,6 +70,14 @@ src/
 │  │                     flush), delete-all, backup/restore
 │  ├─ router.ts          hash router (#/, #/edit/:id[/:line], #/settings,
 │  │                     #/help) — :line deep-links search hits
+│  ├─ image.ts           editor image insert: downscales a pasted/dropped/
+│  │                     uploaded picture and returns self-contained
+│  │                     data-URI Markdown (no asset folder; embeds in the
+│  │                     PDF as-is). Rendered as <figure> by the renderer.
+│  ├─ presets.ts         named layout presets (localStorage): save the
+│  │                     current cover/TOC/size/density set under a name and
+│  │                     reapply to any document. UI convenience, not doc
+│  │                     data, so it never travels in a backup.
 │  ├─ session.ts         "Resume last session" — last open doc + cursor
 │  │                     line in localStorage (throwaway UI state, read
 │  │                     before the store loads, so not IndexedDB)
@@ -104,6 +112,7 @@ src/
 ├─ markdown/
 │  ├─ renderer.ts        markdown-it pipeline: callouts, footnotes, task
 │  │                     lists, mark/ins/sub/sup, anchors, \pagebreak,
+│  │                     standalone-image → <figure> (caption + {width/align}),
 │  │                     data-line source mapping, TOC extraction
 │  └─ mcq.ts             MCQ text parser + validation (plain TS, no deps)
 ├─ templates/

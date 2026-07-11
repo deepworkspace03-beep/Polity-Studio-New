@@ -152,6 +152,57 @@ function getRenderer(): MarkdownIt {
     return `${open}<span class="li-mark" aria-hidden="true">${mark}</span>`;
   };
 
+  // Standalone images → <figure>. An author-friendly, dependency-free
+  // image layer: any paragraph that is just an image becomes a centered
+  // figure. A caption comes from the Markdown title (`![alt](src "cap")`);
+  // width and alignment from an optional trailing `{width=60% align=left}`.
+  // Inline images (inside a sentence) keep the default <img> rendering.
+  const cssLen = (v: string): string | null => {
+    const m = /^(\d{1,4})(%|px|mm|cm|rem|em)?$/.exec(v.trim());
+    return m ? `${m[1]}${m[2] || "px"}` : null;
+  };
+  const ALIGNS = new Set(["left", "center", "right"]);
+  md.core.ruler.push("studio_figures", (state) => {
+    const t = state.tokens;
+    for (let i = 0; i < t.length - 2; i++) {
+      if (t[i].type !== "paragraph_open" || t[i + 1].type !== "inline" || t[i + 2].type !== "paragraph_close") continue;
+      const kids = (t[i + 1].children ?? []).filter((c) => !(c.type === "text" && !c.content.trim()) && c.type !== "softbreak");
+      if (kids.length === 0 || kids[0].type !== "image") continue;
+      let attrs = "";
+      if (kids.length === 2 && kids[1].type === "text") {
+        const m = /^\{([^}]*)\}$/.exec(kids[1].content.trim());
+        if (!m) continue; // image plus other text — leave as a normal paragraph
+        attrs = m[1];
+      } else if (kids.length !== 1) continue;
+
+      const img = kids[0];
+      const src = img.attrGet("src") || "";
+      const alt = img.content;
+      const title = img.attrGet("title") || "";
+      let width = "";
+      let align = "center";
+      let cover = false;
+      for (const part of attrs.split(/\s+/)) {
+        const [k, v] = part.split("=");
+        if (!v) continue;
+        if ((k === "width" || k === "w") && cssLen(v)) width = cssLen(v)!;
+        else if (k === "align" && ALIGNS.has(v)) align = v;
+        else if (k === "fit") cover = v === "cover";
+      }
+      const map = t[i].map;
+      const line = map ? map[0] + 1 : null;
+      const esc = md!.utils.escapeHtml;
+      const html =
+        `<figure class="md-figure md-figure--${align}"${line ? ` data-line="${line}"` : ""}` +
+        `${width ? ` style="--fig-w:${width}"` : ""}>` +
+        `<img src="${esc(src)}" alt="${esc(alt)}"${cover ? ' class="md-img--cover"' : ""}>` +
+        `${title ? `<figcaption>${esc(title)}</figcaption>` : ""}</figure>\n`;
+      const tok = new state.Token("html_block", "", 0);
+      tok.content = html;
+      t.splice(i, 3, tok);
+    }
+  });
+
   // `\pagebreak` (or `\newpage`) alone on a line forces a page break.
   md.core.ruler.push("studio_pagebreak", (state) => {
     const tokens = state.tokens;

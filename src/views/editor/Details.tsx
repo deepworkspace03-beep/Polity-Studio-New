@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { CoverColors, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
 import { useApp } from "../../lib/store";
-import { DEFAULT_COVER_DESIGN, seedCoverDesign } from "../../brand/defaults";
+import { DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
+import { canSavePreset, deletePreset, duplicatePreset, MAX_PRESETS, renamePreset, savePreset, usePresets } from "../../lib/presets";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
 import { Field, HintBubble, IconButton, Segmented, Toggle, inputClass, useLongPressHint, useToast } from "../../components/ui";
@@ -237,6 +238,81 @@ function CoverColorPicker({ doc, onChange }: { doc: Doc; onChange: (patch: Parti
   );
 }
 
+/** Named layout presets — save the current cover/TOC/watermark/size/
+    density/answers set under a name and reapply it to any document.
+    Reuses the shared preset store (lib/presets.ts); applying goes through
+    the same onChange as every other field, so it's captured by Undo. */
+function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layout: DocLayout) => void }) {
+  const presets = usePresets();
+  const toast = useToast();
+
+  return (
+    <div className="space-y-2 rounded-xl border border-edge p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-ink-2">Layout presets</span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onApply({ ...DEFAULT_LAYOUT })}
+            title="Reset this document's layout to the Studio defaults"
+            className="rounded-md border border-edge px-2 py-0.5 text-[11px] font-semibold text-ink-2 hover:border-faint"
+          >
+            Restore defaults
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!canSavePreset()) {
+                toast(`Preset limit reached (${MAX_PRESETS}) — delete one first`, "info");
+                return;
+              }
+              const name = window.prompt("Name this preset", "My preset")?.trim();
+              if (!name) return;
+              savePreset(name, layout);
+              toast(`Saved preset “${name}”`, "ok");
+            }}
+            className="rounded-md border border-edge px-2 py-0.5 text-[11px] font-semibold text-ink-2 hover:border-faint"
+          >
+            Save current
+          </button>
+        </div>
+      </div>
+      {presets.length === 0 ? (
+        <p className="text-[10.5px] text-faint">No presets yet — “Save current” stores this document's layout for reuse.</p>
+      ) : (
+        <ul className="space-y-1">
+          {presets.map((p) => (
+            <li key={p.id} className="group flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  onApply({ ...p.layout });
+                  toast(`Applied “${p.name}”`, "ok");
+                }}
+                title={`Apply “${p.name}” to this document`}
+                className="min-w-0 flex-1 truncate rounded-md border border-edge px-2 py-1 text-left text-[11px] font-semibold text-ink-2 hover:border-accent hover:text-accent"
+              >
+                {p.name}
+              </button>
+              <IconButton
+                label="Rename preset"
+                name="edit"
+                size={13}
+                onClick={() => {
+                  const name = window.prompt("Rename preset", p.name)?.trim();
+                  if (name) renamePreset(p.id, name);
+                }}
+              />
+              <IconButton label="Duplicate preset" name="copy" size={13} onClick={() => duplicatePreset(p.id)} />
+              <IconButton label="Delete preset" name="trash" size={13} onClick={() => deletePreset(p.id)} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** The settings form itself — shared verbatim by the mobile modal and the
     desktop pane so the two stay in lockstep with zero duplicated markup. */
 function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
@@ -276,7 +352,22 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         <Field label="Author">
           <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
         </Field>
-        <Field label="Language" hint="Sets the PDF/HTML document language for accessibility (screen readers) and search engines — it doesn't translate your content.">
+        <Field label="Institute (cover)" hint="Name shown in the cover lockup. Leave blank to use the global brand name.">
+          <input className={inputClass} value={doc.institute ?? ""} onChange={(e) => onChange({ institute: e.target.value || undefined })} placeholder={brand.name} />
+        </Field>
+        <Field label="Cover highlights" hint="One line per highlight on the cover. Leave empty to use the template's defaults.">
+          <textarea
+            className={inputClass + " resize-none"}
+            rows={2}
+            value={(doc.coverLines ?? []).join("\n")}
+            onChange={(e) => {
+              const raw = e.target.value;
+              onChange({ coverLines: raw.trim() === "" ? undefined : raw.split("\n") });
+            }}
+            placeholder={"Premium Study Notes\nExam-Ready Coverage"}
+          />
+        </Field>
+        <Field label="Language" hint="Hindi prints a हिन्दी badge on the cover and sets the PDF/HTML language for screen readers; English shows no label. It doesn't translate your content.">
           <Segmented
             value={doc.lang}
             onChange={(lang) => onChange({ lang })}
@@ -290,6 +381,7 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
 
       <div className="space-y-4">
         <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Layout & PDF</h3>
+        <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
         <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
         {doc.layout.cover && (
           <div className="grid grid-cols-2 gap-2">
@@ -397,11 +489,15 @@ export function Details({
   onClose,
   doc,
   onChange,
+  onUndo,
+  canUndo,
 }: {
   open: boolean;
   onClose: () => void;
   doc: Doc;
   onChange: (patch: Partial<Doc>) => void;
+  onUndo?: () => void;
+  canUndo?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -436,7 +532,10 @@ export function Details({
       >
         <header className="flex items-center justify-between gap-3 border-b border-edge px-5 py-3.5">
           <h2 className="text-sm font-bold text-ink">Document details</h2>
-          <IconButton label="Close" name="x" onClick={onClose} />
+          <div className="flex items-center gap-0.5">
+            {onUndo && <IconButton label="Undo last settings change" name="undo" disabled={!canUndo} onClick={onUndo} />}
+            <IconButton label="Close" name="x" onClick={onClose} />
+          </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           <DetailsFields doc={doc} onChange={onChange} />
@@ -454,17 +553,24 @@ export function DetailsPane({
   onChange,
   onCollapse,
   onResetLayout,
+  onUndo,
+  canUndo,
 }: {
   doc: Doc;
   onChange: (patch: Partial<Doc>) => void;
   onCollapse: () => void;
   onResetLayout?: () => void;
+  onUndo?: () => void;
+  canUndo?: boolean;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
       <header className="flex flex-none items-center justify-between gap-2 border-b border-edge px-4 py-2.5">
         <h2 className="text-xs font-extrabold uppercase tracking-wider text-faint">Settings</h2>
         <div className="flex items-center gap-0.5">
+          {onUndo && (
+            <IconButton label="Undo last settings change" name="undo" size={14} disabled={!canUndo} onClick={onUndo} />
+          )}
           {onResetLayout && (
             <IconButton label="Reset workspace to default layout" name="refresh" size={14} onClick={onResetLayout} />
           )}

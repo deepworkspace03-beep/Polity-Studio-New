@@ -97,7 +97,7 @@ export function IconButton({
       title={label}
       aria-label={label}
       className={cx(
-        "relative rounded-lg p-2 transition-colors",
+        "relative rounded-lg p-2 transition-colors disabled:pointer-events-none disabled:opacity-40",
         active ? "bg-accent/15 text-accent" : "text-ink-2 hover:bg-raised hover:text-ink",
         className,
       )}
