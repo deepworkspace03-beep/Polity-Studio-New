@@ -1,6 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
 import { createDoc } from "../lib/store";
 import { IMPORT_ACCEPT, promoteLeadingTitle, stageImportFiles, type StagedDoc } from "../lib/importer";
+import { ENGINE_ACCEPT, createEngineProcessor } from "../lib/aiEngine";
+import { getSettings } from "../lib/store";
 import type { Doc } from "../lib/types";
 import { TEMPLATE_META_LIST } from "../templates/meta";
 import { cx } from "../lib/utils";
@@ -52,7 +54,8 @@ function openImportReview(items: StagedDoc[], mode: Mode, onConfirm: (items: Sta
     documents. Used by both the file picker and drag-and-drop onto the
     Library. */
 export async function stageAndReview(files: File[], toast: Toast, onOpen: (doc: Doc) => void): Promise<void> {
-  const staged = promoteLeadingTitle(await stageImportFiles(files, toast));
+  const processor = createEngineProcessor(getSettings().aiEngineUrl) ?? undefined;
+  const staged = promoteLeadingTitle(await stageImportFiles(files, toast, processor));
   if (!staged.length) return;
   openImportReview(staged, "create", (finalItems) => {
     const created = finalItems.map((d) => createDoc({ template: d.template, title: d.title || "Untitled", body: d.body }));
@@ -66,7 +69,9 @@ export function pickAndImportFiles(toast: Toast, onOpen: (doc: Doc) => void): vo
   const input = document.createElement("input");
   input.type = "file";
   input.multiple = true;
-  input.accept = IMPORT_ACCEPT;
+  // Offer engine-only formats (PDF/scan/image) in the picker only when an
+  // engine is configured to handle them.
+  input.accept = createEngineProcessor(getSettings().aiEngineUrl) ? `${IMPORT_ACCEPT},${ENGINE_ACCEPT}` : IMPORT_ACCEPT;
   input.onchange = () => void stageAndReview([...(input.files || [])], toast, onOpen);
   input.click();
 }
@@ -74,7 +79,8 @@ export function pickAndImportFiles(toast: Toast, onOpen: (doc: Doc) => void): vo
 /** Stages files for insertion at the editor cursor rather than as new
     documents — same conversion + review step, different destination. */
 export async function stageAndReviewForInsert(files: File[], toast: Toast, onInsert: (markdown: string) => void): Promise<void> {
-  const staged = await stageImportFiles(files, toast);
+  const processor = createEngineProcessor(getSettings().aiEngineUrl) ?? undefined;
+  const staged = await stageImportFiles(files, toast, processor);
   if (!staged.length) return;
   openImportReview(staged, "insert", (finalItems) => {
     onInsert(finalItems.map((d) => d.body).join("\n\n"));

@@ -233,6 +233,12 @@ export function duplicateDoc(id: string): Doc | null {
 
 /* ── Settings & branding ──────────────────────────────────────────── */
 
+/** Non-reactive settings read for code outside React (e.g. the import
+    pipeline needs the AI Engine URL without subscribing to the store). */
+export function getSettings(): Settings {
+  return state.settings;
+}
+
 export function saveSettings(patch: Partial<Settings>): void {
   const settings = { ...state.settings, ...patch };
   setState({ ...state, settings });

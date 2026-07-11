@@ -258,6 +258,27 @@ hits carry a snippet and line number; the palette (Ctrl+K, `CommandPalette.tsx`)
 and Library search both use it, and opening a content hit deep-links
 `#/edit/:id/:line` to place the cursor on the match.
 
+### Optional: Polity AI Engine (PDF / scan / image import)
+
+Formats Studio can't understand itself — PDFs, scanned books, images —
+are handled by **Polity AI Engine**, a separate service in its own repo
+with its own Railway deployment (document understanding never lives in
+this client app). `lib/aiEngine.ts` is the *single* bridge to it: it
+knows the service URL (Settings → Smart Import engine), uploads a file,
+polls the job, and returns normalized Markdown. This is the one
+deliberate exception to the "no backend" rule (the engine is an
+independent external service, not a first-party endpoint) and it is
+entirely inert until a user sets the URL — with none set, `aiEngine.ts`
+never runs and import behaves exactly as before.
+
+The seam is dependency-injected so `lib/importer.ts` stays offline and
+network-unaware: `stageImportFiles` takes an optional `FileProcessor`
+(implemented by `createEngineProcessor` in `aiEngine.ts`) and routes only
+non-native extensions to it; DOCX/HTML/text/paste keep their instant
+client-side path. The engine's Markdown flows into the exact same Import
+Review checkpoint as every other import, so the user never learns which
+parser ran.
+
 ## Storage & data safety
 
 IndexedDB database `polity-studio`: `docs` (one record per document)
