@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { BrandConfig, Doc } from "../../lib/types";
+import type { BrandConfig, Doc, DocTheme } from "../../lib/types";
 import { buildDocContent, buildDocumentHtml, buildShellKey } from "../../pdf/document";
+import { saveSettings } from "../../lib/store";
 import { IconButton, Segmented } from "../../components/ui";
 
 type PreviewMode = "flow" | "pages";
@@ -27,14 +28,18 @@ const CURSOR_DEBOUNCE = 120;
 export function Preview({
   doc,
   brand,
+  theme,
   cursorLine,
   onInlineEdit,
   onFocusLine,
   fullscreen,
   onToggleFullscreen,
+  onCollapse,
 }: {
   doc: Doc;
   brand: BrandConfig;
+  /** Reading theme for the rendered document (Settings → Appearance). */
+  theme: DocTheme;
   cursorLine: number;
   onInlineEdit: (edit: InlineEdit) => void;
   /** Preview → editor: the reader clicked a sourced element. `focusEditor`
@@ -43,6 +48,8 @@ export function Preview({
   onFocusLine: (line: number, focusEditor: boolean) => void;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
+  /** Tucks the preview pane away to a slim rail (desktop/tablet three-pane layout only). */
+  onCollapse?: () => void;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
   const [srcDoc, setSrcDoc] = useState("");
@@ -53,6 +60,7 @@ export function Preview({
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const frameRef = useRef<HTMLIFrameElement>(null);
   const readyRef = useRef(false);
+  const lastContentRef = useRef("");
   const editingRef = useRef(false);
   const shellKeyRef = useRef("");
   const cursorRef = useRef(cursorLine);
@@ -75,32 +83,45 @@ export function Preview({
   // Content pipeline — full shell rebuild only when the shell itself
   // (fonts, page geometry, template CSS, mode) changes.
   useEffect(() => {
-    const shellKey = `${mode}|${buildShellKey(doc, brand)}`;
+    const shellKey = `${mode}|${buildShellKey(doc, brand, theme)}`;
     const rebuild = shellKey !== shellKeyRef.current || !readyRef.current;
     if (mode === "pages") {
       setPaginating(true);
       setPages(null);
     }
+    // Adaptive debounce: very large documents render and (especially)
+    // paginate slower, so give typing a longer quiet window before the
+    // expensive work starts — the editor itself never blocks.
+    const size = doc.body.length;
+    const flowDelay = Math.min(1200, FLOW_DEBOUNCE + size / 2500);
+    const pagedDelay = Math.min(5000, PAGED_DEBOUNCE + size / 400);
     const timer = setTimeout(
       () => {
         if (mode === "pages") {
           shellKeyRef.current = shellKey;
           readyRef.current = false;
           pendingZoomRestoreRef.current = zoomCmdRef.current;
-          setSrcDoc(buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview" }));
+          setSrcDoc(buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", theme }));
         } else if (rebuild) {
           shellKeyRef.current = shellKey;
           readyRef.current = false;
-          setSrcDoc(buildDocumentHtml(doc, brand, { mode: "flow", purpose: "preview" }));
+          lastContentRef.current = "";
+          setSrcDoc(buildDocumentHtml(doc, brand, { mode: "flow", purpose: "preview", theme }));
         } else if (!editingRef.current) {
-          post({ type: "update", html: buildDocContent(doc, brand) });
+          const html = buildDocContent(doc, brand);
+          // Skip the innerHTML swap (and the layout it forces) when the
+          // rendered content didn't actually change.
+          if (html !== lastContentRef.current) {
+            lastContentRef.current = html;
+            post({ type: "update", html });
+          }
         }
       },
-      mode === "pages" ? PAGED_DEBOUNCE : rebuild ? 0 : FLOW_DEBOUNCE,
+      mode === "pages" ? pagedDelay : rebuild ? 0 : flowDelay,
     );
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, brand, mode]);
+  }, [doc, brand, mode, theme]);
 
   // Cursor follows the editor into the preview.
   useEffect(() => {
@@ -158,10 +179,11 @@ export function Preview({
   }
 
   const isPages = mode === "pages";
+  const isDark = theme === "dark";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-edge bg-surface px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-b border-edge bg-surface px-2 py-1">
         <Segmented
           size="sm"
           value={mode}
@@ -195,13 +217,22 @@ export function Preview({
         )}
 
         <IconButton
+          label={isDark ? "Switch document to light reading theme" : "Switch document to dark reading theme"}
+          name={isDark ? "sun" : "moon"}
+          size={15}
+          className="ml-auto"
+          onClick={() => saveSettings({ docTheme: isDark ? "light" : "dark" })}
+        />
+        <IconButton
           label={fullscreen ? "Exit full screen" : "Full screen"}
           name={fullscreen ? "collapse" : "expand"}
           size={15}
-          className="ml-auto"
           active={fullscreen}
           onClick={onToggleFullscreen}
         />
+        {onCollapse && !fullscreen && (
+          <IconButton label="Collapse preview panel" name="chevronRight" size={15} className="hidden md:inline-flex" onClick={onCollapse} />
+        )}
       </div>
       <iframe
         ref={frameRef}

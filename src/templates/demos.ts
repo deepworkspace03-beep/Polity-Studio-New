@@ -358,7 +358,6 @@ B) Immediate partition into two dominions
 C) Direct elections to the Constituent Assembly
 D) A unitary state with devolved provinces
 Explanation: The Mission rejected partition and proposed a three-tier structure — Union, groups of provinces, and provinces — with the Constituent Assembly elected indirectly by the provincial assemblies.
-Difficulty: Moderate
 Topic: Constitutional Development
 Source: UGC-NET Dec 2023
 
@@ -368,7 +367,6 @@ B) Rajendra Prasad
 C) Jawaharlal Nehru *
 D) K. M. Munshi
 Explanation: Nehru moved it on 13 December 1946; its ideals were later distilled into the Preamble.
-Difficulty: Easy
 Topic: Constituent Assembly
 Source: UGC-NET June 2022
 
@@ -378,7 +376,6 @@ B) 3 years, 6 months
 C) 1 year, 11 months
 D) 4 years exactly
 Explanation: From 9 December 1946 to 26 November 1949 — about 2 years, 11 months and 18 days, across 11 sessions.
-Difficulty: Easy
 Topic: Constituent Assembly
 Source: CUET-PG 2023
 
@@ -388,7 +385,6 @@ B) USA: Directive Principles; Ireland: Judicial review; UK: Rule of law
 C) Canada: Directive Principles; USA: Cabinet system; UK: Federal list
 D) Australia: Judicial review; USA: Concurrent list; UK: Fundamental duties
 Explanation: DPSPs came from the Irish Constitution, judicial review from the American model, and the parliamentary executive from the British system.
-Difficulty: Moderate
 Topic: Sources of the Constitution
 Source: CUET-PG 2024
 
@@ -400,7 +396,6 @@ B) Maneka Gandhi v. Union of India *
 C) Golak Nath v. State of Punjab
 D) Shankari Prasad v. Union of India
 Explanation: Maneka Gandhi (1978) held the procedure must be just, fair and reasonable, effectively importing substantive due process.
-Difficulty: Easy
 Topic: Article 21
 Source: UGC-NET Dec 2024
 
@@ -410,7 +405,6 @@ B) M. P. Sharma v. Satish Chandra
 C) K. S. Puttaswamy v. Union of India *
 D) Naz Foundation v. NCT of Delhi
 Explanation: A nine-judge bench in Puttaswamy (2017) unanimously held privacy to be intrinsic to Article 21, overruling contrary observations in Kharak Singh and M. P. Sharma.
-Difficulty: Moderate
 Topic: Right to Privacy
 Source: UGC-NET June 2023
 
@@ -420,7 +414,6 @@ B) Swaran Singh Committee *
 C) Punchhi Commission
 D) Balwant Rai Mehta Committee
 Explanation: The Swaran Singh Committee (1976) recommended them; the 42nd Amendment inserted Article 51A with ten duties (an eleventh came in 2002).
-Difficulty: Easy
 Topic: Fundamental Duties
 Source: Rajasthan SET 2023
 
@@ -430,7 +423,6 @@ B) Champakam Dorairajan v. State of Madras
 C) M. R. Balaji v. State of Mysore
 D) Ashoka Kumar Thakur v. Union of India
 Explanation: Indra Sawhney (1992) capped total reservations at 50% and introduced the "creamy layer" exclusion for OBCs.
-Difficulty: Moderate
 Topic: Reservation
 Source: UGC-NET Dec 2022
 
@@ -442,7 +434,6 @@ B) Kesavananda → Golak Nath → Waman Rao → Minerva Mills
 C) Golak Nath → Minerva Mills → Kesavananda → Waman Rao
 D) Kesavananda → Minerva Mills → Golak Nath → Waman Rao
 Explanation: Golak Nath (1967), Kesavananda Bharati (1973), Minerva Mills (1980), Waman Rao (1981).
-Difficulty: Hard
 Topic: Amendment & Basic Structure
 Source: UGC-NET June 2024
 
@@ -452,7 +443,6 @@ B) 44th Amendment
 C) 1st Amendment
 D) 73rd Amendment
 Explanation: The 42nd Amendment (1976) made sweeping changes — adding "socialist", "secular", "integrity", Fundamental Duties, and altering the DPSP–FR balance — earning the label "mini-Constitution".
-Difficulty: Easy
 Topic: Amendments
 Source: CUET-PG 2024
 
@@ -462,7 +452,6 @@ B) Articles 14 and 21
 C) Articles 245 and 246
 D) Articles 124 and 217
 Explanation: Article 32 (Supreme Court) and Article 226 (High Courts) confer the writ jurisdiction that anchors judicial review; Article 13 makes laws violating Part III void.
-Difficulty: Moderate
 Topic: Judicial Review
 Source: Rajasthan SET 2024
 
@@ -472,7 +461,6 @@ B) Judicial review
 C) Federal character
 D) Secularism
 Explanation: Parliamentary sovereignty is precisely what the basic-structure doctrine denies — the Constitution, not Parliament, is supreme in India.
-Difficulty: Hard
 Topic: Basic Structure
 Source: UGC-NET June 2024
 `;
@@ -648,6 +636,77 @@ The **Union, State and Concurrent Lists** dividing legislative power between the
 **Tenth Schedule**, added by the 52nd Amendment (1985).
 `;
 
+/* ── 5 · PYQ collection ────────────────────────────────────────────── */
+
+const PYQ_BODY = `## Governance & Public Policy
+
+Q. Arrange the following in chronological order (year of enactment / launch).
+- **A.** Rashtriya Gokul Mission
+- **B.** Rights of Persons with Disabilities Act
+- **C.** Pradhan Mantri Jan Aushadhi Yojana
+- **D.** Food and Nutrition Board
+- **E.** National Co-operative Development Corporation
+
+(1) D, E, B, A, C
+(2) D, B, E, C, A
+(3) E, D, C, B, A *
+(4) E, C, D, A, B
+Answer: C
+Source: UGC-NET June 2025
+Solution: The correct sequence follows each body's founding year.
+
+| Institution / Scheme | Year | Ministry |
+|---|---|---|
+| Nat. Co-op. Dev. Corp. (NCDC) | 1963 | Cooperation |
+| Food and Nutrition Board | 1964 | Women & Child Development |
+| PM Jan Aushadhi Yojana | 2008 | Chemicals & Fertilizers |
+| Rashtriya Gokul Mission | 2014 | Fisheries, AH & Dairying |
+| Rights of PwD Act | 2016 | Social Justice |
+
+Q. The G.V.K. Rao Committee, appointed by the Planning Commission to review rural-development administration, was constituted in —
+(1) 1985 *
+(2) 1983
+(3) 1981
+(4) 1979
+Answer: A
+Source: UGC-NET June 2025
+Solution: The **G.V.K. Rao Committee (1985)** recommended the post of District Development Commissioner and famously called the Panchayati Raj Institutions "grass without roots".
+
+Q. The 74th Constitutional Amendment Act is intended for —
+(1) Rural local administration
+(2) Judicial reforms
+(3) Urban local bodies administration *
+(4) Linguistic administration
+Answer: C
+Source: UGC-NET Dec 2024
+Solution: The **74th Amendment (1992)** added Part IX-A (The Municipalities), Articles 243-P to 243-ZG, and the 12th Schedule of 18 functional items.
+
+Q. Match List-I (Committee) with List-II (Focus) and choose the correct answer.
+- **A.** Balwant Rai Mehta
+- **B.** Ashok Mehta
+- **C.** L.M. Singhvi
+- **D.** G.V.K. Rao
+
+I. Constitutional status for PRIs
+II. Democratic decentralisation, 3-tier structure
+III. District as the unit of planning
+IV. 2-tier structure, party-based elections
+
+(1) A-II, B-IV, C-I, D-III *
+(2) A-I, B-II, C-III, D-IV
+(3) A-III, B-I, C-IV, D-II
+(4) A-IV, B-III, C-II, D-I
+Answer: A
+Source: UGC-NET Dec 2024
+Solution:
+
+| Committee | Year | Key idea |
+|---|---|---|
+| Balwant Rai Mehta | 1957 | Democratic decentralisation, 3-tier |
+| Ashok Mehta | 1977 | 2-tier, political-party participation |
+| L.M. Singhvi | 1986 | Constitutional status, Nyaya Panchayats |
+| G.V.K. Rao | 1985 | District as the planning unit |`;
+
 export const DEMOS: DemoDoc[] = [
   {
     id: "demo-notes",
@@ -673,8 +732,17 @@ export const DEMOS: DemoDoc[] = [
     title: "Indian Constitution — PYQ Drill",
     subtitle: "Previous-year questions with answer key and detailed explanations",
     paper: "Practice Set 01 · 12 Questions",
-    description: "MCQ booklet: three sections, difficulty / topic / source chips, answer key and full explanations.",
+    description: "MCQ booklet: three sections, topic / source chips, answer key and full explanations.",
     body: MCQ_BODY,
+  },
+  {
+    id: "demo-pyq",
+    template: "pyq",
+    title: "Governance & Public Policy — Solved PYQs",
+    subtitle: "Previous-year questions with exam tags and worked, tabular solutions",
+    paper: "UGC-NET · Unit 10",
+    description: "PYQ collection: exam/year badges, statement-based and match-the-list questions, inline answers and tabular solutions.",
+    body: PYQ_BODY,
   },
   {
     id: "demo-flashcards",

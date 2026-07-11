@@ -35,6 +35,10 @@ export const DEFAULT_BRAND: BrandConfig = {
 export const DEFAULT_LAYOUT: DocLayout = {
   cover: true,
   coverStyle: "regal",
+  // Present (but unset) so the settings/doc merge in lib/store.ts keeps
+  // whatever an author picks in Details → Cover colors across reloads —
+  // a key withDefaults() doesn't know about gets silently dropped.
+  coverColors: undefined,
   toc: true,
   watermark: true,
   pageSize: "a4",
@@ -44,6 +48,7 @@ export const DEFAULT_LAYOUT: DocLayout = {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
+  docTheme: "light",
   fileNamePattern: "{title} — {brand}",
   newDocLayout: DEFAULT_LAYOUT,
 };

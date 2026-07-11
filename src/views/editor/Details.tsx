@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { Doc, DocLayout } from "../../lib/types";
+import type { CoverColors, Doc, DocLayout } from "../../lib/types";
 import { useApp } from "../../lib/store";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
@@ -10,10 +10,190 @@ import { cx } from "../../lib/utils";
 const COVER_STYLES: { id: DocLayout["coverStyle"]; label: string; swatch: string }[] = [
   { id: "regal", label: "Regal", swatch: "linear-gradient(140deg,#0d1930,#1d3357 60%,#c9bc9e 175%)" },
   { id: "aurora", label: "Aurora", swatch: "linear-gradient(140deg,#123c93,#0d76b2 52%,#0a9f80)" },
-  { id: "ivory", label: "Ivory", swatch: "linear-gradient(140deg,#f7f2e6 70%,#b1832c 180%)" },
-  { id: "midnight", label: "Midnight", swatch: "linear-gradient(140deg,#141f2e,#1b2b41 60%,#48e0bd 190%)" },
+  { id: "heritage", label: "Heritage", swatch: "linear-gradient(150deg,#faf8f2 55%,#8a6d3b 200%)" },
+  { id: "eclipse", label: "Eclipse", swatch: "linear-gradient(160deg,#0c1017,#1a2434 62%,#d3a662 210%)" },
 ];
 
+const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: string }[] = [
+  { key: "bg", label: "Background", fallback: "#12203a" },
+  { key: "ink", label: "Heading & title", fallback: "#f5f2ea" },
+  { key: "accent", label: "Accent", fallback: "#c9bc9e" },
+];
+
+/** Optional per-document overrides on top of the chosen cover style's own
+    palette — each field is independent and falls back to the style's own
+    color until the author picks one. */
+function CoverColorPicker({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
+  const colors = doc.layout.coverColors;
+  function set(key: keyof CoverColors, value: string | undefined) {
+    const next: CoverColors = { ...colors };
+    if (value) next[key] = value;
+    else delete next[key];
+    onChange({ layout: { ...doc.layout, coverColors: Object.keys(next).length ? next : undefined } });
+  }
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {COVER_COLOR_FIELDS.map((f) => {
+        const active = !!colors?.[f.key];
+        return (
+          <div key={f.key} className="flex flex-col items-center gap-1.5 rounded-lg border border-edge p-2">
+            <input
+              type="color"
+              aria-label={f.label}
+              value={colors?.[f.key] || f.fallback}
+              onChange={(e) => set(f.key, e.target.value)}
+              className="h-7 w-full cursor-pointer rounded border-0 bg-transparent p-0"
+            />
+            <span className="text-center text-[10.5px] font-semibold text-ink-2">{f.label}</span>
+            <button
+              type="button"
+              disabled={!active}
+              onClick={() => set(f.key, undefined)}
+              className="text-[10px] font-medium text-faint underline decoration-dotted disabled:opacity-0"
+            >
+              Use style default
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The settings form itself — shared verbatim by the mobile modal and the
+    desktop pane so the two stay in lockstep with zero duplicated markup. */
+function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
+  const { brand } = useApp();
+  const template = TEMPLATE_META[doc.template];
+  const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
+
+  const mcqIssues = useMemo(() => {
+    // PYQ shares the MCQ grammar, so it gets the same live validation.
+    if (doc.template !== "mcq" && doc.template !== "pyq") return [];
+    return validateMcq(parseMcq(doc.body));
+  }, [doc.template, doc.body]);
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Publication</h3>
+        <Field label="Subtitle">
+          <input className={inputClass} value={doc.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} placeholder="Shown under the title on the cover" />
+        </Field>
+        <Field label="Exam">
+          <input className={inputClass} list="exam-options" value={doc.exam} onChange={(e) => onChange({ exam: e.target.value })} placeholder="e.g. UGC-NET Political Science" />
+          <datalist id="exam-options">
+            {brand.exams.map((e) => (
+              <option key={e} value={e} />
+            ))}
+          </datalist>
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Paper / Unit">
+            <input className={inputClass} value={doc.paper} onChange={(e) => onChange({ paper: e.target.value })} placeholder="Paper 2 · Unit 1" />
+          </Field>
+          <Field label="Session / Edition">
+            <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="2026" />
+          </Field>
+        </div>
+        <Field label="Author">
+          <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
+        </Field>
+        <Field label="Language">
+          <Segmented
+            value={doc.lang}
+            onChange={(lang) => onChange({ lang })}
+            options={[
+              { value: "en", label: "English" },
+              { value: "hi", label: "हिन्दी" },
+            ]}
+          />
+        </Field>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Layout & PDF</h3>
+        <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
+        {doc.layout.cover && (
+          <div className="grid grid-cols-2 gap-2">
+            {COVER_STYLES.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => layout({ coverStyle: s.id })}
+                className={cx(
+                  "flex flex-col items-center gap-1.5 rounded-lg border p-1.5 text-[11px] font-semibold",
+                  doc.layout.coverStyle === s.id ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
+                )}
+              >
+                <span className="h-10 w-full rounded-md border border-black/10" style={{ background: s.swatch }} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {doc.layout.cover && (
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
+            <CoverColorPicker doc={doc} onChange={onChange} />
+          </div>
+        )}
+        {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
+        <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
+        {template.hasAnswers && (
+          <Field label="Answers & explanations">
+            <Segmented
+              value={doc.layout.answers}
+              onChange={(answers) => layout({ answers })}
+              options={[
+                { value: "end", label: "At the end" },
+                { value: "inline", label: "Inline" },
+                { value: "none", label: "Hidden" },
+              ]}
+            />
+          </Field>
+        )}
+        <Field label="Page size">
+          <Segmented
+            value={doc.layout.pageSize}
+            onChange={(pageSize) => layout({ pageSize })}
+            options={[
+              { value: "a4", label: "A4" },
+              { value: "a5", label: "A5" },
+              { value: "letter", label: "Letter" },
+            ]}
+          />
+        </Field>
+        <Field label="Text density">
+          <Segmented
+            value={doc.layout.density}
+            onChange={(density) => layout({ density })}
+            options={[
+              { value: "compact", label: "Compact" },
+              { value: "comfort", label: "Comfort" },
+              { value: "relaxed", label: "Relaxed" },
+            ]}
+          />
+        </Field>
+      </div>
+
+      {mcqIssues.length > 0 && (
+        <div className="space-y-1.5 rounded-xl border border-edge bg-raised p-4">
+          <h3 className="mb-2 text-xs font-extrabold uppercase tracking-wider text-faint">Booklet check</h3>
+          {mcqIssues.slice(0, 8).map((issue, i) => (
+            <p key={i} className={cx("flex items-start gap-2 text-xs", issue.level === "error" ? "text-danger" : issue.level === "warning" ? "text-warn" : "text-faint")}>
+              <Icon name={issue.level === "info" ? "callout" : "alert"} size={13} className="mt-0.5 flex-none" />
+              {issue.message}
+            </p>
+          ))}
+          {mcqIssues.length > 8 && <p className="text-xs text-faint">…and {mcqIssues.length - 8} more.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Mobile / narrow-screen: a slide-over modal (hidden once the desktop
+    pane below takes over at the `md` breakpoint). */
 export function Details({
   open,
   onClose,
@@ -25,15 +205,17 @@ export function Details({
   doc: Doc;
   onChange: (patch: Partial<Doc>) => void;
 }) {
-  const { brand } = useApp();
-  const template = TEMPLATE_META[doc.template];
-  const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const mcqIssues = useMemo(() => {
-    if (doc.template !== "mcq" || !open) return [];
-    return validateMcq(parseMcq(doc.body));
-  }, [doc.template, doc.body, open]);
+  // Focusing the panel must only happen when it *opens* — keying this off
+  // `onClose` too (as a naive exhaustive-deps effect would) re-focuses the
+  // panel div on every parent re-render, i.e. on every keystroke in any
+  // field below, which yanks focus out of whatever input the author was
+  // typing in and (on mobile) dismisses the on-screen keyboard.
+  useEffect(() => {
+    if (!open) return;
+    panelRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -41,17 +223,13 @@ export function Details({
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    panelRef.current?.focus();
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open) return null;
 
-  // Docked to the left, old-Studio style — this is the panel authors
-  // reach for constantly while composing, so it lives beside the work
-  // instead of interrupting it as a centered dialog.
   return (
-    <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Document details">
+    <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true" aria-label="Document details">
       <div className="absolute inset-0 bg-black/55" onClick={onClose} />
       <div
         ref={panelRef}
@@ -63,116 +241,40 @@ export function Details({
           <IconButton label="Close" name="x" onClick={onClose} />
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Publication</h3>
-              <Field label="Subtitle">
-                <input className={inputClass} value={doc.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} placeholder="Shown under the title on the cover" />
-              </Field>
-              <Field label="Exam">
-                <input className={inputClass} list="exam-options" value={doc.exam} onChange={(e) => onChange({ exam: e.target.value })} placeholder="e.g. UGC-NET Political Science" />
-                <datalist id="exam-options">
-                  {brand.exams.map((e) => (
-                    <option key={e} value={e} />
-                  ))}
-                </datalist>
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Paper / Unit">
-                  <input className={inputClass} value={doc.paper} onChange={(e) => onChange({ paper: e.target.value })} placeholder="Paper 2 · Unit 1" />
-                </Field>
-                <Field label="Session / Edition">
-                  <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="2026" />
-                </Field>
-              </div>
-              <Field label="Author">
-                <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
-              </Field>
-              <Field label="Language">
-                <Segmented
-                  value={doc.lang}
-                  onChange={(lang) => onChange({ lang })}
-                  options={[
-                    { value: "en", label: "English" },
-                    { value: "hi", label: "हिन्दी" },
-                  ]}
-                />
-              </Field>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Layout & PDF</h3>
-              <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
-              {doc.layout.cover && (
-                <div className="grid grid-cols-2 gap-2">
-                  {COVER_STYLES.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => layout({ coverStyle: s.id })}
-                      className={cx(
-                        "flex flex-col items-center gap-1.5 rounded-lg border p-1.5 text-[11px] font-semibold",
-                        doc.layout.coverStyle === s.id ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
-                      )}
-                    >
-                      <span className="h-10 w-full rounded-md border border-black/10" style={{ background: s.swatch }} />
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
-              <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
-              {template.hasAnswers && (
-                <Field label="Answers & explanations">
-                  <Segmented
-                    value={doc.layout.answers}
-                    onChange={(answers) => layout({ answers })}
-                    options={[
-                      { value: "end", label: "At the end" },
-                      { value: "inline", label: "Inline" },
-                      { value: "none", label: "Hidden" },
-                    ]}
-                  />
-                </Field>
-              )}
-              <Field label="Page size">
-                <Segmented
-                  value={doc.layout.pageSize}
-                  onChange={(pageSize) => layout({ pageSize })}
-                  options={[
-                    { value: "a4", label: "A4" },
-                    { value: "a5", label: "A5" },
-                    { value: "letter", label: "Letter" },
-                  ]}
-                />
-              </Field>
-              <Field label="Text density">
-                <Segmented
-                  value={doc.layout.density}
-                  onChange={(density) => layout({ density })}
-                  options={[
-                    { value: "compact", label: "Compact" },
-                    { value: "comfort", label: "Comfort" },
-                    { value: "relaxed", label: "Relaxed" },
-                  ]}
-                />
-              </Field>
-            </div>
-
-            {mcqIssues.length > 0 && (
-              <div className="space-y-1.5 rounded-xl border border-edge bg-raised p-4">
-                <h3 className="mb-2 text-xs font-extrabold uppercase tracking-wider text-faint">Booklet check</h3>
-                {mcqIssues.slice(0, 8).map((issue, i) => (
-                  <p key={i} className={cx("flex items-start gap-2 text-xs", issue.level === "error" ? "text-danger" : issue.level === "warning" ? "text-warn" : "text-faint")}>
-                    <Icon name={issue.level === "info" ? "callout" : "alert"} size={13} className="mt-0.5 flex-none" />
-                    {issue.message}
-                  </p>
-                ))}
-                {mcqIssues.length > 8 && <p className="text-xs text-faint">…and {mcqIssues.length - 8} more.</p>}
-              </div>
-            )}
-          </div>
+          <DetailsFields doc={doc} onChange={onChange} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Desktop / tablet (`md` and up): the settings pane docked to the left of
+    the workspace, persistent and resizable like the editor and preview
+    panes beside it. */
+export function DetailsPane({
+  doc,
+  onChange,
+  onCollapse,
+  onResetLayout,
+}: {
+  doc: Doc;
+  onChange: (patch: Partial<Doc>) => void;
+  onCollapse: () => void;
+  onResetLayout?: () => void;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-surface">
+      <header className="flex flex-none items-center justify-between gap-2 border-b border-edge px-4 py-2.5">
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-faint">Settings</h2>
+        <div className="flex items-center gap-0.5">
+          {onResetLayout && (
+            <IconButton label="Reset workspace to default layout" name="refresh" size={14} onClick={onResetLayout} />
+          )}
+          <IconButton label="Collapse settings panel" name="chevronLeft" size={14} onClick={onCollapse} />
+        </div>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <DetailsFields doc={doc} onChange={onChange} />
       </div>
     </div>
   );

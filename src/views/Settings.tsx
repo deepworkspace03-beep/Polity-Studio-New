@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { navigate } from "../lib/router";
-import { deleteAllDocs, exportBackup, importBackup, saveBrand, saveSettings, useApp } from "../lib/store";
+import {
+  deleteAllDocs,
+  exportBackup,
+  importBackup,
+  persistSettingsNow,
+  resetSettingsAndBrand,
+  saveBrand,
+  saveSettings,
+  useApp,
+} from "../lib/store";
 import { DEFAULT_BRAND } from "../brand/defaults";
 import type { BrandConfig } from "../lib/types";
 import { downloadFile } from "../lib/utils";
-import { Button, Field, IconButton, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
+import { buildZip } from "../lib/zip";
+import { Button, Field, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
+import { StudioNav } from "../components/StudioNav";
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -36,6 +46,7 @@ export function Settings() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [usage, setUsage] = useState<number | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     navigator.storage
@@ -47,8 +58,22 @@ export function Settings() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
       <header className="mb-6 flex items-center gap-2">
-        <IconButton label="Back to library" name="back" size={18} onClick={() => navigate("library")} />
-        <h1 className="text-xl font-bold">Settings</h1>
+        <StudioNav />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-bold">Settings</h1>
+          <p className="text-xs text-faint">Every change saves automatically.</p>
+        </div>
+        <Button onClick={() => setConfirmReset(true)}>Restore defaults</Button>
+        <Button
+          variant="primary"
+          icon="check"
+          onClick={async () => {
+            await persistSettingsNow();
+            toast("Settings saved", "ok");
+          }}
+        >
+          Save
+        </Button>
       </header>
 
       <div className="space-y-5">
@@ -62,6 +87,23 @@ export function Settings() {
                 { value: "dark", label: "Dark", icon: "moon" },
                 { value: "light", label: "Light", icon: "sun" },
                 { value: "system", label: "Auto", icon: "monitor" },
+              ]}
+            />
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-sm">
+              Document reading theme
+              <span className="mt-0.5 block max-w-xs text-xs text-faint">
+                Dark renders the document itself — previews, PDF and HTML exports — on an eye-friendly dark palette.
+                Covers keep their own design.
+              </span>
+            </span>
+            <Segmented
+              value={settings.docTheme}
+              onChange={(docTheme) => saveSettings({ docTheme })}
+              options={[
+                { value: "light", label: "Light", icon: "sun" },
+                { value: "dark", label: "Dark", icon: "moon" },
               ]}
             />
           </div>
@@ -186,6 +228,29 @@ export function Settings() {
             <Button icon="upload" onClick={() => fileRef.current?.click()}>
               Restore backup
             </Button>
+            <Button
+              icon="file"
+              disabled={docs.length === 0}
+              onClick={() => {
+                // Plain Markdown files, not the app's JSON format — opens in
+                // any editor, not just this app, if you ever need to leave.
+                const used = new Set<string>();
+                const encoder = new TextEncoder();
+                const entries = docs.map((d) => {
+                  const base = (d.title || "Untitled").replace(/[\\/:*?"<>|]/g, "·").trim() || "Untitled";
+                  let name = `${base}.md`;
+                  for (let i = 2; used.has(name); i++) name = `${base} (${i}).md`;
+                  used.add(name);
+                  const body = d.body.trim();
+                  const content = /^#\s+/.test(body) ? body : `# ${d.title || "Untitled"}\n\n${body}`;
+                  return { name, data: encoder.encode(content) };
+                });
+                downloadFile(`polity-studio-markdown-${new Date().toISOString().slice(0, 10)}.zip`, buildZip(entries), "application/zip");
+                toast(`Downloaded ${docs.length} document${docs.length === 1 ? "" : "s"} as Markdown`, "ok");
+              }}
+            >
+              Export all as Markdown (.zip)
+            </Button>
             <input
               ref={fileRef}
               type="file"
@@ -205,7 +270,9 @@ export function Settings() {
             />
           </div>
           <p className="text-xs text-faint">
-            Back up before clearing browser data — clearing site data deletes your documents.
+            Back up before clearing browser data — clearing site data deletes your documents. The JSON backup restores
+            exactly here; the Markdown zip is one plain .md file per document, readable in any editor if you ever
+            need to leave.
           </p>
           <div className="border-t border-edge pt-4">
             <Button variant="danger" icon="trash" disabled={docs.length === 0} onClick={() => setConfirmWipe(true)}>
@@ -218,6 +285,26 @@ export function Settings() {
           Polity Studio · {brand.name} — {brand.initiative}
         </p>
       </div>
+
+      <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="Restore default settings?">
+        <p className="text-sm text-ink-2">
+          Appearance, branding, colors and new-document defaults will be reset to the Polity Made Simple factory
+          values. Your documents are not touched.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={() => setConfirmReset(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={async () => {
+              await resetSettingsAndBrand();
+              setConfirmReset(false);
+              toast("Settings restored to defaults", "ok");
+            }}
+          >
+            Restore defaults
+          </Button>
+        </div>
+      </Modal>
 
       <Modal open={confirmWipe} onClose={() => setConfirmWipe(false)} title="Delete all documents?">
         <p className="text-sm text-ink-2">

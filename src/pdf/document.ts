@@ -1,4 +1,4 @@
-import type { BrandConfig, Doc, PageSize } from "../lib/types";
+import type { BrandConfig, CoverColors, Doc, PageSize } from "../lib/types";
 import { escapeHtml } from "../lib/utils";
 import { coverPatternSvg, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
 import { extractToc } from "../markdown/renderer";
@@ -28,6 +28,9 @@ export interface BuildOptions {
   purpose?: "preview" | "export";
   /** Document title override used as the print/PDF filename. */
   fileTitle?: string;
+  /** Reading theme — "dark" renders the document on a dark, eye-friendly
+      palette (previews, PDF and HTML alike). Covers keep their own design. */
+  theme?: "light" | "dark";
 }
 
 const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; margin: string }> = {
@@ -37,11 +40,11 @@ const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; marg
 };
 
 /** Vector pattern layer per cover style (SVG so print stays vector). */
-const COVER_PATTERNS: Record<Doc["layout"]["coverStyle"], { kind: "grid" | "rings" | "weave"; color: string }> = {
+const COVER_PATTERNS: Record<Doc["layout"]["coverStyle"], { kind: "grid" | "rings" | "weave" | "lines"; color: string }> = {
   regal: { kind: "grid", color: "rgba(245,242,234,0.045)" },
   aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
-  ivory: { kind: "weave", color: "rgba(177,131,44,0.1)" },
-  midnight: { kind: "grid", color: "rgba(255,255,255,0.05)" },
+  heritage: { kind: "lines", color: "rgba(26,39,64,0.07)" },
+  eclipse: { kind: "rings", color: "rgba(211,166,98,0.08)" },
 };
 
 const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string }> = {
@@ -50,8 +53,35 @@ const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string 
   relaxed: { size: "13.6pt", leading: "1.72" },
 };
 
-function themeVars(brand: BrandConfig): string {
+function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   const c = brand.colors;
+  if (theme === "dark") {
+    // Dark reading theme — a deliberate visual design, not an inversion.
+    // A deep, slightly-cool ink ground (#0F141B) with two lifted surface
+    // steps (band/edge) gives real depth without halation; text is a soft
+    // off-white rather than pure white to calm contrast on long reads.
+    // Brand hues are lightened with color-mix so headings and accents keep
+    // their identity on the dark ground. Because --c-primary is now a
+    // *light* tint here, table headers flip their ink dark (--c-th-ink)
+    // so a light-blue header band stays legible — the one relationship
+    // that silently broke in the previous palette.
+    return `
+  --c-primary: color-mix(in srgb, ${c.primary} 26%, #D7E4F6);
+  --c-primarySoft: color-mix(in srgb, ${c.primarySoft} 34%, #C4D6EE);
+  --c-accent: color-mix(in srgb, ${c.accent} 68%, #C9EEEA);
+  --c-accentSoft: color-mix(in srgb, ${c.accent} 16%, #0F141B);
+  --c-gold: color-mix(in srgb, ${c.gold} 68%, #F2DFAF);
+  --c-text: #DDE4EE;
+  --c-muted: #8B99AB;
+  --c-paper: #0F141B;
+  --c-band: #19212C;
+  --c-edge: #2A3441;
+  --c-danger: #E88C81;
+  --c-warn: #E0B267;
+  --c-good: #62C892;
+  --c-mix: #0F141B;
+  --c-th-ink: #0F141B;`;
+  }
   return `
   --c-primary: ${c.primary};
   --c-primarySoft: ${c.primarySoft};
@@ -65,10 +95,36 @@ function themeVars(brand: BrandConfig): string {
   --c-edge: #DCE4EC;
   --c-danger: #B4433A;
   --c-warn: #B07C24;
-  --c-good: #177245;`;
+  --c-good: #177245;
+  --c-mix: #FFFFFF;
+  --c-th-ink: #FFFFFF;`;
 }
 
 /* ── Cover ─────────────────────────────────────────────────────────── */
+
+/** Relative luminance of a #rrggbb color, used to pick a legible ink
+    color for the accent-colored edition badge when the author picks a
+    custom accent (the four preset styles already choose this by hand). */
+function pickBadgeInk(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "#141414";
+  const n = parseInt(m[1], 16);
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const L = 0.2126 * lin(((n >> 16) & 255) / 255) + 0.7152 * lin(((n >> 8) & 255) / 255) + 0.0722 * lin((n & 255) / 255);
+  return L > 0.5 ? "#141414" : "#ffffff";
+}
+
+/** Inline custom-property overrides for the author's optional cover
+    color overrides (Details → Cover colors) — absent fields fall
+    through to the chosen style's own palette untouched. */
+function coverColorVars(colors: CoverColors | undefined): string {
+  if (!colors) return "";
+  const vars: string[] = [];
+  if (colors.bg) vars.push(`--cv-bg:${colors.bg}`);
+  if (colors.ink) vars.push(`--cv-ink:${colors.ink}`, `--cv-line:color-mix(in srgb, ${colors.ink} 32%, transparent)`);
+  if (colors.accent) vars.push(`--cv-accent:${colors.accent}`, `--cv-edition-tx:${pickBadgeInk(colors.accent)}`);
+  return vars.length ? ` style="${vars.join(";")}"` : "";
+}
 
 function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   if (!doc.layout.cover) return "";
@@ -80,7 +136,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, coverLines: string[]): string {
   const geo = PAGE_GEOMETRY[doc.layout.pageSize];
 
   return `
-<section class="cover cover--${doc.layout.coverStyle}">
+<section class="cover cover--${doc.layout.coverStyle}"${coverColorVars(doc.layout.coverColors)}>
   ${coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color)}
   <div class="cv-shade" aria-hidden="true"></div>
   ${templeEmblemSvg("cv-emblem")}
@@ -177,9 +233,13 @@ body.purpose-preview .pagedjs_page {
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
   flex: none;
 }
+/* NOTE: Paged.js is a print polyfill — it applies @media print rules to
+   the paginated screen document too, so an !important zoom reset here
+   would permanently disable the preview's zoom controls. The harness
+   resets zoom imperatively around window.print() instead. */
 @media print {
   body.purpose-preview { background: none; }
-  body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; zoom: 1 !important; }
+  body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; }
   body.purpose-preview .pagedjs_page { box-shadow: none; }
 }`;
 
@@ -224,18 +284,19 @@ ${body.html}`;
 
 /** Everything that requires a full iframe rebuild when it changes —
     used by the preview to decide srcdoc reload vs in-place update. */
-export function buildShellKey(doc: Doc, brand: BrandConfig): string {
+export function buildShellKey(doc: Doc, brand: BrandConfig, theme: "light" | "dark" = "light"): string {
   return [
     doc.template,
     doc.layout.pageSize,
     doc.layout.density,
     doc.lang,
+    theme,
     Object.values(brand.colors).join(","),
   ].join("|");
 }
 
 export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOptions): string {
-  const { mode, purpose = "preview" } = options;
+  const { mode, purpose = "preview", theme = "light" } = options;
   doc = { ...doc, body: stripFrontMatter(doc.body) };
   const template = TEMPLATE_RENDERERS[doc.template];
   const body = template.buildBody(doc);
@@ -244,7 +305,7 @@ export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOp
   const paged = mode === "paged";
 
   const css = `
-:root { ${themeVars(brand)}
+:root { ${themeVars(brand, theme)}
   --body-size: ${density.size};
   --body-leading: ${density.leading};
 }
@@ -282,7 +343,7 @@ ${body.html}`;
 <style>${css}</style>
 ${watermarkTemplate}
 </head>
-<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
+<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
 ${paged ? content : `<div id="doc-root">${content}</div>`}
 ${scripts}
 </body>

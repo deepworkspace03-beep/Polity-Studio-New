@@ -8,7 +8,7 @@
   padding: 0.9em 1.1em;
   border: 0.7pt solid var(--c-edge);
   border-radius: 7pt;
-  background: color-mix(in srgb, var(--c-band) 65%, white);
+  background: color-mix(in srgb, var(--c-band) 65%, var(--c-mix, white));
   font-size: 0.94em;
 }
 
@@ -25,7 +25,7 @@
   font-family: "Manrope", sans-serif;
   font-weight: 800;
   font-size: 1.5em;
-  color: color-mix(in srgb, var(--c-accent) 55%, white);
+  color: color-mix(in srgb, var(--c-accent) 55%, var(--c-mix, white));
   letter-spacing: 0.02em;
 }
 .mcq-section h2 {
@@ -46,7 +46,7 @@
   border-radius: 7pt;
   padding: 0.75em 0.95em 0.8em;
   margin: 0 0 0.85em;
-  background: white;
+  background: var(--c-mix, white);
 }
 .q__head {
   display: flex;
@@ -59,7 +59,10 @@
   font-family: "Manrope", sans-serif;
   font-weight: 800;
   font-size: 0.92em;
-  color: white;
+  /* --c-th-ink is the ink that sits on a brand-colored band: white on
+     light paper, dark on the dark theme (where --c-primary is a light
+     tint) — so the badge stays legible in both. */
+  color: var(--c-th-ink, white);
   background: var(--c-primary);
   border-radius: 4pt;
   padding: 1.2pt 6pt 1.6pt;
@@ -78,10 +81,7 @@
   padding: 1pt 5pt;
   background: var(--c-band);
 }
-.qchip--easy     { color: var(--c-good);   border-color: color-mix(in srgb, var(--c-good) 35%, white);   background: color-mix(in srgb, var(--c-good) 8%, white); }
-.qchip--moderate { color: var(--c-warn);   border-color: color-mix(in srgb, var(--c-warn) 35%, white);   background: color-mix(in srgb, var(--c-warn) 9%, white); }
-.qchip--hard     { color: var(--c-danger); border-color: color-mix(in srgb, var(--c-danger) 35%, white); background: color-mix(in srgb, var(--c-danger) 7%, white); }
-.qchip--source   { color: var(--c-accent); border-color: color-mix(in srgb, var(--c-accent) 35%, white); background: var(--c-accentSoft); }
+.qchip--source   { color: var(--c-accent); border-color: color-mix(in srgb, var(--c-accent) 35%, var(--c-mix, white)); background: var(--c-accentSoft); }
 
 .q__text { font-weight: 500; }
 .q__text p { margin-bottom: 0.5em; }
@@ -111,7 +111,7 @@
   font-weight: 800;
   font-size: 0.8em;
   color: var(--c-accent);
-  border: 0.8pt solid color-mix(in srgb, var(--c-accent) 45%, white);
+  border: 0.8pt solid color-mix(in srgb, var(--c-accent) 45%, var(--c-mix, white));
   border-radius: 3pt;
   min-width: 1.5em;
   height: 1.5em;
@@ -124,7 +124,7 @@
 .q__opt-text { font-size: 0.97em; }
 
 /* Study mode: correct option is softly highlighted. */
-.q__opt--correct { background: color-mix(in srgb, var(--c-good) 8%, white); }
+.q__opt--correct { background: color-mix(in srgb, var(--c-good) 8%, var(--c-mix, white)); }
 .q__opt--correct .q__key { color: white; background: var(--c-good); border-color: var(--c-good); }
 
 .q__answer {
@@ -159,7 +159,7 @@
   border: 0.7pt solid var(--c-edge);
   border-radius: 4pt;
   padding: 3pt 7pt;
-  background: white;
+  background: var(--c-mix, white);
   break-inside: avoid;
 }
 .key__q { font-family: "Manrope", sans-serif; font-weight: 600; font-size: 0.86em; color: var(--c-muted); }
@@ -171,7 +171,7 @@
 .exp {
   break-inside: avoid;
   border-left: 2.5pt solid var(--c-accent);
-  background: color-mix(in srgb, var(--c-band) 55%, white);
+  background: color-mix(in srgb, var(--c-band) 55%, var(--c-mix, white));
   border-radius: 0 6pt 6pt 0;
   padding: 0.6em 0.9em 0.65em;
   margin-bottom: 0.7em;

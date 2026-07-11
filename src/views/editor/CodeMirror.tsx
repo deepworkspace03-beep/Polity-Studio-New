@@ -4,8 +4,10 @@ import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+import { search, searchKeymap } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 import { insertLink, wrapSelection } from "./commands";
+import { smartPaste } from "../../lib/importer";
 
 /** Markdown syntax colors driven by the app theme variables, so the
     editor follows dark/light mode automatically. */
@@ -39,6 +41,33 @@ const editorTheme = EditorView.theme({
   ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--raised) 55%, transparent)" },
   ".cm-placeholder": { color: "var(--faint)" },
   ".cm-scroller": { overflow: "auto" },
+  // Find & replace panel — matches the app's own inputs/buttons instead
+  // of CodeMirror's unstyled defaults.
+  ".cm-panels": { backgroundColor: "var(--surface)", color: "var(--ink)" },
+  ".cm-panels-top": { borderBottom: "1px solid var(--edge)" },
+  ".cm-search": { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", padding: "8px 12px" },
+  ".cm-search label": { display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "12px", color: "var(--ink-2)" },
+  ".cm-textfield": {
+    backgroundColor: "var(--bg)",
+    color: "var(--ink)",
+    border: "1px solid var(--edge)",
+    borderRadius: "6px",
+    padding: "4px 8px",
+    fontSize: "13px",
+  },
+  ".cm-textfield:focus-visible": { outline: "1px solid var(--accent)" },
+  ".cm-button": {
+    backgroundColor: "var(--raised)",
+    color: "var(--ink)",
+    border: "1px solid var(--edge)",
+    borderRadius: "6px",
+    padding: "4px 9px",
+    fontSize: "12px",
+    backgroundImage: "none",
+  },
+  ".cm-button:hover": { backgroundColor: "var(--edge)" },
+  ".cm-searchMatch": { backgroundColor: "color-mix(in srgb, var(--accent) 25%, transparent)" },
+  ".cm-searchMatch-selected": { backgroundColor: "color-mix(in srgb, var(--accent) 55%, transparent)" },
 });
 
 export interface CodeMirrorProps {
@@ -47,17 +76,21 @@ export interface CodeMirrorProps {
   /** 1-based line number of the primary cursor — drives preview sync. */
   onCursorLine?: (line: number) => void;
   onSaveShortcut?: () => void;
+  /** Fired when a paste was auto-converted/tidied, with a summary line. */
+  onSmartPaste?: (summary: string) => void;
   viewRef: React.MutableRefObject<EditorView | null>;
 }
 
-export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, viewRef }: CodeMirrorProps) {
+export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   const onCursorRef = useRef(onCursorLine);
   const onSaveRef = useRef(onSaveShortcut);
+  const onSmartPasteRef = useRef(onSmartPaste);
   onChangeRef.current = onChange;
   onCursorRef.current = onCursorLine;
   onSaveRef.current = onSaveShortcut;
+  onSmartPasteRef.current = onSmartPaste;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -82,7 +115,26 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, view
             { key: "Mod-Shift-h", run: (v) => (wrapSelection(v, "=="), true) },
             ...defaultKeymap,
             ...historyKeymap,
+            ...searchKeymap,
           ]),
+          search({ top: true }),
+          // Smart Paste: rich clipboard content (Word, Google Docs, web,
+          // AI chats) is converted to the app's Markdown before insert.
+          // Returns false when conversion adds nothing, so the default
+          // paste happens; the paste is one transaction, so Ctrl+Z
+          // always restores the raw text.
+          EditorView.domEventHandlers({
+            paste: (event, view) => {
+              const dt = event.clipboardData;
+              if (!dt) return false;
+              const result = smartPaste(dt.getData("text/html"), dt.getData("text/plain"));
+              if (!result) return false;
+              event.preventDefault();
+              view.dispatch({ ...view.state.replaceSelection(result.markdown), scrollIntoView: true });
+              onSmartPasteRef.current?.(result.summary);
+              return true;
+            },
+          }),
           markdown({ base: markdownLanguage }),
           syntaxHighlighting(mdHighlight),
           editorTheme,

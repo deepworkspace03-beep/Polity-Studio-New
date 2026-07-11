@@ -1,17 +1,110 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { navigate } from "../lib/router";
 import { flushSaves, updateDoc, useApp } from "../lib/store";
 import { contentStats, cx } from "../lib/utils";
 import type { Doc } from "../lib/types";
-import { Button, IconButton, Segmented, useToast } from "../components/ui";
+import { Button, DropOverlay, IconButton, Segmented, useFileDrop, useToast } from "../components/ui";
+import { Icon, type IconName } from "../components/Icon";
+import { openPalette } from "../components/CommandPalette";
+import { stageAndReviewForInsert } from "../components/ImportReview";
+import { saveLastSession } from "../lib/session";
+import { StudioNav } from "../components/StudioNav";
 import { CodeMirror } from "./editor/CodeMirror";
 import { Toolbar } from "./editor/Toolbar";
 import { Preview, type InlineEdit } from "./editor/Preview";
-import { Details } from "./editor/Details";
+import { Details, DetailsPane } from "./editor/Details";
 import { Publish } from "./editor/Publish";
 
 type Tab = "write" | "preview";
+
+const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+
+const SETTINGS_MIN = 240;
+const SETTINGS_MAX = 480;
+const PREVIEW_MIN = 320;
+const PREVIEW_MAX = 720;
+const EDITOR_MIN = 300;
+const RESIZER_W = 6;
+const RAIL_W = 16;
+
+const DEFAULT_SETTINGS_WIDTH = 300;
+const DEFAULT_PREVIEW_WIDTH = 440;
+
+/** Reads/writes a UI preference to localStorage, falling back silently in
+    private-browsing contexts where storage access throws. */
+function usePersisted<T extends number | boolean>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return initial;
+      return (typeof initial === "boolean" ? raw === "1" : Number(raw)) as T;
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, typeof value === "boolean" ? (value ? "1" : "0") : String(value));
+    } catch {
+      /* private mode */
+    }
+  }, [key, value]);
+  return [value, setValue];
+}
+
+/** Drag-to-resize divider between two panes. Pointer events unify mouse,
+    trackpad and touch so it works the same on a tablet as a laptop. */
+function PaneResizer({ onDrag, label }: { onDrag: (deltaX: number) => void; label: string }) {
+  const dragging = useRef(false);
+  const lastX = useRef(0);
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      className="group relative hidden w-1.5 flex-none cursor-col-resize touch-none select-none md:block"
+      onPointerDown={(e) => {
+        dragging.current = true;
+        lastX.current = e.clientX;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (!dragging.current) return;
+        onDrag(e.clientX - lastX.current);
+        lastX.current = e.clientX;
+      }}
+      onPointerUp={() => {
+        dragging.current = false;
+      }}
+      onPointerCancel={() => {
+        dragging.current = false;
+      }}
+    >
+      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-edge transition-colors group-hover:bg-accent" />
+    </div>
+  );
+}
+
+/** The thin strip a collapsed pane shrinks to — near-zero footprint, but
+    always there to tap or click to bring the pane back. */
+function CollapsedRail({ label, icon, side, onExpand }: { label: string; icon: IconName; side: "left" | "right"; onExpand: () => void }) {
+  return (
+    <button
+      onClick={onExpand}
+      title={`Show ${label}`}
+      aria-label={`Show ${label}`}
+      className={cx(
+        "hidden flex-none flex-col items-center justify-center gap-2 bg-raised text-faint transition-colors hover:bg-accent/10 hover:text-accent md:flex",
+        side === "left" ? "border-r border-edge" : "border-l border-edge",
+      )}
+      style={{ width: RAIL_W }}
+    >
+      <Icon name={icon} size={12} />
+    </button>
+  );
+}
 
 /** Rewrites the text of one heading source line, preserving its `#`s. */
 function patchHeadingLine(body: string, line: number, text: string): string {
@@ -23,19 +116,134 @@ function patchHeadingLine(body: string, line: number, text: string): string {
   return lines.join("\n");
 }
 
-export function Editor({ id }: { id: string }) {
+export function Editor({ id, line }: { id: string; line?: number }) {
   const { docs, brand, settings } = useApp();
   const toast = useToast();
   const doc = docs.find((d) => d.id === id);
 
   const viewRef = useRef<EditorView | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("write");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [cursorLine, setCursorLine] = useState(1);
 
+  const [settingsWidth, setSettingsWidth] = usePersisted<number>("ps2:pane:settingsWidth", DEFAULT_SETTINGS_WIDTH);
+  const [previewWidth, setPreviewWidth] = usePersisted<number>("ps2:pane:previewWidth", DEFAULT_PREVIEW_WIDTH);
+  const [settingsCollapsed, setSettingsCollapsed] = usePersisted<boolean>("ps2:pane:settingsCollapsed", false);
+  const [previewCollapsed, setPreviewCollapsed] = usePersisted<boolean>("ps2:pane:previewCollapsed", false);
+  // Distraction-free toggle: hides the formatting toolbar and tucks the
+  // settings pane away without disturbing its own persisted collapse
+  // state, so turning focus mode off restores exactly what was open.
+  const [focusMode, setFocusMode] = usePersisted<boolean>("ps2:editor:focusMode", false);
+  const effSettingsCollapsed = settingsCollapsed || focusMode;
+  const exitFocus = () => {
+    setFocusMode(false);
+    setSettingsCollapsed(false);
+  };
+  // "Reset to Default Settings" — restores the three-pane workspace
+  // (widths, collapse state, focus mode) to first-run defaults without
+  // touching the document itself.
+  const resetLayout = () => {
+    setSettingsWidth(DEFAULT_SETTINGS_WIDTH);
+    setPreviewWidth(DEFAULT_PREVIEW_WIDTH);
+    setSettingsCollapsed(false);
+    setPreviewCollapsed(false);
+    setFocusMode(false);
+    toast("Workspace layout reset", "ok");
+  };
+
+  // Keep the persisted pane widths honest against whatever room the
+  // workspace actually has — on mount, on window resize, and on tablet
+  // orientation changes. The editor always wins the space it needs;
+  // settings shrinks first, then preview, then either collapses to a
+  // rail rather than being squeezed to the point of being unusable.
+  const paneStateRef = useRef({ settingsWidth, previewWidth, settingsCollapsed, previewCollapsed, fullscreen });
+  paneStateRef.current = { settingsWidth, previewWidth, settingsCollapsed, previewCollapsed, fullscreen };
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+
+    const fit = () => {
+      const s = paneStateRef.current;
+      if (s.fullscreen) return;
+      const avail = el.clientWidth;
+      if (avail <= 0) return;
+
+      let sw = s.settingsWidth;
+      let pw = s.previewWidth;
+      let sc = s.settingsCollapsed;
+      let pc = s.previewCollapsed;
+      const footprint = () => (sc ? RAIL_W : sw) + (pc ? RAIL_W : pw) + (sc ? 0 : RESIZER_W) + (pc ? 0 : RESIZER_W) + EDITOR_MIN;
+
+      if (footprint() > avail && !sc) sw = SETTINGS_MIN;
+      if (footprint() > avail && !pc) pw = PREVIEW_MIN;
+      if (footprint() > avail && !sc) sc = true;
+      if (footprint() > avail && !pc) pc = true;
+
+      if (sw !== s.settingsWidth) setSettingsWidth(sw);
+      if (pw !== s.previewWidth) setPreviewWidth(pw);
+      if (sc !== s.settingsCollapsed) setSettingsCollapsed(sc);
+      if (pc !== s.previewCollapsed) setPreviewCollapsed(pc);
+    };
+
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resizeSettings = useCallback(
+    (dx: number) => {
+      const avail = wrapRef.current?.clientWidth ?? 2000;
+      const rightTaken = previewCollapsed ? RAIL_W : previewWidth;
+      const max = Math.max(SETTINGS_MIN, Math.min(SETTINGS_MAX, avail - rightTaken - EDITOR_MIN - RESIZER_W * 2));
+      setSettingsWidth((w) => clamp(w + dx, SETTINGS_MIN, max));
+    },
+    [previewCollapsed, previewWidth, setSettingsWidth],
+  );
+
+  const resizePreview = useCallback(
+    (dx: number) => {
+      const avail = wrapRef.current?.clientWidth ?? 2000;
+      const leftTaken = settingsCollapsed ? RAIL_W : settingsWidth;
+      const max = Math.max(PREVIEW_MIN, Math.min(PREVIEW_MAX, avail - leftTaken - EDITOR_MIN - RESIZER_W * 2));
+      setPreviewWidth((w) => clamp(w - dx, PREVIEW_MIN, max));
+    },
+    [settingsCollapsed, settingsWidth, setPreviewWidth],
+  );
+
   const onChange = useCallback((patch: Partial<Doc>) => updateDoc(id, patch), [id]);
+
+  // Remembers the open document + cursor line for "Resume last session"
+  // (debounced so rapid cursor movement doesn't spam localStorage).
+  useEffect(() => {
+    const timer = setTimeout(() => saveLastSession(id, cursorLine), 500);
+    return () => clearTimeout(timer);
+  }, [id, cursorLine]);
+
+  // Deep link from universal search (#/edit/:id/:line): put the cursor
+  // on the matched line. Child effects run first, so the view exists.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!line || !view) return;
+    const ln = Math.min(view.state.doc.lines, line);
+    view.dispatch({ selection: { anchor: view.state.doc.line(ln).from }, scrollIntoView: true });
+  }, [id, line]);
+
+  // Dropping .md/.txt/.html/.docx files on the editor converts them, then
+  // the Import Review modal lets the author confirm or edit the result
+  // before it lands at the cursor (whole-file import lives in the Library).
+  const drop = useFileDrop((files) =>
+    stageAndReviewForInsert(files, toast, (markdown) => {
+      const view = viewRef.current;
+      if (!view) return;
+      view.dispatch({ ...view.state.replaceSelection(markdown), scrollIntoView: true });
+    }),
+  );
 
   const onInlineEdit = useCallback(
     (edit: InlineEdit) => {
@@ -65,6 +273,11 @@ export function Editor({ id }: { id: string }) {
     }
   }, []);
 
+  // Word-count is a full-text scan — defer it so it never competes with
+  // a keystroke on very large documents.
+  const deferredBody = useDeferredValue(doc?.body ?? "");
+  const stats = useMemo(() => contentStats(deferredBody), [deferredBody]);
+
   if (!doc) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-faint">
@@ -76,12 +289,10 @@ export function Editor({ id }: { id: string }) {
     );
   }
 
-  const stats = contentStats(doc.body);
-
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-2 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
-        <IconButton label="Back to library" name="back" size={18} onClick={() => navigate("library")} />
+        <StudioNav />
         <input
           value={doc.title}
           onChange={(e) => onChange({ title: e.target.value })}
@@ -90,7 +301,23 @@ export function Editor({ id }: { id: string }) {
           aria-label="Document title"
         />
         <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
-        <IconButton label="Document details & layout" name="sliders" onClick={() => setDetailsOpen(true)} />
+        <IconButton label="Search everything (Ctrl+K)" name="search" size={17} onClick={openPalette} />
+        <IconButton label="Markdown guide" name="help" size={17} onClick={() => navigate("help")} />
+        <IconButton
+          label="Document details & layout"
+          name="sliders"
+          active={!effSettingsCollapsed}
+          onClick={() => {
+            setDetailsOpen(true); // mobile: opens the slide-over modal
+            exitFocus(); // md+: expands (or focuses) the persistent pane
+          }}
+        />
+        <IconButton
+          label={focusMode ? "Exit focus mode" : "Focus mode — hide the toolbar and settings pane for distraction-free writing"}
+          name="focus"
+          active={focusMode}
+          onClick={() => setFocusMode((v) => !v)}
+        />
         <Button
           variant="primary"
           icon="export"
@@ -104,9 +331,9 @@ export function Editor({ id }: { id: string }) {
         </Button>
       </header>
 
-      {/* Write / Preview switch on small screens (hidden in full-screen preview) */}
+      {/* Write / Preview switch below the `md` pane breakpoint (hidden in full-screen preview) */}
       {!fullscreen && (
-        <div className="flex justify-center border-b border-edge bg-surface py-1.5 lg:hidden">
+        <div className="flex justify-center border-b border-edge bg-surface py-1.5 md:hidden">
           <Segmented
             size="sm"
             value={tab}
@@ -119,15 +346,30 @@ export function Editor({ id }: { id: string }) {
         </div>
       )}
 
-      <div className="relative flex min-h-0 flex-1">
+      <div ref={wrapRef} className="relative flex min-h-0 flex-1 overflow-hidden">
+        {/* Settings pane — md and up only; the mobile equivalent is the <Details> modal below. */}
+        {!fullscreen &&
+          (effSettingsCollapsed ? (
+            <CollapsedRail label="settings panel" icon="chevronRight" side="left" onExpand={exitFocus} />
+          ) : (
+            <>
+              <div className="hidden md:flex md:min-h-0 md:flex-none md:flex-col md:border-r md:border-edge" style={{ width: settingsWidth }}>
+                <DetailsPane doc={doc} onChange={onChange} onCollapse={() => setSettingsCollapsed(true)} onResetLayout={resetLayout} />
+              </div>
+              <PaneResizer label="Resize settings panel" onDrag={resizeSettings} />
+            </>
+          ))}
+
+        {/* Markdown editor — always the primary pane, fills whatever space the side panes leave. */}
         <div
           className={cx(
-            "min-w-0 flex-1 flex-col lg:w-1/2 lg:border-r lg:border-edge",
-            fullscreen ? "hidden" : "lg:flex",
+            "relative min-w-0 flex-1 flex-col md:border-r md:border-edge",
+            fullscreen ? "hidden" : "md:flex",
             tab === "write" ? "flex" : "hidden",
           )}
+          {...drop.handlers}
         >
-          <Toolbar getView={() => viewRef.current} />
+          {!focusMode && <Toolbar getView={() => viewRef.current} />}
           <div className="min-h-0 flex-1">
             <CodeMirror
               value={doc.body}
@@ -137,27 +379,39 @@ export function Editor({ id }: { id: string }) {
                 flushSaves();
                 toast("Saved", "ok");
               }}
+              onSmartPaste={(summary) => toast(`${summary} — Ctrl+Z restores the original`, "ok")}
               viewRef={viewRef}
             />
           </div>
+          <DropOverlay show={drop.over} label="Drop to insert at the cursor" />
         </div>
+
+        {/* Live preview */}
+        {!fullscreen && !previewCollapsed && <PaneResizer label="Resize preview panel" onDrag={resizePreview} />}
         <div
           className={cx(
             "min-w-0 flex-1",
-            fullscreen ? "block lg:w-full" : "lg:block lg:w-1/2",
+            fullscreen ? "block md:w-full" : "md:block md:flex-none",
             tab === "preview" || fullscreen ? "block" : "hidden",
+            !fullscreen && previewCollapsed && "md:hidden",
           )}
+          style={!fullscreen && !previewCollapsed ? { width: previewWidth } : undefined}
         >
           <Preview
             doc={doc}
             brand={brand}
+            theme={settings.docTheme}
             cursorLine={cursorLine}
             onInlineEdit={onInlineEdit}
             onFocusLine={onFocusLine}
             fullscreen={fullscreen}
             onToggleFullscreen={() => setFullscreen((v) => !v)}
+            onCollapse={() => setPreviewCollapsed(true)}
           />
         </div>
+        {!fullscreen && previewCollapsed && (
+          <CollapsedRail label="preview panel" icon="chevronLeft" side="right" onExpand={() => setPreviewCollapsed(false)} />
+        )}
       </div>
 
       <Details open={detailsOpen} onClose={() => setDetailsOpen(false)} doc={doc} onChange={onChange} />

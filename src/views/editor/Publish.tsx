@@ -49,7 +49,7 @@ export function Publish({
   const fileTitle = useMemo(() => buildFileTitle(doc, brand, settings), [doc, brand, settings]);
   // Snapshot at open — the overlay owns the screen, the doc can't change.
   const html = useMemo(
-    () => buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", fileTitle }),
+    () => buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", fileTitle, theme: settings.docTheme }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -125,10 +125,17 @@ export function Publish({
     }
   }
 
+  function downloadMarkdown() {
+    downloadFile(`${fileTitle}.md`, doc.body, "text/markdown");
+    toast("Downloaded · plain-text source, portable to any Markdown editor", "ok");
+  }
+
   async function downloadHtml() {
+    const srcDoc = frameRef.current?.contentWindow?.document;
+    if (!srcDoc) return;
     try {
       const { buildStandaloneHtml } = await import("../../pdf/htmlExport");
-      const html = await buildStandaloneHtml(doc, brand, fileTitle);
+      const html = await buildStandaloneHtml(srcDoc, fileTitle);
       downloadFile(`${fileTitle}.html`, html, "text/html");
       toast(`Downloaded · ${(new Blob([html]).size / 1024).toFixed(0)} KB · opens instantly in any browser`, "ok");
     } catch (err) {
@@ -174,6 +181,12 @@ export function Publish({
           </>
         )}
 
+        <IconButton
+          label="Download Markdown — the raw source, portable to any Markdown editor or backup"
+          name="file"
+          size={17}
+          onClick={downloadMarkdown}
+        />
         {phase !== "error" && (
           <IconButton
             label="Download HTML — the same pages as an offline web page, opens instantly in any browser"
@@ -223,7 +236,7 @@ export function Publish({
             </p>
             <div className="flex gap-2">
               <Button onClick={onClose}>Back to editor</Button>
-              <Button variant="primary" icon="download" onClick={() => exportSimpleLayout(doc, brand, fileTitle)}>
+              <Button variant="primary" icon="download" onClick={() => exportSimpleLayout(doc, brand, fileTitle, settings.docTheme)}>
                 Export simple layout
               </Button>
             </div>
@@ -236,12 +249,12 @@ export function Publish({
 
 /** Last-resort export: prints the continuous flow layout (no page
     chrome) when pagination fails on very unusual content. */
-function exportSimpleLayout(doc: Doc, brand: BrandConfig, fileTitle: string): void {
+function exportSimpleLayout(doc: Doc, brand: BrandConfig, fileTitle: string, theme: Settings["docTheme"]): void {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.tabIndex = -1;
   frame.style.cssText = "position:fixed;right:0;bottom:0;width:900px;height:1200px;opacity:0;pointer-events:none;border:0;";
-  frame.srcdoc = buildDocumentHtml(doc, brand, { mode: "flow", purpose: "export", fileTitle });
+  frame.srcdoc = buildDocumentHtml(doc, brand, { mode: "flow", purpose: "export", fileTitle, theme });
   frame.addEventListener("load", () => {
     setTimeout(() => {
       frame.contentWindow?.focus();
