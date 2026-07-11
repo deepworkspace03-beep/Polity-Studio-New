@@ -56,25 +56,31 @@ const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string 
 function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   const c = brand.colors;
   if (theme === "dark") {
-    // Brand hues are tuned for white paper; on a dark ground they are
-    // lightened with color-mix so headings and accents keep their
-    // identity while staying comfortably readable.
+    // Dark reading theme — a deliberate visual design, not an inversion.
+    // A deep, slightly-cool ink ground (#0F141B) with two lifted surface
+    // steps (band/edge) gives real depth without halation; text is a soft
+    // off-white rather than pure white to calm contrast on long reads.
+    // Brand hues are lightened with color-mix so headings and accents keep
+    // their identity on the dark ground. Because --c-primary is now a
+    // *light* tint here, table headers flip their ink dark (--c-th-ink)
+    // so a light-blue header band stays legible — the one relationship
+    // that silently broke in the previous palette.
     return `
-  --c-primary: color-mix(in srgb, ${c.primary} 34%, #D9E4F4);
-  --c-primarySoft: color-mix(in srgb, ${c.primarySoft} 42%, #C6D5EA);
-  --c-accent: color-mix(in srgb, ${c.accent} 72%, #BFE8E4);
-  --c-accentSoft: color-mix(in srgb, ${c.accent} 20%, #131A25);
-  --c-gold: color-mix(in srgb, ${c.gold} 72%, #F0DBA8);
-  --c-text: #DCE4F0;
-  --c-muted: #93A2B5;
-  --c-paper: #131A25;
-  --c-band: #1B2432;
-  --c-edge: #2C3A4E;
-  --c-danger: #E08379;
-  --c-warn: #D9A85A;
-  --c-good: #57C08A;
-  --c-mix: #131A25;
-  --c-th-ink: #EAF1FA;`;
+  --c-primary: color-mix(in srgb, ${c.primary} 26%, #D7E4F6);
+  --c-primarySoft: color-mix(in srgb, ${c.primarySoft} 34%, #C4D6EE);
+  --c-accent: color-mix(in srgb, ${c.accent} 68%, #C9EEEA);
+  --c-accentSoft: color-mix(in srgb, ${c.accent} 16%, #0F141B);
+  --c-gold: color-mix(in srgb, ${c.gold} 68%, #F2DFAF);
+  --c-text: #DDE4EE;
+  --c-muted: #8B99AB;
+  --c-paper: #0F141B;
+  --c-band: #19212C;
+  --c-edge: #2A3441;
+  --c-danger: #E88C81;
+  --c-warn: #E0B267;
+  --c-good: #62C892;
+  --c-mix: #0F141B;
+  --c-th-ink: #0F141B;`;
   }
   return `
   --c-primary: ${c.primary};

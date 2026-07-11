@@ -101,6 +101,38 @@ Source: UGC-NET June 2024
 `,
   },
 
+  pyq: {
+    title: "Untitled PYQ Collection",
+    body: `Previous-year questions with the correct answer and a worked solution under each one. Add \`Year:\` or \`Exam:\` to stamp the source badge.
+
+## Indian Polity
+
+Q. The concept of "Judicial Review" in the Indian Constitution is borrowed from —
+A) United Kingdom
+B) United States *
+C) Ireland
+D) Canada
+Answer: B
+Exam: UPSC CSE 2021
+Solution: Judicial review — the power of courts to test laws against the Constitution — is drawn from the **United States**. India adopts a moderated form: unlike the American "due process", Indian courts review under "procedure established by law" (Article 21).
+
+Q. Which schedule of the Constitution deals with the allocation of seats in the Rajya Sabha?
+A) Third Schedule
+B) Fourth Schedule *
+C) Fifth Schedule
+D) Sixth Schedule
+Answer: B
+Exam: SSC CGL 2022
+Solution: The **Fourth Schedule** allocates Rajya Sabha seats to states and union territories.
+
+| Schedule | Subject |
+|----------|---------|
+| Third | Forms of oaths and affirmations |
+| Fourth | Rajya Sabha seat allocation |
+| Fifth | Administration of Scheduled Areas |
+`,
+  },
+
   flashcards: {
     title: "Untitled Flash Cards",
     body: `# Deck Title

@@ -1,6 +1,7 @@
 import { importBackup } from "./store";
 import { newTally, plural, summarize, wrap, type Tally } from "./importTally";
 import { docxToMarkdown, isDocxSupported } from "./docx";
+import { looksLikeQuestionBank, normalizeQuestionText } from "./questionText";
 import type { TemplateId } from "./types";
 
 /**
@@ -276,6 +277,13 @@ export function smartPaste(html: string, text: string): ImportResult | null {
     if (result.markdown && result.markdown !== text.trim()) return result;
   }
   if (!text) return null;
+  // A raw exam paper pasted as plain text gets fully restructured.
+  if (looksLikeQuestionBank(text)) {
+    const { markdown, questions } = normalizeQuestionText(text);
+    if (markdown && markdown !== text.trim()) {
+      return { markdown, summary: `Structured ${plural(questions, "question")} from the paper` };
+    }
+  }
   const { markdown, fixes } = cleanPlainText(text);
   if (fixes && markdown !== text) {
     return { markdown, summary: `Tidied pasted text — ${plural(fixes, "fix")}` };
@@ -308,6 +316,12 @@ export async function readImportFile(file: File): Promise<FileImport> {
   if (!textual) return { kind: "skip", reason: "unsupported file type" };
   if (file.size > 5_000_000) return { kind: "skip", reason: "file is too large" };
   const raw = await file.text();
+  // A pasted/exported exam paper (PYQ or MCQ) is restructured into the
+  // clean question dialect before it ever reaches the editor.
+  if ((ext === "txt" || ext === "text" || ext === "md" || ext === "markdown") && looksLikeQuestionBank(raw)) {
+    const { markdown, questions } = normalizeQuestionText(raw);
+    return { kind: "doc", title: file.name.replace(/\.\w+$/, ""), body: markdown, summary: `Structured ${plural(questions, "question")} from the paper` };
+  }
   if (ext === "json") {
     try {
       if ((JSON.parse(raw) as { app?: string })?.app === "polity-studio") return { kind: "backup", json: raw };
@@ -335,7 +349,12 @@ type Toast = (message: string, tone?: "ok" | "error" | "info") => void;
     makes in the Import Review picker, not something worth guessing. */
 function guessTemplate(body: string): TemplateId {
   const hits = body.match(/^\s{0,3}Q\s*\d*[.):]\s+\S/gim)?.length ?? 0;
-  return hits >= 2 ? "mcq" : "notes";
+  if (hits < 2) return "notes";
+  // A solved bank (worked solutions and/or an exam/year stamp) is best
+  // read as a PYQ collection — solution under each question. A bare quiz
+  // with no solutions is an MCQ booklet (answers to a back-of-book key).
+  const solved = /^\s*(?:Solution|Detailed Solution|Explanation)\s*:/im.test(body) || /^\s*(?:Source|Exam|Year)\s*:/im.test(body);
+  return solved ? "pyq" : "mcq";
 }
 
 export interface StagedDoc {

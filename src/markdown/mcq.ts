@@ -14,7 +14,9 @@
  *   Source: UGC-NET Dec 2023
  *
  * Options also accept "a)", "(a)", "1.", "A." — whatever the author
- * pastes from old papers usually just works.
+ * pastes from old papers usually just works. The answer/solution/source
+ * labels have aliases too (Ans, Correct Answer, Sol, Solution, Detailed
+ * Solution, Year, Exam) so PYQ banks pasted verbatim need no relabeling.
  */
 
 export interface McqIssue {
@@ -58,11 +60,17 @@ export interface McqDocument {
 
 const QUESTION_RE = /^Q\s*(\d+)?\s*[.):]\s*(.*)$/i;
 const OPTION_RE = /^\(?([A-Ea-e1-5])[).:]\s+(.*)$/;
-// "Difficulty"/"Level" are still recognized (and silently dropped) so
-// older documents that still have those lines don't have them bleed
-// into the next option/explanation text — the booklet just stopped
-// rendering them as chips (see templates/index.ts).
-const META_RE = /^(Answer|Ans|Explanation|Exp|Difficulty|Level|Topic|Source|Marks)\s*:\s*(.*)$/i;
+// Metadata labels recognized after a question. Real papers (and PYQ
+// banks pasted from PDFs) use many spellings for the same three ideas —
+// the answer, the worked solution, and where the question came from —
+// so we alias them all rather than force one house style:
+//   answer      ← Answer / Ans / Correct Answer / Correct Option
+//   explanation ← Explanation / Exp / Solution / Sol / Detailed Solution
+//   source      ← Source / Year / Exam   (PYQ provenance, e.g. "UPSC 2021")
+// "Difficulty"/"Level" stay recognized-but-dropped so older documents
+// don't bleed those lines into the next field (see templates/index.ts).
+const META_RE =
+  /^(Correct Answer|Correct Option|Answer|Ans|Detailed Solution|Explanation|Solution|Exp|Sol|Difficulty|Level|Topic|Source|Marks|Year|Exam)\s*[:：—]\s*(.*)$/i;
 const SECTION_RE = /^##\s+(.*)$/;
 
 const KEY_FOR: Record<string, string> = {
@@ -134,7 +142,10 @@ export function parseMcq(body: string): McqDocument {
     }
 
     if (q) {
-      const om = line.match(OPTION_RE);
+      // Options always precede the answer/solution. Once either is seen we
+      // stop matching them, so a numbered list inside a worked solution
+      // ("1. …", "2. …") is body text, not a phantom 5th option.
+      const om = !q.answer && !q.explanation ? line.match(OPTION_RE) : null;
       if (om && q.options.length < 5) {
         let text = om[2].trim();
         let correct = false;
@@ -152,10 +163,13 @@ export function parseMcq(body: string): McqDocument {
       if (mm) {
         const field = mm[1].toLowerCase();
         const value = mm[2].trim();
-        if (field === "answer" || field === "ans") {
-          q.answer = KEY_FOR[value.replace(/[^A-Ea-e1-5]/g, "")] || value.toUpperCase();
+        if (field === "answer" || field === "ans" || field === "correct answer" || field === "correct option") {
+          // Resolve a leading option letter — "B", "(b)", "B) Aristotle",
+          // "2." — to its key, but leave a spelled-out answer untouched.
+          const lead = value.match(/^\(?([A-Ea-e1-5])\)?(?:[\s.:)-]|$)/);
+          q.answer = lead ? KEY_FOR[lead[1]] : value.toUpperCase();
           collecting = null;
-        } else if (field === "explanation" || field === "exp") {
+        } else if (field === "explanation" || field === "exp" || field === "solution" || field === "sol" || field === "detailed solution") {
           q.explanation = value;
           collecting = "explanation";
         } else if (field === "difficulty" || field === "level") {
@@ -163,7 +177,8 @@ export function parseMcq(body: string): McqDocument {
         } else if (field === "topic") {
           q.topic = value;
           collecting = null;
-        } else if (field === "source") {
+        } else if (field === "source" || field === "year" || field === "exam") {
+          // Year/Exam are PYQ provenance — fold into the source chip.
           q.source = value;
           collecting = null;
         } else if (field === "marks") {

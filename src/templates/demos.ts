@@ -636,6 +636,77 @@ The **Union, State and Concurrent Lists** dividing legislative power between the
 **Tenth Schedule**, added by the 52nd Amendment (1985).
 `;
 
+/* ── 5 · PYQ collection ────────────────────────────────────────────── */
+
+const PYQ_BODY = `## Governance & Public Policy
+
+Q. Arrange the following in chronological order (year of enactment / launch).
+- **A.** Rashtriya Gokul Mission
+- **B.** Rights of Persons with Disabilities Act
+- **C.** Pradhan Mantri Jan Aushadhi Yojana
+- **D.** Food and Nutrition Board
+- **E.** National Co-operative Development Corporation
+
+(1) D, E, B, A, C
+(2) D, B, E, C, A
+(3) E, D, C, B, A *
+(4) E, C, D, A, B
+Answer: C
+Source: UGC-NET June 2025
+Solution: The correct sequence follows each body's founding year.
+
+| Institution / Scheme | Year | Ministry |
+|---|---|---|
+| Nat. Co-op. Dev. Corp. (NCDC) | 1963 | Cooperation |
+| Food and Nutrition Board | 1964 | Women & Child Development |
+| PM Jan Aushadhi Yojana | 2008 | Chemicals & Fertilizers |
+| Rashtriya Gokul Mission | 2014 | Fisheries, AH & Dairying |
+| Rights of PwD Act | 2016 | Social Justice |
+
+Q. The G.V.K. Rao Committee, appointed by the Planning Commission to review rural-development administration, was constituted in —
+(1) 1985 *
+(2) 1983
+(3) 1981
+(4) 1979
+Answer: A
+Source: UGC-NET June 2025
+Solution: The **G.V.K. Rao Committee (1985)** recommended the post of District Development Commissioner and famously called the Panchayati Raj Institutions "grass without roots".
+
+Q. The 74th Constitutional Amendment Act is intended for —
+(1) Rural local administration
+(2) Judicial reforms
+(3) Urban local bodies administration *
+(4) Linguistic administration
+Answer: C
+Source: UGC-NET Dec 2024
+Solution: The **74th Amendment (1992)** added Part IX-A (The Municipalities), Articles 243-P to 243-ZG, and the 12th Schedule of 18 functional items.
+
+Q. Match List-I (Committee) with List-II (Focus) and choose the correct answer.
+- **A.** Balwant Rai Mehta
+- **B.** Ashok Mehta
+- **C.** L.M. Singhvi
+- **D.** G.V.K. Rao
+
+I. Constitutional status for PRIs
+II. Democratic decentralisation, 3-tier structure
+III. District as the unit of planning
+IV. 2-tier structure, party-based elections
+
+(1) A-II, B-IV, C-I, D-III *
+(2) A-I, B-II, C-III, D-IV
+(3) A-III, B-I, C-IV, D-II
+(4) A-IV, B-III, C-II, D-I
+Answer: A
+Source: UGC-NET Dec 2024
+Solution:
+
+| Committee | Year | Key idea |
+|---|---|---|
+| Balwant Rai Mehta | 1957 | Democratic decentralisation, 3-tier |
+| Ashok Mehta | 1977 | 2-tier, political-party participation |
+| L.M. Singhvi | 1986 | Constitutional status, Nyaya Panchayats |
+| G.V.K. Rao | 1985 | District as the planning unit |`;
+
 export const DEMOS: DemoDoc[] = [
   {
     id: "demo-notes",
@@ -663,6 +734,15 @@ export const DEMOS: DemoDoc[] = [
     paper: "Practice Set 01 · 12 Questions",
     description: "MCQ booklet: three sections, topic / source chips, answer key and full explanations.",
     body: MCQ_BODY,
+  },
+  {
+    id: "demo-pyq",
+    template: "pyq",
+    title: "Governance & Public Policy — Solved PYQs",
+    subtitle: "Previous-year questions with exam tags and worked, tabular solutions",
+    paper: "UGC-NET · Unit 10",
+    description: "PYQ collection: exam/year badges, statement-based and match-the-list questions, inline answers and tabular solutions.",
+    body: PYQ_BODY,
   },
   {
     id: "demo-flashcards",

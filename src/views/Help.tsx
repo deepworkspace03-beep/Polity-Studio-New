@@ -232,8 +232,8 @@ export function Help() {
             prompt={REVISION_PROMPT}
           />
           <TemplateGuide
-            name="MCQ Booklet (also for PYQ drills)"
-            forWhat={'Practice questions with an answer key and explanations. "PYQ" (previous-year questions) booklets use this same template — just paste real past-paper questions.'}
+            name="MCQ Booklet"
+            forWhat="Practice questions where answers sit in a back-of-booklet key with explanations — a clean test to attempt first, then check."
             grammar={
               <span>
                 <code className="font-mono">Q.</code> starts a question, <code className="font-mono">A)</code>…
@@ -241,6 +241,20 @@ export function Help() {
                 (or <code className="font-mono">Answer: B</code>) marks the correct one.{" "}
                 <code className="font-mono">Explanation: / Topic: / Source:</code> lines are optional. Use{" "}
                 <code className="font-mono">##</code> headings to split into sections.
+              </span>
+            }
+            prompt={MCQ_PROMPT}
+          />
+          <TemplateGuide
+            name="PYQ Collection"
+            forWhat="Solved previous-year questions — each shows its exam/year badge, the correct answer and a worked solution right under it (no back-of-book flipping). Best target when you paste a solved paper."
+            grammar={
+              <span>
+                Same grammar as MCQ. Add <code className="font-mono">Source: UPSC 2021</code> (or{" "}
+                <code className="font-mono">Exam: / Year:</code>) for the badge and{" "}
+                <code className="font-mono">Solution:</code> (also <code className="font-mono">Detailed Solution:</code>) for the
+                worked answer — tables inside a solution render as tables. Pasting or importing a real paper fills these in
+                automatically.
               </span>
             }
             prompt={MCQ_PROMPT}
@@ -274,6 +288,7 @@ export function Help() {
             <li>In the <b>Flow</b> preview, click the cover title, subtitle or any heading to edit it right there — it writes straight back to your Markdown.</li>
             <li>The <b>Pages</b> preview shows the exact pages you'll publish — headers, footers, watermark and all — with pinch/±/fit-width/fit-page zoom.</li>
             <li>Smart Import converts pasted Word, Google Docs, web and AI-chat content automatically; drag a <code className="font-mono text-xs">.md</code>, <code className="font-mono text-xs">.txt</code>, <code className="font-mono text-xs">.html</code> or <code className="font-mono text-xs">.docx</code> file onto the Library (new documents) or the editor (inserts at the cursor) — either way you get a review step to confirm or edit before anything is saved.</li>
+            <li>Paste or import a raw <b>exam paper</b> and Smart Import restructures it into clean questions on its own — it recognises <code className="font-mono text-xs">Q.</code> / <code className="font-mono text-xs">Que.</code> / <code className="font-mono text-xs">[3/23]</code> numbering, statement lists, the real options (even two to a line), the answer and the worked solution, tags the exam/year, and strips page-number noise. Pick <b>PYQ Collection</b> in the review for the solved layout.</li>
             <li>Select several documents in the Library (the checklist icon) to merge them into one PDF, each starting on its own page.</li>
             <li><b>Home</b>, <b>Resume last session</b> and <b>Restart Studio</b> in the header work from anywhere — resume reopens your last document at the exact cursor line; restart safely reloads the app (autosave already covers your work).</li>
           </ul>

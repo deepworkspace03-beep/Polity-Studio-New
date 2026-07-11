@@ -59,7 +59,10 @@
   font-family: "Manrope", sans-serif;
   font-weight: 800;
   font-size: 0.92em;
-  color: white;
+  /* --c-th-ink is the ink that sits on a brand-colored band: white on
+     light paper, dark on the dark theme (where --c-primary is a light
+     tint) — so the badge stays legible in both. */
+  color: var(--c-th-ink, white);
   background: var(--c-primary);
   border-radius: 4pt;
   padding: 1.2pt 6pt 1.6pt;

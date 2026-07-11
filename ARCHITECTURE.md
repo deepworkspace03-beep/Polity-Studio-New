@@ -78,6 +78,13 @@ src/
 │  │                     tidy, file staging (.md/.txt/.html/.docx + backup
 │  │                     .json) — actual doc creation/insertion lives in
 │  │                     components/ImportReview.tsx
+│  ├─ questionText.ts    raw exam-paper → clean question dialect: a
+│  │                     dependency-free normalizer that recovers
+│  │                     question/statement/option/answer/solution
+│  │                     structure from pasted or imported PYQ/MCQ text
+│  │                     ("[3/23]", "Que.", two-level A–E + (1)–(4),
+│  │                     packed options, exam-year tags, page-noise) so a
+│  │                     real paper becomes a booklet with no relabeling
 │  ├─ importTally.ts     shared "what changed" bookkeeping (Tally,
 │  │                     summarize) used by importer.ts and docx.ts —
 │  │                     split out so DOCX conversion can reuse it
@@ -122,7 +129,8 @@ src/
 │  │                     gradient · svg · materialize (pseudo-elements) ·
 │  │                     geometry
 │  └─ styles/            print-base.css (foundation) · covers.css ·
-│                        notes/revision/mcq/flashcards.css
+│                        notes/revision/mcq/flashcards.css · pyq.css
+│                        (layered on mcq.css: solved-question cards)
 ├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast,
 │                        file-drop hook/overlay, CommandPalette (Ctrl+K:
 │                        global search + actions), StudioNav (Home /
@@ -213,6 +221,17 @@ The same converter backs drag-and-drop and the Import picker: files dropped
 on the Library become documents (a leading `# Title` is promoted to the doc
 title; a dropped backup .json restores), files dropped on the editor insert
 at the cursor.
+
+When pasted/imported text looks like an exam paper (`lib/questionText.ts`,
+`looksLikeQuestionBank`), Smart Import routes it through the question-bank
+normalizer instead of the plain-text tidy: it rebuilds the clean question
+dialect (`markdown/mcq.ts`) — the reliable win for the plain-text path,
+since even HTML paste keeps tables but never the *question* grammar (those
+are ordinary paragraphs in the source). It defaults such imports to the
+**PYQ** template when worked solutions or exam tags are present, else MCQ.
+Flattened Google-Docs/Word tables in the plain-text path become clean
+bullet lists (lossless); true tables survive only via HTML paste, so the
+existing `tableToMd` still owns real table reconstruction.
 
 Search (`lib/search.ts`) is a scored linear scan — the whole corpus is
 already in memory, so an index would be pure overhead at this scale. Content

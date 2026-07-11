@@ -1,6 +1,6 @@
 /* ── Domain model ─────────────────────────────────────────────────── */
 
-export type TemplateId = "notes" | "revision" | "mcq" | "flashcards";
+export type TemplateId = "notes" | "revision" | "mcq" | "pyq" | "flashcards";
 
 export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse";
 export type PageSize = "a4" | "a5" | "letter";

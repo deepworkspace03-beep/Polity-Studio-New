@@ -52,6 +52,18 @@ export const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
     hasToc: false,
     hasAnswers: true,
   },
+  pyq: {
+    id: "pyq",
+    name: "PYQ Collection",
+    description: "Previous-year questions with inline answers and worked solutions.",
+    icon: '<path d="M9 11H3v10h6z"/><path d="M15 3H9v18h6z"/><path d="M21 7h-6v14h6z"/>',
+    starterTitle: STARTERS.pyq.title,
+    starter: STARTERS.pyq.body,
+    hasToc: false,
+    // No answers toggle: a PYQ collection always shows the answer and
+    // solution inline under each question — that IS the product.
+    hasAnswers: false,
+  },
   flashcards: {
     id: "flashcards",
     name: "Flash Cards",

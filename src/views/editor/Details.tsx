@@ -68,7 +68,8 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
   const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
 
   const mcqIssues = useMemo(() => {
-    if (doc.template !== "mcq") return [];
+    // PYQ shares the MCQ grammar, so it gets the same live validation.
+    if (doc.template !== "mcq" && doc.template !== "pyq") return [];
     return validateMcq(parseMcq(doc.body));
   }, [doc.template, doc.body]);
 
