@@ -118,6 +118,50 @@ export function clearFormatting(view: EditorView): void {
   view.focus();
 }
 
+/** Copies the entire document to the clipboard, leaving it untouched. */
+export async function copyAll(view: EditorView): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(view.state.doc.toString());
+    view.focus();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Copies the entire document, then clears it — only once the copy has
+    actually landed on the clipboard, so a permission failure never
+    destroys content the author can't get back. */
+export async function cutAll(view: EditorView): Promise<"empty" | "denied" | "ok"> {
+  const text = view.state.doc.toString();
+  if (!text) return "empty";
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    return "denied";
+  }
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: "" } });
+  view.focus();
+  return "ok";
+}
+
+/** Reads the system clipboard and inserts it at the cursor, routed
+    through the same plain-text tidy/question-bank detection as a native
+    paste (Ctrl+V) — for touch users without an easy paste gesture. */
+export async function pasteFromClipboard(view: EditorView, convert: (text: string) => string | null): Promise<"empty" | "denied" | "ok"> {
+  let text: string;
+  try {
+    text = await navigator.clipboard.readText();
+  } catch {
+    return "denied";
+  }
+  if (!text) return "empty";
+  const markdown = convert(text) ?? text;
+  view.dispatch({ ...view.state.replaceSelection(markdown), scrollIntoView: true });
+  view.focus();
+  return "ok";
+}
+
 export const TABLE_SNIPPET = `| Column 1 | Column 2 | Column 3 |
 |---|---|---|
 | Cell | Cell | Cell |

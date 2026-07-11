@@ -11,12 +11,16 @@ import {
   CODE_SNIPPET,
   TABLE_SNIPPET,
   clearFormatting,
+  copyAll,
+  cutAll,
   insertBlock,
   insertLink,
+  pasteFromClipboard,
   setHeading,
   toggleLinePrefix,
   wrapSelection,
 } from "./commands";
+import { smartPaste } from "../../lib/importer";
 
 /**
  * Formatting toolbar — grouped, tooltipped, fully keyboard-reachable.
@@ -65,7 +69,7 @@ const GROUPS: Action[][] = [
     { id: "hr", icon: "minus", label: "Divider line", run: (v) => insertBlock(v, "---") },
     { id: "pagebreak", icon: "pagebreak", label: "Page break (starts a new PDF page)", run: (v) => insertBlock(v, "\\pagebreak") },
   ],
-  [{ id: "findReplace", icon: "replace", label: "Find & replace (Ctrl+F)", run: (v) => void openSearchPanel(v) }],
+  [{ id: "findReplace", icon: "replace", label: "Find & replace (Ctrl+F) — leave “Replace” blank to find & delete", run: (v) => void openSearchPanel(v) }],
 ];
 
 export function Toolbar({ getView }: { getView: () => EditorView | null }) {
@@ -141,6 +145,36 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           </div>
         )}
       </div>
+      <span className="mx-1 h-5 w-px flex-none bg-edge" />
+      <IconButton
+        label="Copy entire document"
+        name="copy"
+        onClick={withView(async (v) => {
+          const ok = await copyAll(v);
+          toast(ok ? "Copied entire document" : "Clipboard access blocked", ok ? "ok" : "error");
+        })}
+      />
+      <IconButton
+        label="Cut entire document"
+        name="cut"
+        onClick={withView(async (v) => {
+          const result = await cutAll(v);
+          if (result === "empty") toast("Nothing to cut", "info");
+          else if (result === "denied") toast("Clipboard access blocked — document left untouched", "error");
+          else toast("Cut entire document to clipboard", "ok");
+        })}
+      />
+      <IconButton
+        label="Paste from clipboard at cursor"
+        name="clipboard"
+        onClick={withView(async (v) => {
+          const result = await pasteFromClipboard(v, (text) => smartPaste("", text)?.markdown ?? null);
+          if (result === "denied") toast("Clipboard access blocked — use Ctrl+V instead", "error");
+          else if (result === "empty") toast("Clipboard is empty", "info");
+          else toast("Pasted from clipboard", "ok");
+        })}
+      />
+      <span className="mx-1 h-5 w-px flex-none bg-edge" />
       <IconButton
         label="Insert file — Markdown, text, HTML or Word (.docx) at the cursor"
         name="upload"
