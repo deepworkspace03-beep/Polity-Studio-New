@@ -82,5 +82,4 @@ export const DEFAULT_SETTINGS: Settings = {
   docTheme: "light",
   fileNamePattern: "{title} — {brand}",
   newDocLayout: DEFAULT_LAYOUT,
-  aiEngineUrl: "",
 };

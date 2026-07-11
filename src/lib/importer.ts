@@ -364,15 +364,6 @@ export interface StagedDoc {
   template: TemplateId;
 }
 
-/** An out-of-band converter for files Studio can't parse itself (PDFs,
-    scans, images). Injected — not imported — so this module stays
-    dependency-free and unaware of the network; lib/aiEngine.ts implements
-    it against the Polity AI Engine service. */
-export interface FileProcessor {
-  supports(ext: string): boolean;
-  process(file: File): Promise<{ markdown: string; summary: string }>;
-}
-
 /** Converts files into ready-to-review documents, or restores a dropped
     backup immediately (reviewing a full JSON backup line by line isn't
     practical, and restore already has its own toast). Skips and
@@ -382,27 +373,10 @@ export interface FileProcessor {
     callers that create whole documents should run the result through
     `promoteLeadingTitle`; callers that insert into an existing document
     must not, or a converted heading would silently vanish. */
-export async function stageImportFiles(files: File[], toast: Toast, processor?: FileProcessor): Promise<StagedDoc[]> {
+export async function stageImportFiles(files: File[], toast: Toast): Promise<StagedDoc[]> {
   const staged: StagedDoc[] = [];
   let restored = 0;
   for (const file of files) {
-    const ext = file.name.toLowerCase().match(/\.(\w+)$/)?.[1] || "";
-    // Files Studio can't read natively (PDF/scan/image) go to the engine
-    // when one is configured; everything else keeps the offline path.
-    if (processor?.supports(ext)) {
-      toast(`Processing ${file.name}…`, "info");
-      try {
-        const { markdown, summary } = await processor.process(file);
-        if (markdown.trim()) {
-          staged.push({ title: file.name.replace(/\.\w+$/, ""), body: markdown, summary, template: guessTemplate(markdown) });
-        } else {
-          toast(`Skipped ${file.name} — no text found`, "error");
-        }
-      } catch (err) {
-        toast(`Skipped ${file.name} — ${(err as Error).message}`, "error");
-      }
-      continue;
-    }
     const r = await readImportFile(file);
     if (r.kind === "skip") {
       toast(`Skipped ${file.name} — ${r.reason}`, "error");
