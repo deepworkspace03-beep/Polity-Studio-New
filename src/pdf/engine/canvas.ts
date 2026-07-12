@@ -187,6 +187,10 @@ export class PageCanvas {
     const a = color.a * opacity;
     if (a < 0.001) return;
     const font = face.pdfFont;
+    // Encode before pushing any operator — encodeText is the one call
+    // here that can throw (glyph shaping), and a throw after BeginText
+    // would leave the content stream unbalanced.
+    const encoded = font.encodeText(text);
     let fontKey = this.fontKeys.get(font.ref.toString());
     if (!fontKey) {
       fontKey = this.page.node.newFontDictionary(font.name, font.ref);
@@ -204,7 +208,7 @@ export class PageCanvas {
     if (charSpacing) this.ops.push(setCharacterSpacing(charSpacing * K));
     const shear = syntheticOblique ? 0.2 : 0;
     this.ops.push(PDFOperator.of(PDFOperatorNames.SetTextMatrix, [n(1), n(0), n(shear), n(1), n(p.x), n(p.y)]));
-    this.ops.push(PDFOperator.of(PDFOperatorNames.ShowText, [font.encodeText(text)]));
+    this.ops.push(PDFOperator.of(PDFOperatorNames.ShowText, [encoded]));
     this.ops.push(PDFOperator.of(PDFOperatorNames.EndText));
     this.restore();
   }

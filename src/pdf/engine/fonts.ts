@@ -1,3 +1,10 @@
+// @pdf-lib/fontkit ships Babel-transpiled generators (the DFA state
+// machine behind its Indic/universal shaping engines) that call the
+// global regeneratorRuntime at run time. Without this import the first
+// Devanagari glyph run throws "regeneratorRuntime is not defined",
+// killing the whole export. Latin-only text never enters that code
+// path, which is why the failure only appeared on Hindi content.
+import "regenerator-runtime/runtime.js";
 import type { PDFDocument, PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 
