@@ -63,6 +63,7 @@ export async function transcribePaginated(
   pagesRoot.style.zoom = "1";
 
   const warnings: string[] = [];
+  const runStats = { total: 0, failed: 0 };
   const fonts = new FontResolver(pdf, "");
   const links: PendingLink[] = [];
   const outline: OutlineItem[] = [];
@@ -81,7 +82,7 @@ export async function transcribePaginated(
       const canvas = new PageCanvas(pdf, page, origin.height);
       canvases.push(canvas);
 
-      const t = new Transcriber(win, canvas, { x: origin.left, y: origin.top }, p, links, warnings, fonts);
+      const t = new Transcriber(win, canvas, { x: origin.left, y: origin.top }, p, links, warnings, fonts, runStats);
       await t.walk(box, { opacity: 1, decorations: [] });
       collectOutline(box, p, origin, outline);
       canvas.flush();
@@ -94,6 +95,13 @@ export async function transcribePaginated(
     buildOutline(pdf, outline, pageRefs, pageEls);
   } finally {
     pagesRoot.style.zoom = prevZoom;
+  }
+
+  // A handful of failed runs is a cosmetic omission the warnings surface;
+  // widespread failure means the PDF would ship visibly gutted — only then
+  // is aborting (and reaching the caller's fallback) the better outcome.
+  if (runStats.failed > 2 && runStats.failed > runStats.total * 0.02) {
+    throw new Error(`text transcription failed for ${runStats.failed} of ${runStats.total} runs: ${warnings[warnings.length - 1] || "unknown"}`);
   }
 
   return { pages: pageEls.length, warnings };
@@ -204,6 +212,7 @@ class Transcriber {
     private links: PendingLink[],
     private warnings: string[],
     private fonts: FontResolver,
+    private runStats: { total: number; failed: number },
   ) {
     this.range = win.document.createRange();
   }
@@ -515,6 +524,7 @@ class Transcriber {
     this.range.setEnd(node, to);
     const rects = [...this.range.getClientRects()].filter((r) => r.width > 0);
     if (rects.length === 0) return;
+    this.runStats.total++;
 
     const drawAt = (str: string, rect: DOMRect) => {
       const baseline = rect.top - this.pageOrigin.y + face.ascent * opt.fontSize;
@@ -533,19 +543,27 @@ class Transcriber {
       this.drawDecorations(rect, face, opt);
     };
 
-    if (rects.length === 1 && opt.letterSpacing === 0) {
-      drawAt(text, rects[0]);
-      return;
-    }
-    // Letter-spaced or fragmented runs: position character by character
-    // with exact browser rects.
-    let idx = from;
-    for (const ch of text) {
-      this.range.setStart(node, idx);
-      this.range.setEnd(node, idx + ch.length);
-      const r = this.range.getClientRects()[0];
-      if (r && r.width >= 0) drawAt(ch, r);
-      idx += ch.length;
+    // One exotic glyph must not abort the whole export into the print
+    // fallback — record the miss and keep transcribing; the caller decides
+    // whether failures were widespread enough to abort.
+    try {
+      if (rects.length === 1 && opt.letterSpacing === 0) {
+        drawAt(text, rects[0]);
+        return;
+      }
+      // Letter-spaced or fragmented runs: position character by character
+      // with exact browser rects.
+      let idx = from;
+      for (const ch of text) {
+        this.range.setStart(node, idx);
+        this.range.setEnd(node, idx + ch.length);
+        const r = this.range.getClientRects()[0];
+        if (r && r.width >= 0) drawAt(ch, r);
+        idx += ch.length;
+      }
+    } catch (err) {
+      this.runStats.failed++;
+      this.warn(`text run failed ("${text.slice(0, 20)}"): ${String(err).slice(0, 100)}`);
     }
   }
 

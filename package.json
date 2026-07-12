@@ -38,6 +38,7 @@
     "pdf-lib": "^1.17.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "regenerator-runtime": "^0.14.1",
     "serve": "^14.2.6",
     "wawoff2": "^2.0.1"
   },
