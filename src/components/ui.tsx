@@ -1,6 +1,45 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { cx, uid } from "../lib/utils";
 import { Icon, type IconName } from "./Icon";
+
+/* ── Focus trap ────────────────────────────────────────────────────── */
+
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Traps Tab focus within `ref`'s subtree while `active`, and restores
+    focus to whatever was focused before it activated once it deactivates
+    — standard WCAG dialog behavior. Runs in a layout effect (not a plain
+    effect) so it captures the pre-open `activeElement` before a caller's
+    own "focus the panel on open" effect can move focus first; React
+    flushes all layout effects, tree-wide, before any passive effects. */
+export function useFocusTrap(active: boolean, ref: React.RefObject<HTMLElement | null>): void {
+  useLayoutEffect(() => {
+    if (!active) return;
+    const restore = document.activeElement as HTMLElement | null;
+    const container = ref.current;
+    if (!container) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusable = [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    container.addEventListener("keydown", onKeyDown);
+    return () => {
+      container.removeEventListener("keydown", onKeyDown);
+      restore?.focus?.();
+    };
+  }, [active, ref]);
+}
 
 /* ── Button ────────────────────────────────────────────────────────── */
 
@@ -220,6 +259,7 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(open, ref);
 
   // Split from the keydown effect below: keying focus off `onClose` too
   // (as a naive exhaustive-deps effect would) re-focuses the panel on

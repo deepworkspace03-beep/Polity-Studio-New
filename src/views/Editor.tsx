@@ -54,8 +54,12 @@ function usePersisted<T extends number | boolean>(key: string, initial: T): [T, 
   return [value, setValue];
 }
 
+const RESIZE_KEY_STEP = 24;
+
 /** Drag-to-resize divider between two panes. Pointer events unify mouse,
-    trackpad and touch so it works the same on a tablet as a laptop. */
+    trackpad and touch so it works the same on a tablet as a laptop; arrow
+    keys give the same control to keyboard users (the divider is a real
+    `tabIndex`-reachable separator, not just a mouse target). */
 function PaneResizer({ onDrag, label }: { onDrag: (deltaX: number) => void; label: string }) {
   const dragging = useRef(false);
   const lastX = useRef(0);
@@ -65,7 +69,8 @@ function PaneResizer({ onDrag, label }: { onDrag: (deltaX: number) => void; labe
       role="separator"
       aria-orientation="vertical"
       aria-label={label}
-      className="group relative hidden w-1.5 flex-none cursor-col-resize touch-none select-none md:block"
+      tabIndex={0}
+      className="group relative hidden w-1.5 flex-none cursor-col-resize touch-none select-none focus-visible:outline-none md:block"
       onPointerDown={(e) => {
         dragging.current = true;
         lastX.current = e.clientX;
@@ -82,8 +87,17 @@ function PaneResizer({ onDrag, label }: { onDrag: (deltaX: number) => void; labe
       onPointerCancel={() => {
         dragging.current = false;
       }}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          onDrag(-RESIZE_KEY_STEP);
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          onDrag(RESIZE_KEY_STEP);
+        }
+      }}
     >
-      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-edge transition-colors group-hover:bg-accent" />
+      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-edge transition-colors group-hover:bg-accent group-focus-visible:bg-accent group-focus-visible:w-0.5" />
     </div>
   );
 }

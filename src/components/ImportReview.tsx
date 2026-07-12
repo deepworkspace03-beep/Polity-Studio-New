@@ -1,7 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { createDoc } from "../lib/store";
 import { IMPORT_ACCEPT, promoteLeadingTitle, stageImportFiles, type StagedDoc } from "../lib/importer";
-import { normalizeMarkdown, reviewMarkdown } from "../lib/markdownReview";
+import { normalizeMarkdown, reviewHeadline, reviewMarkdown } from "../lib/markdownReview";
 import type { Doc } from "../lib/types";
 import { TEMPLATE_META_LIST } from "../templates/meta";
 import { cx } from "../lib/utils";
@@ -158,6 +158,9 @@ function ReviewBody({ items, mode, onConfirm }: { items: StagedDoc[]; mode: Mode
             </div>
           )}
           <p className="text-xs text-faint">{current.summary}</p>
+          <p className={cx("text-[11px] font-semibold", review.warnings.length ? "text-warn" : review.fixable ? "text-ink-2" : "text-ok")}>
+            {reviewHeadline(review)}
+          </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-faint">
             <Stat label={`${review.words.toLocaleString()} words`} />
             <Stat label={`${review.readingMinutes} min read`} />

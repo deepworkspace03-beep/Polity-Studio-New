@@ -3,7 +3,7 @@ import { navigate } from "../lib/router";
 import { createDoc, deleteDoc, deleteDocs, duplicateDoc, mergeDocs, saveSettings, useApp } from "../lib/store";
 import { contentStats, cx, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
-import { DEMOS, type DemoDoc } from "../templates/demos";
+import type { DemoDoc } from "../templates/demos";
 import type { TemplateId } from "../lib/types";
 import { searchDocs } from "../lib/search";
 import { pickAndImportFiles, stageAndReview } from "../components/ImportReview";
@@ -32,6 +32,9 @@ export function Library() {
   const [templateFilter, setTemplateFilter] = useState<TemplateId | "all">("all");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
+  // Example content is 750+ lines of showcase text with no other reason to
+  // be in the initial bundle — load it only the first time Examples opens.
+  const [demos, setDemos] = useState<DemoDoc[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -90,6 +93,11 @@ export function Library() {
     navigate({ edit: doc.id });
   }
 
+  function openExamples() {
+    setExamplesOpen(true);
+    if (!demos) void import("../templates/demos").then((m) => setDemos(m.DEMOS));
+  }
+
   function handleOpenExample(demo: DemoDoc) {
     const doc = createDoc({
       template: demo.template,
@@ -140,7 +148,7 @@ export function Library() {
           <Button icon="upload" onClick={() => pickAndImportFiles(toast, (doc) => navigate({ edit: doc.id }))}>
             Import
           </Button>
-          <Button icon="eye" onClick={() => setExamplesOpen(true)}>
+          <Button icon="eye" onClick={openExamples}>
             Examples
           </Button>
           <Button variant="primary" icon="plus" onClick={() => setPickerOpen(true)}>
@@ -197,7 +205,7 @@ export function Library() {
             Word, Google Docs or an AI chat, drop .md / .txt / .html files anywhere on this screen, or open an example.
           </p>
           <div className="mt-5 flex gap-2">
-            <Button icon="eye" onClick={() => setExamplesOpen(true)}>
+            <Button icon="eye" onClick={openExamples}>
               Browse examples
             </Button>
             <Button variant="primary" icon="plus" onClick={() => setPickerOpen(true)}>
@@ -327,7 +335,10 @@ export function Library() {
           as a fresh document in your library — edit or delete it freely.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {DEMOS.map((demo) => (
+          {demos === null ? (
+            <p className="col-span-full py-8 text-center text-sm text-faint">Loading examples…</p>
+          ) : (
+            demos.map((demo) => (
             <button
               key={demo.id}
               onClick={() => handleOpenExample(demo)}
@@ -340,7 +351,8 @@ export function Library() {
               <span className="text-sm font-bold">{demo.title}</span>
               <span className="text-xs text-faint">{demo.description}</span>
             </button>
-          ))}
+            ))
+          )}
         </div>
       </Modal>
 

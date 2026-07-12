@@ -4,9 +4,11 @@ Read [ARCHITECTURE.md](./ARCHITECTURE.md) first — it covers the design
 decisions, folder map, data flow and extension points in one pass. Read
 it before grepping around; it answers "why is this built this way" for
 every non-obvious piece (the vector PDF engine, the flow-preview
-iframe protocol, the cover-designer variables, import/search). This
-file only adds what ARCHITECTURE.md doesn't: local dev commands and a
-few repo-specific conventions.
+iframe protocol, the cover-designer variables, import/search). Then read
+[AI_GUIDE.md](./AI_GUIDE.md) for the operational side: testing
+conventions, the build/validate workflow, known pitfalls and the
+extension-point checklist. This file only adds what those two don't: a
+short command list and a couple of repo-specific conventions.
 
 ## Commands
 
@@ -14,11 +16,14 @@ few repo-specific conventions.
 npm install       # also runs scripts/sync-vendor.mjs (Paged.js + font TTFs)
 npm run dev        # Vite dev server
 npm run typecheck  # tsc --noEmit — run before considering a change done
-npm run build       # production build → dist/
+npm test            # vitest run
+npm run build        # production build → dist/
 ```
 
-There is no test suite and no lint script; `typecheck` + a manual pass
-in the browser (`npm run dev`) is the verification loop.
+`typecheck` + `test` + a manual pass in the browser (`npm run dev`) is
+the verification loop; CI runs the first two plus `build` on every push
+to `main` and every PR. See AI_GUIDE.md § Testing for what is and isn't
+covered, and why there's no lint script yet.
 
 ## Conventions
 

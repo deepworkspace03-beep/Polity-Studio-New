@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CoverColors, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
 import { useApp } from "../../lib/store";
 import { DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
 import { canSavePreset, deletePreset, duplicatePreset, MAX_PRESETS, renamePreset, savePreset, usePresets } from "../../lib/presets";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
-import { Field, HintBubble, IconButton, Segmented, Toggle, inputClass, useLongPressHint, useToast } from "../../components/ui";
+import { Button, Field, HintBubble, IconButton, Modal, Segmented, Toggle, inputClass, useFocusTrap, useLongPressHint, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { cx } from "../../lib/utils";
 
@@ -238,6 +238,56 @@ function CoverColorPicker({ doc, onChange }: { doc: Doc; onChange: (patch: Parti
   );
 }
 
+/** Single-field name prompt (preset save/rename) — the app's own Modal
+    instead of window.prompt(), so it matches the rest of the UI, keeps
+    focus trapped/restored consistently and works in embedded contexts
+    where the native prompt is unavailable or disabled. */
+function NamePromptModal({
+  open,
+  title,
+  initial,
+  onSubmit,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  initial: string;
+  onSubmit: (name: string) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  useEffect(() => {
+    if (open) setValue(initial);
+  }, [open, initial]);
+
+  return (
+    <Modal open={open} onClose={onClose} title={title}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const trimmed = value.trim();
+          if (trimmed) onSubmit(trimmed);
+          onClose();
+        }}
+      >
+        <Field label="Name">
+          <input autoFocus className={inputClass} value={value} onChange={(e) => setValue(e.target.value)} />
+        </Field>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary">
+            Save
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+type PresetPrompt = { mode: "save" } | { mode: "rename"; id: string; current: string };
+
 /** Named layout presets — save the current cover/TOC/watermark/size/
     density/answers set under a name and reapply it to any document.
     Reuses the shared preset store (lib/presets.ts); applying goes through
@@ -245,6 +295,7 @@ function CoverColorPicker({ doc, onChange }: { doc: Doc; onChange: (patch: Parti
 function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layout: DocLayout) => void }) {
   const presets = usePresets();
   const toast = useToast();
+  const [prompt, setPrompt] = useState<PresetPrompt | null>(null);
 
   return (
     <div className="space-y-2 rounded-xl border border-edge p-3">
@@ -266,10 +317,7 @@ function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layou
                 toast(`Preset limit reached (${MAX_PRESETS}) — delete one first`, "info");
                 return;
               }
-              const name = window.prompt("Name this preset", "My preset")?.trim();
-              if (!name) return;
-              savePreset(name, layout);
-              toast(`Saved preset “${name}”`, "ok");
+              setPrompt({ mode: "save" });
             }}
             className="rounded-md border border-edge px-2 py-0.5 text-[11px] font-semibold text-ink-2 hover:border-faint"
           >
@@ -298,10 +346,7 @@ function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layou
                 label="Rename preset"
                 name="edit"
                 size={13}
-                onClick={() => {
-                  const name = window.prompt("Rename preset", p.name)?.trim();
-                  if (name) renamePreset(p.id, name);
-                }}
+                onClick={() => setPrompt({ mode: "rename", id: p.id, current: p.name })}
               />
               <IconButton label="Duplicate preset" name="copy" size={13} onClick={() => duplicatePreset(p.id)} />
               <IconButton label="Delete preset" name="trash" size={13} onClick={() => deletePreset(p.id)} />
@@ -309,6 +354,19 @@ function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layou
           ))}
         </ul>
       )}
+      <NamePromptModal
+        open={prompt !== null}
+        title={prompt?.mode === "rename" ? "Rename preset" : "Name this preset"}
+        initial={prompt?.mode === "rename" ? prompt.current : "My preset"}
+        onClose={() => setPrompt(null)}
+        onSubmit={(name) => {
+          if (prompt?.mode === "rename") renamePreset(prompt.id, name);
+          else {
+            savePreset(name, layout);
+            toast(`Saved preset “${name}”`, "ok");
+          }
+        }}
+      />
     </div>
   );
 }
@@ -500,6 +558,7 @@ export function Details({
   canUndo?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(open, panelRef);
 
   // Focusing the panel must only happen when it *opens* — keying this off
   // `onClose` too (as a naive exhaustive-deps effect would) re-focuses the

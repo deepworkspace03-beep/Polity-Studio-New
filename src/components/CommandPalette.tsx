@@ -7,7 +7,7 @@ import { cx, downloadFile, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import type { Doc } from "../lib/types";
 import { Icon, type IconName } from "./Icon";
-import { useToast } from "./ui";
+import { useFocusTrap, useToast } from "./ui";
 
 /**
  * Global search & command palette (Ctrl/Cmd+K). One surface reaches
@@ -37,6 +37,8 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(open, panelRef);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -162,11 +164,16 @@ export function CommandPalette() {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]" role="dialog" aria-modal="true" aria-label="Search & commands">
       <div className="absolute inset-0 bg-black/55" onClick={close} />
-      <div className="relative flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-edge bg-surface shadow-2xl">
+      <div ref={panelRef} className="relative flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-edge bg-surface shadow-2xl">
         <div className="flex items-center gap-2.5 border-b border-edge px-4">
           <Icon name="search" size={16} className="flex-none text-faint" />
           <input
             autoFocus
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="palette-listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={items[active] ? `palette-item-${active}` : undefined}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKey}
@@ -176,7 +183,7 @@ export function CommandPalette() {
           />
           <kbd className="hidden flex-none rounded border border-edge px-1.5 py-0.5 text-[10px] text-faint sm:block">esc</kbd>
         </div>
-        <div ref={listRef} className="max-h-[55vh] overflow-y-auto p-2">
+        <div ref={listRef} id="palette-listbox" role="listbox" aria-label="Results" className="max-h-[55vh] overflow-y-auto p-2">
           {items.length === 0 ? (
             <p className="px-3 py-8 text-center text-sm text-faint">Nothing matches “{q}”.</p>
           ) : (
@@ -186,6 +193,9 @@ export function CommandPalette() {
                 <Fragment key={it.key}>
                   {header && <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wider text-faint">{header}</p>}
                   <button
+                    id={`palette-item-${i}`}
+                    role="option"
+                    aria-selected={i === active}
                     data-idx={i}
                     onClick={() => {
                       close();

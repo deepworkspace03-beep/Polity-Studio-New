@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   deleteAllDocs,
   exportBackup,
+  flushSaves,
   importBackup,
-  persistSettingsNow,
   resetSettingsAndBrand,
   saveBrand,
   saveSettings,
@@ -64,16 +64,6 @@ export function Settings() {
           <p className="text-xs text-faint">Every change saves automatically.</p>
         </div>
         <Button onClick={() => setConfirmReset(true)}>Restore defaults</Button>
-        <Button
-          variant="primary"
-          icon="check"
-          onClick={async () => {
-            await persistSettingsNow();
-            toast("Settings saved", "ok");
-          }}
-        >
-          Save
-        </Button>
       </header>
 
       <div className="space-y-5">
@@ -274,7 +264,19 @@ export function Settings() {
             exactly here; the Markdown zip is one plain .md file per document, readable in any editor if you ever
             need to leave.
           </p>
-          <div className="border-t border-edge pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t border-edge pt-4">
+            <Button
+              icon="refresh"
+              onClick={async () => {
+                flushSaves();
+                // Give the debounced IndexedDB writes a beat to land before
+                // the reload tears down the page.
+                await new Promise((r) => setTimeout(r, 150));
+                location.reload();
+              }}
+            >
+              Restart Studio
+            </Button>
             <Button variant="danger" icon="trash" disabled={docs.length === 0} onClick={() => setConfirmWipe(true)}>
               Delete all documents…
             </Button>

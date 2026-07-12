@@ -35,13 +35,9 @@ export const DEFAULT_BRAND: BrandConfig = {
 export const DEFAULT_LAYOUT: DocLayout = {
   cover: true,
   coverStyle: "regal",
-  // Present (but unset) so the settings/doc merge in lib/store.ts keeps
-  // whatever an author picks in Details → Cover colors across reloads —
-  // a key withDefaults() doesn't know about gets silently dropped.
-  coverColors: undefined,
-  // Same reason: the key must exist here or withDefaults() drops a saved
-  // custom cover design on reload.
-  coverDesign: undefined,
+  // coverColors/coverDesign are optional and correctly omitted here —
+  // lib/store.ts's withDefaults() preserves them via LAYOUT_OPTIONAL_KEYS
+  // even though they're absent from this default object.
   toc: true,
   watermark: true,
   pageSize: "a4",

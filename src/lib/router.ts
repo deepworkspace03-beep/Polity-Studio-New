@@ -34,6 +34,13 @@ let current = typeof window !== "undefined" ? parse() : ({ view: "library" } as 
     site) — when it's zero there is nothing of ours to go back to. */
 let internalDepth = 0;
 
+/** Set right before a hash change this module itself initiates (navigate()
+    or goBack()'s own history.back() call), and read once by the resulting
+    hashchange handler. Lets that handler tell "we did this" apart from a
+    hashchange the *browser* produced on its own (the user's Back/Forward
+    buttons, or a manually edited URL) — see the comment in subscribe(). */
+let ownChange = false;
+
 /** True when a Back action can return to a previous in-app page. */
 export function canGoBack(): boolean {
   return internalDepth > 0;
@@ -45,12 +52,20 @@ export function canGoBack(): boolean {
 export function goBack(): boolean {
   if (internalDepth <= 0) return false;
   internalDepth--;
+  ownChange = true;
   window.history.back();
   return true;
 }
 
 function subscribe(cb: () => void): () => void {
   const onChange = () => {
+    // A hashchange we didn't initiate (the browser's own Back/Forward, or
+    // the address bar) consumed one step of *real* history that our depth
+    // counter doesn't know about — without this, mixing browser-back with
+    // the in-app Back button could let goBack() call history.back() one
+    // time too many and step the reader out of the site entirely.
+    if (!ownChange) internalDepth = Math.max(0, internalDepth - 1);
+    ownChange = false;
     current = parse();
     cb();
   };
@@ -71,6 +86,9 @@ export function navigate(path: "library" | "settings" | "help" | { edit: string;
       : `#/edit/${encodeURIComponent(path.edit)}${path.line ? `/${path.line}` : ""}`;
   // Only a real hash change pushes a history entry; navigating to the page
   // you're already on wouldn't, so it shouldn't grow the back depth either.
-  if (next !== window.location.hash) internalDepth++;
+  if (next !== window.location.hash) {
+    internalDepth++;
+    ownChange = true;
+  }
   window.location.hash = next;
 }

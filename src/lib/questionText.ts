@@ -137,8 +137,11 @@ export function normalizeQuestionText(text: string): { markdown: string; questio
     .replace(PAGE_NOISE, "")
     // A first option glued onto the stem end ("\u2026idea of1. Anti-") loses
     // option A \u2014 break a digit-marker off a word when a capitalized
-    // choice follows. Guarded so years/prices ("Rs. 1000") are untouched.
-    .replace(/([A-Za-z])([1-9][.)]\s+)(?=[A-Z])/g, "$1\n$2")
+    // choice follows. Guarded so years/prices ("Rs. 1000") are untouched,
+    // and \u2014 via the lookbehind \u2014 so a legitimate "Q1. Stem\u2026" marker is
+    // never split: that "Q" is never preceded by another letter, while a
+    // truly glued word ending ("...of1.") always is.
+    .replace(/(?<=[A-Za-z])([A-Za-z])([1-9][.)]\s+)(?=[A-Z])/g, "$1\n$2")
     .split("\n");
   const preamble: string[] = [];
   const questions: RawQuestion[] = [];

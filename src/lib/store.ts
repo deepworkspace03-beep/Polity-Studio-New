@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import { db } from "./db";
 import { uid } from "./utils";
 import { DEFAULT_BRAND, DEFAULT_SETTINGS } from "../brand/defaults";
-import type { BrandConfig, Doc, Settings } from "./types";
+import type { BrandConfig, Doc, DocLayout, Settings } from "./types";
 
 /**
  * One reactive app store backed by IndexedDB. Documents are edited in
@@ -75,18 +75,39 @@ if (typeof window !== "undefined") {
   });
 }
 
+/** Optional `Doc` fields (`institute?`, `coverLines?`) — the single place
+    to register a new one. Typed `satisfies readonly (keyof Doc)[]` so a
+    typo or a renamed/removed field fails `tsc`, not a user's reload. */
+export const DOC_OPTIONAL_KEYS = ["institute", "coverLines"] as const satisfies readonly (keyof Doc)[];
+/** Optional `DocLayout` fields (`coverColors?`, `coverDesign?`) — same
+    contract as DOC_OPTIONAL_KEYS, one level down. */
+export const LAYOUT_OPTIONAL_KEYS = ["coverColors", "coverDesign"] as const satisfies readonly (keyof DocLayout)[];
+
 /** Merges a stored object over the defaults, keeping only keys the
     current schema knows about — old fields (removed features) are
-    dropped and newly added defaults survive. */
-function withDefaults<T extends object>(defaults: T, stored: unknown): T {
+    dropped and newly added defaults survive.
+    `preserveKeys` lists fields that are legitimately *optional* on the
+    type (so they may be entirely absent from `defaults`, e.g. a fresh
+    `Doc` has no `institute`) but must still survive the merge when a
+    stored object has them. Without this, a key missing from `defaults`
+    reads as "unknown/removed field" and is silently dropped — see
+    store.test.ts for the regression this guards against. `layout` /
+    `newDocLayout` are recognized by name so the one nested object with
+    its own optional fields (DocLayout) gets LAYOUT_OPTIONAL_KEYS
+    automatically, without every call site having to know that.
+    Exported for the regression test in store.test.ts — not meant to be
+    called from outside this module otherwise. */
+export function withDefaults<T extends object>(defaults: T, stored: unknown, preserveKeys: readonly (keyof T)[] = []): T {
   if (!stored || typeof stored !== "object") return defaults;
   const out: Record<string, unknown> = { ...(defaults as Record<string, unknown>) };
+  const preserve = new Set<string>(preserveKeys as readonly string[]);
   for (const [k, v] of Object.entries(stored)) {
-    if (!(k in (defaults as Record<string, unknown>))) continue;
+    if (!(k in (defaults as Record<string, unknown>)) && !preserve.has(k)) continue;
     const base = (defaults as Record<string, unknown>)[k];
+    const nested = k === "layout" || k === "newDocLayout" ? (LAYOUT_OPTIONAL_KEYS as readonly string[]) : [];
     out[k] =
       base && typeof base === "object" && !Array.isArray(base) && v && typeof v === "object" && !Array.isArray(v)
-        ? withDefaults(base as object, v)
+        ? withDefaults(base as object, v, nested as readonly (keyof object)[])
         : (v ?? base);
   }
   return out as T;
@@ -118,7 +139,9 @@ export async function initStore(): Promise<void> {
     ]);
     setState({
       ready: true,
-      docs: docs.map((d) => normalizeDoc(withDefaults(blankDoc(), d))).sort((a, b) => b.updatedAt - a.updatedAt),
+      docs: docs
+        .map((d) => normalizeDoc(withDefaults(blankDoc(), d, DOC_OPTIONAL_KEYS)))
+        .sort((a, b) => b.updatedAt - a.updatedAt),
       settings: normalizeSettings(withDefaults(DEFAULT_SETTINGS, settings)),
       brand: withDefaults(DEFAULT_BRAND, brand),
     });
@@ -143,11 +166,6 @@ function blankDoc(): Doc {
     session: "",
     author: state.brand.author,
     lang: "en",
-    // Present-but-undefined so the schema merge in withDefaults() preserves
-    // an author's per-document cover overrides across reloads (a key it
-    // doesn't know about gets silently dropped).
-    institute: undefined,
-    coverLines: undefined,
     layout: { ...state.settings.newDocLayout },
     createdAt: now,
     updatedAt: now,
@@ -245,12 +263,6 @@ export function saveBrand(patch: Partial<BrandConfig>): void {
   void db.putKv("brand", brand);
 }
 
-/** Explicit save — settings/brand already persist on every change; this
-    re-writes both records so "Save" gives a definite, observable commit. */
-export async function persistSettingsNow(): Promise<void> {
-  await Promise.all([db.putKv("settings", state.settings), db.putKv("brand", state.brand)]);
-}
-
 /** Restores factory settings and branding. Documents are untouched. */
 export async function resetSettingsAndBrand(): Promise<void> {
   const settings = { ...DEFAULT_SETTINGS, newDocLayout: { ...DEFAULT_SETTINGS.newDocLayout } };
@@ -292,7 +304,7 @@ export async function importBackup(json: string): Promise<number> {
   const byId = new Map(state.docs.map((d) => [d.id, d]));
   for (const doc of data.docs) {
     if (!doc.id || typeof doc.body !== "string") continue;
-    byId.set(doc.id, normalizeDoc(withDefaults(byId.get(doc.id) ?? { ...blankDoc(), id: doc.id }, doc)));
+    byId.set(doc.id, normalizeDoc(withDefaults(byId.get(doc.id) ?? { ...blankDoc(), id: doc.id }, doc, DOC_OPTIONAL_KEYS)));
   }
   const docs = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   const settings = normalizeSettings(withDefaults(state.settings, data.settings));
