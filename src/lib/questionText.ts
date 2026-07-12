@@ -34,6 +34,14 @@ const STATEMENT = /^\s*([A-Ea-e])[.)]\s+(\S.*)$/; // A. statement  (arrange-type
 const NUM_OPTION = /^\s*\(?([1-9])[).]\s+(\S.*)$/; // (1) option  /  1) option
 const ANSWER = /^\s*(?:Answer|Ans|Correct Answer|Correct Option)\s*[:.\-—]\s*(.*)$/i;
 const SOLUTION = /^\s*(?:Detailed Solution|Solution|Explanation|Sol|Exp)\s*[:.\-—]\s*(.*)$/i;
+// Provenance/tagging labels that may sit between the answer and the
+// worked solution. Recognized as their own fields so they are never
+// swallowed into the solution block and are re-emitted in a fixed order
+// (Answer → Source → Topic → Marks → Solution) the mcq parser reads
+// back losslessly. Mirrors the source aliases in markdown/mcq.ts.
+const SOURCE_LABEL = /^\s*(?:Source|Exam|Year)\s*[:.\-—]\s*(.*)$/i;
+const TOPIC_LABEL = /^\s*(?:Topic|Syllabus)\s*[:.\-—]\s*(.*)$/i;
+const MARKS_LABEL = /^\s*Marks\s*[:.\-—]\s*(.*)$/i;
 const SECTION_HEAD = /^\s*(Unit[\s-]*\d+[:.\-—].*|Section\s+[A-Z0-9].*)$/i;
 const URL_ONLY = /^\s*(?:Telegram|Join|Follow|Source|Channel)?\s*:?\s*https?:\/\/\S+\s*$/i;
 /** Trailing "(…2024…)" / "(June 2025)" / "(…Shift-2)" on a stem = the exam. */
@@ -42,6 +50,8 @@ const TRAILING_SOURCE = /\s*\(([^()]*(?:\b(?:19|20)\d{2}\b|shift|re-?exam|cancel
 interface RawQuestion {
   stem: string;
   source: string;
+  topic: string;
+  marks: string;
   statements: string[];
   options: string[];
   answer: string;
@@ -110,6 +120,8 @@ function emitQuestion(q: RawQuestion): string {
   for (const opt of q.options) lines.push(opt);
   if (q.answer) lines.push(`Answer: ${q.answer.trim()}`);
   if (q.source) lines.push(`Source: ${q.source.trim()}`);
+  if (q.topic) lines.push(`Topic: ${q.topic.trim()}`);
+  if (q.marks) lines.push(`Marks: ${q.marks.trim()}`);
   const sol = cleanSolution(q.solution);
   if (sol) {
     lines.push("Solution:");
@@ -131,7 +143,7 @@ export function normalizeQuestionText(text: string): { markdown: string; questio
   const preamble: string[] = [];
   const questions: RawQuestion[] = [];
   let q: RawQuestion | null = null;
-  let phase: "stem" | "options" | "solution" = "stem";
+  let phase: "stem" | "options" | "meta" | "solution" = "stem";
 
   const start = (stem: string): RawQuestion => {
     let s = stem;
@@ -141,7 +153,7 @@ export function normalizeQuestionText(text: string): { markdown: string; questio
       source = sm[1].trim();
       s = s.replace(TRAILING_SOURCE, "").trim();
     }
-    const created: RawQuestion = { stem: s, source, statements: [], options: [], answer: "", solution: [] };
+    const created: RawQuestion = { stem: s, source, topic: "", marks: "", statements: [], options: [], answer: "", solution: [] };
     questions.push(created);
     phase = "stem";
     return created;
@@ -165,8 +177,28 @@ export function normalizeQuestionText(text: string): { markdown: string; questio
     const am = line.match(ANSWER);
     if (am && phase !== "solution") {
       q.answer = am[1].trim();
-      phase = "solution";
+      phase = "meta";
       continue;
+    }
+    // Between the answer and the solution (or right after the options) a
+    // paper may tag the question with its source/topic/marks. Capture
+    // each as its own field so it is never folded into the solution.
+    if (phase === "options" || phase === "meta") {
+      const srcm = line.match(SOURCE_LABEL);
+      if (srcm) {
+        q.source = srcm[1].trim();
+        continue;
+      }
+      const topm = line.match(TOPIC_LABEL);
+      if (topm) {
+        q.topic = topm[1].trim();
+        continue;
+      }
+      const mkm = line.match(MARKS_LABEL);
+      if (mkm) {
+        q.marks = mkm[1].trim();
+        continue;
+      }
     }
     const solm = line.match(SOLUTION);
     if (solm && phase !== "stem") {
@@ -176,6 +208,15 @@ export function normalizeQuestionText(text: string): { markdown: string; questio
     }
     if (phase === "solution") {
       q.solution.push(line);
+      continue;
+    }
+    // In the meta phase an unlabeled non-empty line begins the worked
+    // solution — many papers give the explanation with no "Solution:".
+    if (phase === "meta") {
+      if (line.trim()) {
+        q.solution.push(line);
+        phase = "solution";
+      }
       continue;
     }
 

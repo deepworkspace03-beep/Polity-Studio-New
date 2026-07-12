@@ -29,6 +29,7 @@ export const HARNESS_JS = String.raw`(function () {
   var wmTemplate = document.getElementById("watermark-template");
 
   function report(pages, error) {
+    if (window.__PAGED_DONE__) return; // first result wins — never double-report
     window.__PAGED_PAGES__ = pages || 0;
     window.__PAGED_DONE__ = true;
     if (error) window.__PAGED_ERROR__ = String(error);
@@ -231,11 +232,36 @@ export const HARNESS_JS = String.raw`(function () {
 
   window.Paged.registerHandlers(StudioHandler);
 
-  // Never hang the host on a rendering hiccup.
+  // Never hang the host on a rendering hiccup — but a stray error or
+  // rejection during layout must NOT abort a render that is still
+  // progressing. Paged.js emits recoverable errors while paginating, so a
+  // fixed short timeout raced the layout: short documents finished inside
+  // the window and exported fine, but anything past ~10 pages was still
+  // laying out when the timer fired and got wrongly declared failed —
+  // which forced the whole export onto the print fallback. Instead of
+  // failing on a timer, watch the page count and only give up once
+  // pagination has genuinely stalled, reporting whatever pages exist.
+  var watching = false;
   function unblock(ev) {
-    setTimeout(function () {
-      if (!window.__PAGED_DONE__) report(0, (ev && (ev.message || ev.reason)) || "render error");
-    }, 800);
+    if (watching || window.__PAGED_DONE__) return;
+    watching = true;
+    var reason = (ev && (ev.message || ev.reason)) || "render error";
+    var lastCount = -1;
+    var stalls = 0;
+    (function check() {
+      if (window.__PAGED_DONE__) return; // afterRendered already reported success
+      var count = document.querySelectorAll(".pagedjs_page").length;
+      if (count !== lastCount) { lastCount = count; stalls = 0; } // still making progress
+      else stalls += 1;
+      // ~3s with no new page = genuinely stuck. Pages already laid out are
+      // a real (if partial) render, so keep them rather than discard the
+      // whole export; only a zero-page render is a true failure.
+      if (stalls >= 12) {
+        report(count, count ? null : reason);
+        return;
+      }
+      setTimeout(check, 250);
+    })();
   }
   window.addEventListener("error", unblock);
   window.addEventListener("unhandledrejection", unblock);

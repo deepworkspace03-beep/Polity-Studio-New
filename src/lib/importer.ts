@@ -2,6 +2,7 @@ import { importBackup } from "./store";
 import { newTally, plural, summarize, wrap, type Tally } from "./importTally";
 import { docxToMarkdown, isDocxSupported } from "./docx";
 import { looksLikeQuestionBank, normalizeQuestionText } from "./questionText";
+import { parseMcq, validateMcq } from "../markdown/mcq";
 import type { TemplateId } from "./types";
 
 /**
@@ -269,6 +270,23 @@ export function cleanPlainText(text: string): { markdown: string; fixes: number 
     are div/span soup that must stay plain text. */
 const RICH_RE = /<(h[1-6]|p|ul|ol|li|table|blockquote|pre|img|a|b|strong|em|i|u|s|del|ins|mark|sub|sup|code|hr)[\s>/]/i;
 
+/** True when the text is already in the clean question dialect — mcq.ts
+    parses it into fully-formed questions (each has its options and a
+    resolved answer, with no structural errors). Such a file was authored
+    in the dialect (or produced by the app itself), so the raw-paper
+    normalizer must leave it untouched: it rebuilds structure from
+    unstructured text and, run on an already-clean booklet, would only
+    reorder fields it already had right (folding a trailing `Exam:`/`Topic:`
+    into the worked solution and detaching the `Solution:` block). */
+function isCleanQuestionDialect(text: string): boolean {
+  const doc = parseMcq(text);
+  if (doc.total < 1) return false;
+  const questions = doc.sections.flatMap((s) => s.questions);
+  const wellFormed = questions.every((q) => q.text.trim() !== "" && q.options.length >= 3 && !!q.answer);
+  if (!wellFormed) return false;
+  return !validateMcq(doc).some((issue) => issue.level === "error");
+}
+
 export function smartPaste(html: string, text: string): ImportResult | null {
   if (html && RICH_RE.test(html)) {
     const result = htmlToMarkdown(html);
@@ -277,8 +295,10 @@ export function smartPaste(html: string, text: string): ImportResult | null {
     if (result.markdown && result.markdown !== text.trim()) return result;
   }
   if (!text) return null;
-  // A raw exam paper pasted as plain text gets fully restructured.
-  if (looksLikeQuestionBank(text)) {
+  // A raw exam paper pasted as plain text gets fully restructured — but
+  // text that already parses as a clean booklet is passed through so its
+  // field order and structure survive verbatim.
+  if (looksLikeQuestionBank(text) && !isCleanQuestionDialect(text)) {
     const { markdown, questions } = normalizeQuestionText(text);
     if (markdown && markdown !== text.trim()) {
       return { markdown, summary: `Structured ${plural(questions, "question")} from the paper` };
@@ -318,7 +338,11 @@ export async function readImportFile(file: File): Promise<FileImport> {
   const raw = await file.text();
   // A pasted/exported exam paper (PYQ or MCQ) is restructured into the
   // clean question dialect before it ever reaches the editor.
-  if ((ext === "txt" || ext === "text" || ext === "md" || ext === "markdown") && looksLikeQuestionBank(raw)) {
+  if (
+    (ext === "txt" || ext === "text" || ext === "md" || ext === "markdown") &&
+    looksLikeQuestionBank(raw) &&
+    !isCleanQuestionDialect(raw)
+  ) {
     const { markdown, questions } = normalizeQuestionText(raw);
     return { kind: "doc", title: file.name.replace(/\.\w+$/, ""), body: markdown, summary: `Structured ${plural(questions, "question")} from the paper` };
   }
