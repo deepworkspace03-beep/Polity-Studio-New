@@ -1,3 +1,4 @@
+import { resolveContent } from "./engine/materialize";
 import { VIEWER_JS } from "./harness";
 
 /**
@@ -169,10 +170,68 @@ async function inlineFontFaces(paginated: Document): Promise<string> {
   return resolved.join("\n");
 }
 
+const BAKED_COUNTERS_ID = "x-baked-counters";
+
+/** Bakes every generated-content `counter()` reference (chapter numbers,
+    the TOC's own numbering, TOC page references) into literal per-element
+    CSS rules before the snapshot is serialized.
+
+    Paged.js can't leave ordinary `counter-reset`/`counter-increment` to
+    the browser's native cascade for anything whose value depends on
+    where content lands after pagination (which page a heading fell on,
+    which page a TOC target landed on) — it resolves those itself in JS
+    during layout and strips the original counter-reset/increment
+    declarations from its live stylesheet once resolved (confirmed by
+    diffing the exported CSS against the source: `.doc { counter-reset:
+    chapter }` and `.toc__list { counter-reset: tocc }` are both empty in
+    the live document's computed stylesheet). That's invisible in the
+    live preview and PDF export — both read resolved values straight off
+    the still-running document — but a reopened standalone file has no
+    such runtime, so every one of those counters silently resets to its
+    initial value ("Chapter 0", TOC page "0", TOC entry "00").
+
+    The vector PDF engine already solves this per element (see
+    engine/materialize.ts's resolveContent, which walks Paged.js's own
+    data-counter-*-value bookkeeping rather than trusting the CSS
+    cascade); reusing that same resolver here bakes the correct text into
+    a tiny scoped rule per affected element, so the snapshot renders
+    correctly with no runtime involved. Purely static generated content
+    (quote marks, decorative dividers) is untouched — cheap, correct,
+    already fine natively — this only fires for the handful of elements
+    whose content actually contains `counter(`. */
+function bakeGeneratedCounters(doc: Document): void {
+  const win = doc.defaultView;
+  if (!win || doc.getElementById(BAKED_COUNTERS_ID)) return;
+  const pages = [...doc.querySelectorAll<HTMLElement>(".pagedjs_page")];
+  if (!pages.length) return;
+  const total = pages.length;
+  let css = "";
+  let n = 0;
+  for (const page of pages) {
+    const pageNum = parseInt(page.dataset.pageNumber || "0", 10);
+    for (const el of [page, ...page.querySelectorAll("*")]) {
+      for (const which of ["::before", "::after"] as const) {
+        const content = win.getComputedStyle(el, which).content;
+        if (!content || !content.includes("counter(")) continue;
+        const text = resolveContent(content, el, pageNum, total);
+        const marker = `x-gc-${n++}`;
+        el.classList.add(marker);
+        css += `.${marker}${which}{content:"${text.replace(/[\\"]/g, "\\$&")}"!important;}\n`;
+      }
+    }
+  }
+  if (!css) return;
+  const style = doc.createElement("style");
+  style.id = BAKED_COUNTERS_ID;
+  style.textContent = css;
+  doc.head.appendChild(style);
+}
+
 /** Serializes the paginated Publish document into a single
     self-contained HTML file. `paginated` is the live iframe document in
     which Paged.js has already finished laying out the pages. */
 export async function buildStandaloneHtml(paginated: Document, fileTitle: string): Promise<string> {
+  bakeGeneratedCounters(paginated);
   const fontCss = await inlineFontFaces(paginated);
   const root = paginated.documentElement.cloneNode(true) as HTMLElement;
 
