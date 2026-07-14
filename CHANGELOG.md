@@ -55,12 +55,31 @@ workflow:
   opt-in, checks PDF/HTML/live-preview page-count agreement and
   pixel-diffs the PDF engine's output against a committed baseline.
 
+- **Regression audit** — a follow-up pass found and fixed three real
+  regressions the fidelity/PWA work above introduced, all only visible
+  at a scale beyond the 10-page document used to verify the original
+  fixes: the kerning check compared whole-run width divergence
+  regardless of run length, sending most multi-syllable words (not
+  just the intended short heavily-kerned pairs) through a slower,
+  more verbose per-character PDF draw path — inflating both export
+  time and file size; the HTML export's counter-baking scanned every
+  element on every page instead of the four known selectors that ever
+  use a CSS counter, scaling with document size instead of with actual
+  need; and counters silently baked nothing when a PDF was exported
+  before the HTML export in the same session, because the bake ran
+  against the PDF engine's own pseudo-element-disabling stylesheet.
+  Also relabeled the Settings storage-usage figure — it was always
+  total origin storage, not document size, but the PWA precache
+  (~2.3MB) made that distinction newly significant. See
+  `docs/engineering/IMPLEMENTATION_REPORT.md` for root-cause detail.
+
 **Why.** Direct implementation of an extended improvement brief across
 PYQ/MCQ workflow, cover design, document model, editor productivity,
-export pipeline, offline support, and rendering fidelity — see the
-session's Final Engineering Report for the complete requirement-by-
-requirement breakdown, including what was intentionally deferred and
-why.
+export pipeline, offline support, and rendering fidelity, followed by
+a regression audit prompted by real-usage reports of export hangs and
+increased PDF size — see `docs/engineering/IMPLEMENTATION_REPORT.md`
+for the complete requirement-by-requirement breakdown, including what
+was intentionally deferred and why.
 
 **Impact.** No breaking changes for existing documents (all migrate
 automatically). Meaningfully smaller HTML exports; a real, previously
