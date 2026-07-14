@@ -384,9 +384,8 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
   }, [doc.template, doc.body]);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Publication</h3>
+    <div className="space-y-3">
+      <Disclosure title="Publication" subtitle="Subtitle, exam, author, language" icon="file">
         <Field label="Subtitle">
           <input className={inputClass} value={doc.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} placeholder="Shown under the title on the cover" />
         </Field>
@@ -420,18 +419,6 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         <Field label="Institute (cover)" hint="Name shown in the cover lockup. Leave blank to use the global brand name.">
           <input className={inputClass} value={doc.institute ?? ""} onChange={(e) => onChange({ institute: e.target.value || undefined })} placeholder={brand.name} />
         </Field>
-        <Field label="Cover highlights" hint="One line per highlight on the cover. Leave empty to use the template's defaults.">
-          <textarea
-            className={inputClass + " resize-none"}
-            rows={2}
-            value={(doc.coverLines ?? []).join("\n")}
-            onChange={(e) => {
-              const raw = e.target.value;
-              onChange({ coverLines: raw.trim() === "" ? undefined : raw.split("\n") });
-            }}
-            placeholder={"Premium Study Notes\nExam-Ready Coverage"}
-          />
-        </Field>
         <Field label="Language" hint="Controls the cover language badge and the PDF/HTML language for screen readers. It doesn't translate your content.">
           <Segmented
             value={doc.lang}
@@ -444,11 +431,9 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             ]}
           />
         </Field>
-      </div>
+      </Disclosure>
 
-      <div className="space-y-4">
-        <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Layout & PDF</h3>
-        <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
+      <Disclosure title="Cover Design" subtitle="Cover page, style, colors, highlights" icon="image">
         <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
         {doc.layout.cover && (
           <div className="grid grid-cols-2 gap-2">
@@ -487,84 +472,105 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             </button>
           </div>
         )}
+        {doc.layout.cover &&
+          (doc.layout.coverStyle === "custom" ? (
+            <CoverDesigner doc={doc} onChange={onChange} />
+          ) : (
+            <div>
+              <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
+              <CoverColorPicker doc={doc} onChange={onChange} />
+            </div>
+          ))}
         {doc.layout.cover && (
-          <Disclosure title="Design Cover" subtitle="Colors, pattern, typography, frame, emblem" icon="edit">
-            {doc.layout.coverStyle === "custom" ? (
-              <CoverDesigner doc={doc} onChange={onChange} />
-            ) : (
-              <div>
-                <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
-                <CoverColorPicker doc={doc} onChange={onChange} />
-              </div>
-            )}
-          </Disclosure>
+          <Field label="Cover highlights" hint="One line per highlight on the cover. Leave empty to use the template's defaults.">
+            <textarea
+              className={inputClass + " resize-none"}
+              rows={2}
+              value={(doc.coverLines ?? []).join("\n")}
+              onChange={(e) => {
+                const raw = e.target.value;
+                onChange({ coverLines: raw.trim() === "" ? undefined : raw.split("\n") });
+              }}
+              placeholder={"Premium Study Notes\nExam-Ready Coverage"}
+            />
+          </Field>
         )}
+      </Disclosure>
 
-        <Disclosure title="PDF Design" subtitle="Typography, density, page size, answers, watermark" icon="sliders" defaultOpen>
-          <Field label="Typography" hint="Both use only the studio's own bundled fonts. Sans reads more modern and slightly more compact.">
+      <Disclosure title="Typography & Page" subtitle="Font, density, page size" icon="sliders" defaultOpen>
+        <Field label="Typography" hint="Both use only the studio's own bundled fonts. Sans reads more modern and slightly more compact.">
+          <Segmented
+            value={doc.layout.typography}
+            onChange={(typography) => layout({ typography })}
+            options={[
+              { value: "serif", label: "Serif body" },
+              { value: "sans", label: "Sans body" },
+            ]}
+          />
+        </Field>
+        <Field label="Text density" hint="Ultra-Compact tightens spacing (not just font size) for very large question banks or long notes.">
+          <Segmented
+            value={doc.layout.density}
+            onChange={(density) => layout({ density })}
+            options={[
+              { value: "ultra", label: "Ultra" },
+              { value: "compact", label: "Compact" },
+              { value: "comfort", label: "Comfort" },
+              { value: "relaxed", label: "Relaxed" },
+            ]}
+          />
+        </Field>
+        <Field label="Page size">
+          <Segmented
+            value={doc.layout.pageSize}
+            onChange={(pageSize) => layout({ pageSize })}
+            options={[
+              { value: "a4", label: "A4" },
+              { value: "a5", label: "A5" },
+              { value: "letter", label: "Letter" },
+            ]}
+          />
+        </Field>
+      </Disclosure>
+
+      <Disclosure title="Content Options" subtitle="Contents, watermark, answers" icon="checklist" defaultOpen>
+        {template.hasToc && doc.layout.revisionStyle !== "cards" && (
+          <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />
+        )}
+        {template.hasWatermark && <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />}
+        {template.hasAnswers && (
+          <Field label="Answers & explanations" hint="Inline reveals the answer (✓ on the correct option) and any Solution right under each question. At the end prints a back-of-book answer key and explanations.">
             <Segmented
-              value={doc.layout.typography}
-              onChange={(typography) => layout({ typography })}
+              value={doc.layout.answers}
+              onChange={(answers) => layout({ answers })}
               options={[
-                { value: "serif", label: "Serif body" },
-                { value: "sans", label: "Sans body" },
+                { value: "end", label: "At the end" },
+                { value: "inline", label: "Inline" },
+                { value: "none", label: "Hidden" },
               ]}
             />
           </Field>
-          <Field label="Text density" hint="Ultra-Compact tightens spacing (not just font size) for very large question banks or long notes.">
+        )}
+        {template.hasRevisionStyle && (
+          <Field label="Layout" hint={'Notes is a dense summary/bullet layout. Flashcards splits each "##" heading into a front/back card for a cut-out deck.'}>
             <Segmented
-              value={doc.layout.density}
-              onChange={(density) => layout({ density })}
+              value={doc.layout.revisionStyle}
+              onChange={(revisionStyle) => layout({ revisionStyle })}
               options={[
-                { value: "ultra", label: "Ultra" },
-                { value: "compact", label: "Compact" },
-                { value: "comfort", label: "Comfort" },
-                { value: "relaxed", label: "Relaxed" },
+                { value: "notes", label: "Notes" },
+                { value: "cards", label: "Flashcards" },
               ]}
             />
           </Field>
-          <Field label="Page size">
-            <Segmented
-              value={doc.layout.pageSize}
-              onChange={(pageSize) => layout({ pageSize })}
-              options={[
-                { value: "a4", label: "A4" },
-                { value: "a5", label: "A5" },
-                { value: "letter", label: "Letter" },
-              ]}
-            />
-          </Field>
-          {template.hasToc && doc.layout.revisionStyle !== "cards" && (
-            <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />
-          )}
-          {template.hasWatermark && <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />}
-          {template.hasAnswers && (
-            <Field label="Answers & explanations" hint="Inline reveals the answer (✓ on the correct option) and any Solution right under each question. At the end prints a back-of-book answer key and explanations.">
-              <Segmented
-                value={doc.layout.answers}
-                onChange={(answers) => layout({ answers })}
-                options={[
-                  { value: "end", label: "At the end" },
-                  { value: "inline", label: "Inline" },
-                  { value: "none", label: "Hidden" },
-                ]}
-              />
-            </Field>
-          )}
-          {template.hasRevisionStyle && (
-            <Field label="Layout" hint={'Notes is a dense summary/bullet layout. Flashcards splits each "##" heading into a front/back card for a cut-out deck.'}>
-              <Segmented
-                value={doc.layout.revisionStyle}
-                onChange={(revisionStyle) => layout({ revisionStyle })}
-                options={[
-                  { value: "notes", label: "Notes" },
-                  { value: "cards", label: "Flashcards" },
-                ]}
-              />
-            </Field>
-          )}
-        </Disclosure>
-      </div>
+        )}
+      </Disclosure>
+
+      <Disclosure title="Presets & Advanced" subtitle="Saved layouts, restore defaults" icon="settings">
+        <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
+        <p className="text-[10.5px] leading-relaxed text-faint">
+          Page headers, footers, watermark text and brand colors apply to every document — set them once in Settings → Branding.
+        </p>
+      </Disclosure>
 
       {mcqIssues.length > 0 && (
         <div className="space-y-1.5 rounded-xl border border-edge bg-raised p-4">
@@ -638,7 +644,7 @@ export function Details({
             <IconButton label="Close" name="x" onClick={onClose} />
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="pane-scroll min-h-0 flex-1 overflow-y-auto p-5">
           <DetailsFields doc={doc} onChange={onChange} />
         </div>
       </div>
@@ -678,7 +684,7 @@ export function DetailsPane({
           <IconButton label="Collapse settings panel" name="chevronLeft" size={14} onClick={onCollapse} />
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="pane-scroll min-h-0 flex-1 overflow-y-auto p-4">
         <DetailsFields doc={doc} onChange={onChange} />
       </div>
     </div>

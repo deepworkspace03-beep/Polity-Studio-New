@@ -3,6 +3,40 @@
 High-level evolution of Polity Studio — meaningful milestones only, not
 a commit log. See `git log` for the full history.
 
+## v3.2.0 — 2026-07-14
+
+**Second stabilization pass + settings-panel reorganization.**
+
+- **Fixed: preview wedged on a broken 1-page layout after hiding the
+  pane.** Collapsing the preview pane (or switching to the mobile Write
+  tab) left the Pages preview re-paginating inside a `display:none`
+  iframe, where every element measures zero — Paged.js "succeeded" with
+  a garbage single page, and re-opening the pane restored that wedged
+  result. The preview now tracks real on-screen visibility and suspends
+  exactly like it already did under Publish: tear down while hidden,
+  rebuild on return (which also frees the paginated DOM's memory while
+  the pane is closed). The harness additionally refuses to lay out a
+  zero-width document so any future hidden-layout bug fails loudly.
+- **Autosave can no longer die silently.** If the browser closes the
+  IndexedDB connection (storage pressure, cross-tab schema upgrade),
+  the cached handle is dropped and reopened; a save caught mid-close
+  retries once.
+- **Export lifecycle** — the Back button is disabled while the engine
+  transcribes (leaving mid-export unmounted the iframe being measured);
+  the status line says "Finalizing PDF…" during the final compression
+  pass instead of sitting at "100%".
+- **Service-worker cache no longer grows without bound** — hashed
+  assets from old deploys are pruned on each fresh navigation (current
+  + previous build are kept).
+- **Settings panel reorganized** into five collapsible groups:
+  Publication · Cover Design (cover toggle, style, colors, highlights)
+  · Typography & Page · Content Options (TOC, watermark, answers) ·
+  Presets & Advanced — replacing the two long mixed sections.
+- **Quick Reboot** button on the permanent header (flushes saves, then
+  reloads fresh) and a **storage breakdown** in Settings → Your data
+  (documents & settings / offline app cache / a note that generated
+  PDFs are never stored).
+
 ## v3.1.1 — 2026-07-14
 
 **Production stabilization pass** — no new features; every change makes

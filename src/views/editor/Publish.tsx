@@ -59,11 +59,38 @@ export function Publish({
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
 
+  // Host-side stall watchdog — the iframe's own layout watchdog is an
+  // inline script; if the frame never runs scripts (a stalled vendor/
+  // font request through a dying service worker, the browser reclaiming
+  // the frame) nothing in there can report back and this overlay would
+  // sit on "Typesetting pages…" forever. See Preview.tsx for the same
+  // pattern; here a stall surfaces the error screen, whose "simplified
+  // layout" export path doesn't depend on the dead frame.
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armWatchdog = (ms: number) => {
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = setTimeout(() => {
+      setPhase((p) => {
+        if (p !== "layout") return p;
+        setError("the layout engine never responded — close and reopen Publish to try again");
+        return "error";
+      });
+    }, ms);
+  };
+  useEffect(() => {
+    armWatchdog(20_000);
+    return () => {
+      if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frameRef.current?.contentWindow) return;
       const d = e.data;
       if (d?.type === "paged-done") {
+        if (watchdogRef.current) clearTimeout(watchdogRef.current);
         if (d.error || !d.pages) {
           setPhase("error");
           setError(String(d.error || "The page layout produced no pages."));
@@ -73,6 +100,7 @@ export function Publish({
         }
       } else if (d?.type === "paged-progress" && typeof d.pages === "number") {
         setLaidOut(d.pages);
+        armWatchdog(30_000);
       } else if (d?.type === "page-visible") {
         setCurrent(d.page);
       } else if (d?.type === "zoom" && typeof d.zoom === "number") {

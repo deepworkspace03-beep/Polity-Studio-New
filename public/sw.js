@@ -63,6 +63,22 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
+// Cache Storage lookups can stall on Android when Chrome is terminating
+// or restarting this worker under memory pressure — and a stalled
+// respondWith() leaves the request hanging forever. For the paged
+// preview that meant the Paged.js <script src> never finished, the
+// inline harness (which owns the layout watchdog) never ran, and the
+// editor sat on "Laying out pages…" until the app was rebooted. Racing
+// every cache lookup against a short timeout turns a stall into an
+// ordinary network fetch (or, offline, a fast failure the preview
+// harness already reports cleanly).
+function cacheMatchSafe(request) {
+  return Promise.race([
+    caches.match(request),
+    new Promise((resolve) => setTimeout(() => resolve(undefined), 4000)),
+  ]).catch(() => undefined);
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -99,18 +115,18 @@ self.addEventListener("fetch", (event) => {
           });
           return res;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
+        .catch(() => cacheMatchSafe(request).then((cached) => cached || cacheMatchSafe("/")).then((cached) => cached || Response.error())),
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
+    cacheMatchSafe(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((res) => {
         if (res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
+          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
         }
         return res;
       });

@@ -201,6 +201,17 @@ scripted Playwright pass if you want it automated for one session.
   so a drop never falls through to CodeMirror's own file handling.
   Testing drops (Playwright or otherwise) needs a real `DragEvent` with a
   `DataTransfer` built via `new DataTransfer()` — no `dragenter` required.
+- **Never let Paged.js lay out inside a hidden iframe.** With a
+  `display:none` ancestor every element measures zero, so pagination
+  "succeeds" with a garbage 1-page layout (plus a null
+  `getBoundingClientRect` error) — and the identical-srcDoc restore
+  logic then faithfully re-shows that wedged result when the pane comes
+  back. `Preview.tsx` tracks real on-screen visibility with an
+  IntersectionObserver and suspends the paged pipeline while hidden
+  (same teardown/rebuild as the Publish suspension); the harness also
+  refuses to start layout at zero width so a regression fails loudly.
+  If you add another Paged.js consumer, keep it visible or suspended —
+  never hidden-but-live.
 - **A state-driven `srcDoc` iframe never reloads for identical HTML.**
   The Pages preview rebuilds its iframe by `setSrcDoc(buildDocumentHtml(…))`;
   when a setting is toggled and toggled back, the rebuilt HTML is
@@ -225,7 +236,11 @@ scripted Playwright pass if you want it automated for one session.
 - **`npm run test:visual` rebuilds by default** — pass
   `VISUAL_SKIP_BUILD=1` only when you *just* built and know `dist/` is
   current. It used to silently reuse whatever `dist/` existed, which
-  once validated a stale build as "pixel-identical".
+  once validated a stale build as "pixel-identical". In remote/CI
+  sandboxes the pinned playwright package's own browser download is
+  usually absent — the script falls back to the pre-installed
+  `/opt/pw-browsers/chromium` automatically (override with
+  `PLAYWRIGHT_CHROMIUM_PATH`).
 - **CodeMirror's view isn't reachable from the DOM in production builds.**
   When testing/inspecting editor content externally, read
   `document.querySelector(".cm-content").innerText` — note it renders

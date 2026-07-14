@@ -347,10 +347,14 @@ Two representations of the same typefaces ship, both offline:
   element of every page, and yields between pages. On a 405-page
   document that removes a measured ~3s synchronous freeze at the start
   of every export on tablet-class CPUs.
-- While Publish is open, the editor's Pages preview suspends (tears its
-  paginated DOM down and rebuilds on return) — otherwise two full
-  copies of a large document's layout are alive at once, which is what
-  pushes memory-constrained Android Chrome tabs into OOM.
+- While Publish is open — or whenever the preview pane isn't actually
+  on screen (collapsed rail, mobile Write tab; detected with an
+  IntersectionObserver) — the editor's Pages preview suspends (tears
+  its paginated DOM down and rebuilds on return). Two full copies of a
+  large document's layout alive at once is what pushes
+  memory-constrained Android Chrome tabs into OOM, and pagination
+  inside a display:none iframe measures everything at zero and wedges
+  the preview on a garbage 1-page result.
 - Paged.js layout reports live progress (`paged-progress` → "Typesetting
   pages… N" in Publish and the Pages preview), and a stall watchdog in
   the harness always runs: ~25s with no new page reports a partial (or

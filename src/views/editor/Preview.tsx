@@ -73,6 +73,20 @@ export function Preview({
   const [current, setCurrent] = useState(1);
   const [paginating, setPaginating] = useState(false);
   const [layoutProgress, setLayoutProgress] = useState(0);
+  // Host-side stall detection. The iframe carries its own layout
+  // watchdog, but that watchdog is an inline script — if the iframe
+  // never gets to run scripts at all (a stalled Paged.js/fonts request
+  // through a dying Android service worker, or the browser reclaiming
+  // the frame under memory pressure) nothing in there can ever report
+  // back, and the pane would sit on "Laying out pages…" until the app
+  // was rebooted. This watchdog lives in the host, so it survives
+  // anything that kills the iframe: no signal for the whole window →
+  // rebuild the iframe once automatically, then hand the reader a
+  // Retry button if even the rebuild stays silent.
+  const [stalled, setStalled] = useState(false);
+  const [retrySeq, setRetrySeq] = useState(0);
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRetriedRef = useRef(false);
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -101,6 +115,28 @@ export function Preview({
   const pendingZoomRestoreRef = useRef<ZoomMode | number | null>(null);
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
+
+  const clearWatchdog = () => {
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = null;
+  };
+  // Initial window is generous (iframe load + Paged.js boot on a slow
+  // tablet); once progress reports start, each one re-arms a window a
+  // little wider than the iframe's own ~25s stall watcher, so the host
+  // only ever fires when the iframe is truly dead, never merely slow.
+  const armWatchdog = (ms: number) => {
+    clearWatchdog();
+    watchdogRef.current = setTimeout(() => {
+      watchdogRef.current = null;
+      if (!autoRetriedRef.current) {
+        autoRetriedRef.current = true;
+        setRetrySeq((n) => n + 1); // rebuild the iframe once, silently
+      } else {
+        setPaginating(false);
+        setStalled(true);
+      }
+    }, ms);
+  };
 
   // Track whether the pane is really on screen (IntersectionObserver
   // reports display:none ancestors as not intersecting, covering the
@@ -132,10 +168,16 @@ export function Preview({
       setSrcDoc("");
       setPages(null);
       setPaginating(false);
+      clearWatchdog();
+      setStalled(false);
       return;
     }
     const shellKey = `${mode}|${buildShellKey(doc, brand, theme)}`;
     const rebuild = shellKey !== shellKeyRef.current || !readyRef.current;
+    if (mode !== "pages") {
+      clearWatchdog();
+      setStalled(false);
+    }
     if (mode === "pages") {
       setPaginating(true);
       setPages(null);
@@ -150,7 +192,12 @@ export function Preview({
     const timer = setTimeout(
       () => {
         if (mode === "pages") {
-          const html = buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", theme });
+          // The retry nonce forces a byte-different document (and so a
+          // real iframe reload) when the stall watchdog rebuilds — the
+          // content is unchanged.
+          const html =
+            buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", theme }) +
+            (retrySeq > 0 ? `\n<!--retry:${retrySeq}-->` : "");
           // Identical output — e.g. a setting toggled and toggled straight
           // back. React skips the state update for an identical srcDoc, so
           // the iframe never reloads and paged-done never re-fires; without
@@ -168,7 +215,9 @@ export function Preview({
           readyRef.current = false;
           pendingZoomRestoreRef.current = zoomCmdRef.current;
           srcDocRef.current = html;
+          setStalled(false);
           setSrcDoc(html);
+          armWatchdog(20_000);
         } else if (rebuild) {
           shellKeyRef.current = shellKey;
           readyRef.current = false;
@@ -190,7 +239,10 @@ export function Preview({
     );
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, brand, mode, theme, hidden]);
+  }, [doc, brand, mode, theme, hidden, retrySeq]);
+
+  // The watchdog must not outlive the component.
+  useEffect(() => clearWatchdog, []);
 
   // Cursor follows the editor into the preview.
   useEffect(() => {
@@ -209,6 +261,9 @@ export function Preview({
         if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "paged-done") {
         readyRef.current = true;
+        clearWatchdog();
+        autoRetriedRef.current = false;
+        setStalled(false);
         setPaginating(false);
         const settled = typeof d.pages === "number" && d.pages > 0 ? d.pages : null;
         lastPagesRef.current = settled;
@@ -222,6 +277,10 @@ export function Preview({
         if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "paged-progress" && typeof d.pages === "number") {
         setLayoutProgress(d.pages);
+        // Progress proves the iframe is alive — from here the iframe's
+        // own ~25s stall watcher is authoritative; the host only steps
+        // in if even that goes silent (frame killed mid-layout).
+        armWatchdog(30_000);
       } else if (d.type === "page-visible") {
         setCurrent(d.page);
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
@@ -283,6 +342,19 @@ export function Preview({
               <IconButton label="Next page" name="chevronRight" size={14} onClick={() => goTo(current + 1)} />
             </div>
           </>
+        ) : isPages && stalled ? (
+          <button
+            type="button"
+            onClick={() => {
+              autoRetriedRef.current = false;
+              setStalled(false);
+              setPaginating(true);
+              setRetrySeq((n) => n + 1);
+            }}
+            className="rounded-md border border-edge px-2 py-0.5 text-[11px] font-semibold text-warn hover:border-faint"
+          >
+            Preview didn't respond — tap to retry
+          </button>
         ) : (
           <span className="text-xs text-faint" aria-live="polite">
             {isPages

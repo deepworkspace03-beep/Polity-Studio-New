@@ -272,9 +272,10 @@ export async function buildStandaloneHtml(paginated: Document, fileTitle: string
   const root = paginated.documentElement.cloneNode(true) as HTMLElement;
 
   // Strip everything the static snapshot doesn't need: the harness and
-  // Paged.js scripts, the consumed watermark template, and the
-  // fonts.css link (replaced by the inlined faces below).
-  root.querySelectorAll("script, template, link[rel='stylesheet']").forEach((el) => el.remove());
+  // Paged.js scripts, the consumed watermark template, the fonts.css
+  // link (replaced by the inlined faces below), and the preview's page
+  // navigator rail (the viewer script has its own page indicator).
+  root.querySelectorAll("script, template, link[rel='stylesheet'], #x-nav-rail, #x-nav-bubble").forEach((el) => el.remove());
 
   const title = root.querySelector("title");
   if (title) title.textContent = fileTitle;
