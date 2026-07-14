@@ -156,14 +156,18 @@ export function Publish({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg" role="dialog" aria-modal="true" aria-label="Publish PDF">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
-        <IconButton label="Back to editor" name="back" size={18} onClick={onClose} />
+        {/* Leaving mid-export would unmount the iframe the engine is
+            actively measuring — same reason Escape is ignored then. */}
+        <IconButton label="Back to editor" name="back" size={18} onClick={onClose} disabled={phase === "exporting"} />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-bold leading-tight">{doc.title || "Untitled"}</h2>
           <p className="truncate text-xs text-faint">
             {phase === "layout"
               ? laidOut > 0 ? `Typesetting pages… ${laidOut}` : "Typesetting pages…"
               : phase === "exporting"
-                ? `Building vector PDF… ${Math.round(progress * 100)}%`
+                ? progress >= 1
+                  ? "Finalizing PDF — compressing fonts and streams…"
+                  : `Building vector PDF… ${Math.round(progress * 100)}%`
                 : phase === "ready"
                   ? `${pages} page${pages === 1 ? "" : "s"} · vector PDF, opens instantly`
                   : "Layout failed"}

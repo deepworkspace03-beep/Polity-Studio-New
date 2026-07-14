@@ -22,8 +22,26 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("docs")) db.createObjectStore("docs", { keyPath: "id" });
       if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Browsers may close the connection out from under the page
+      // (storage pressure on tablets, or another tab upgrading the
+      // schema). A cached handle to a closed connection would make every
+      // later autosave reject silently — drop it so the next operation
+      // reopens instead.
+      db.onclose = () => {
+        dbPromise = null;
+      };
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error);
+    };
   });
   return dbPromise;
 }
@@ -37,7 +55,14 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
 
 async function store(name: "docs" | "kv", mode: IDBTransactionMode): Promise<IDBObjectStore> {
   const db = await openDb();
-  return db.transaction(name, mode).objectStore(name);
+  try {
+    return db.transaction(name, mode).objectStore(name);
+  } catch {
+    // The connection closed without onclose having fired yet — reopen
+    // once so a single dropped connection never loses a save.
+    dbPromise = null;
+    return (await openDb()).transaction(name, mode).objectStore(name);
+  }
 }
 
 export const db = {

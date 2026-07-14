@@ -60,6 +60,14 @@ export function Preview({
   suspended?: boolean;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
+  // Whether the preview is actually rendered on screen. Collapsing the
+  // pane (or the mobile Write tab) hides it with display:none — inside a
+  // hidden iframe every element measures zero, so Paged.js "lays out" a
+  // garbage 1-page document and the pane comes back wedged on it. Treat
+  // hidden exactly like the Publish suspension: tear the paged DOM down,
+  // rebuild when visible again (also freeing its memory while hidden).
+  const [visible, setVisible] = useState(true);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [srcDoc, setSrcDoc] = useState("");
   const [pages, setPages] = useState<number | null>(null);
   const [current, setCurrent] = useState(1);
@@ -94,13 +102,29 @@ export function Preview({
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
 
+  // Track whether the pane is really on screen (IntersectionObserver
+  // reports display:none ancestors as not intersecting, covering the
+  // collapsed rail, the mobile Write tab and any future hidden state).
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => {
+      setVisible(entries[entries.length - 1].isIntersecting);
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  const hidden = suspended || !visible;
+
   // Content pipeline — full shell rebuild only when the shell itself
   // (fonts, page geometry, template CSS, mode) changes.
   useEffect(() => {
-    // Publish is paginating the same document in its own iframe — drop
-    // the heavy paged DOM for the duration (see the prop's doc comment).
+    // Publish is paginating the same document in its own iframe (or the
+    // pane itself is hidden) — drop the heavy paged DOM for the duration
+    // (see the `suspended` prop's doc comment and `visible` above).
     // Flow mode stays: it's one lightweight copy of the content.
-    if (suspended && mode === "pages") {
+    if (hidden && mode === "pages") {
       readyRef.current = false;
       shellKeyRef.current = "";
       lastContentRef.current = "";
@@ -166,7 +190,7 @@ export function Preview({
     );
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, brand, mode, theme, suspended]);
+  }, [doc, brand, mode, theme, hidden]);
 
   // Cursor follows the editor into the preview.
   useEffect(() => {
@@ -231,7 +255,7 @@ export function Preview({
   const isDark = theme === "dark";
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div ref={rootRef} className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-b border-edge bg-surface px-2 py-1">
         <Segmented
           size="sm"

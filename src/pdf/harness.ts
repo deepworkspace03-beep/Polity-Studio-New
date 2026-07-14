@@ -43,6 +43,15 @@ export const HARNESS_JS = String.raw`(function () {
     return;
   }
 
+  // A hidden iframe (display:none host pane) measures every element at
+  // zero, so Paged.js would "succeed" with a garbage 1-page layout that
+  // then sticks. The host suspends hidden previews so this should never
+  // fire — but if a future change reintroduces one, fail loudly instead.
+  if (!document.documentElement.clientWidth) {
+    report(0, "preview is hidden — layout has no dimensions");
+    return;
+  }
+
   /* ── Zoom (preview only) ─────────────────────────────────────────
      "fit-width" | "fit-page" | number. CSS zoom keeps real geometry so
      scrolling, page navigation and the export transcriber all stay
