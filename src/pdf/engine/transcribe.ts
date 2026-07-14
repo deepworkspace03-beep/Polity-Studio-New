@@ -72,7 +72,7 @@ export async function transcribePaginated(
   const K = 72 / 96;
 
   try {
-    materializePseudos(srcDoc);
+    await materializePseudos(srcDoc);
 
     for (let p = 0; p < pageEls.length; p++) {
       const box = pageEls[p].querySelector<HTMLElement>(".pagedjs_pagebox") ?? pageEls[p];

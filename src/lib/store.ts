@@ -164,6 +164,16 @@ function normalizeSettings(settings: Settings): Settings {
 }
 
 export async function initStore(): Promise<void> {
+  // Documents live only in this origin's IndexedDB — under storage
+  // pressure (common on tablets/phones) Chrome may evict a "best-effort"
+  // origin's data wholesale. Persistent storage takes that eviction off
+  // the table; on an installed/frequently-used PWA Chrome grants it
+  // silently, and a denial simply keeps today's best-effort behavior.
+  try {
+    void navigator.storage?.persist?.();
+  } catch {
+    /* older browser — nothing lost */
+  }
   try {
     const [docs, settings, brand] = await Promise.all([
       db.allDocs(),

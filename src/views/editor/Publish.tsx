@@ -45,6 +45,9 @@ export function Publish({
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const [progress, setProgress] = useState(0);
+  // Pages laid out so far — a moving number while typesetting large
+  // documents, so a long layout never reads as a hang.
+  const [laidOut, setLaidOut] = useState(0);
 
   const fileTitle = useMemo(() => buildFileTitle(doc, brand, settings), [doc, brand, settings]);
   // Snapshot at open — the overlay owns the screen, the doc can't change.
@@ -68,6 +71,8 @@ export function Publish({
           setPhase("ready");
           setPages(d.pages);
         }
+      } else if (d?.type === "paged-progress" && typeof d.pages === "number") {
+        setLaidOut(d.pages);
       } else if (d?.type === "page-visible") {
         setCurrent(d.page);
       } else if (d?.type === "zoom" && typeof d.zoom === "number") {
@@ -156,7 +161,7 @@ export function Publish({
           <h2 className="truncate text-[15px] font-bold leading-tight">{doc.title || "Untitled"}</h2>
           <p className="truncate text-xs text-faint">
             {phase === "layout"
-              ? "Typesetting pages…"
+              ? laidOut > 0 ? `Typesetting pages… ${laidOut}` : "Typesetting pages…"
               : phase === "exporting"
                 ? `Building vector PDF… ${Math.round(progress * 100)}%`
                 : phase === "ready"
@@ -217,13 +222,18 @@ export function Publish({
           ref={frameRef}
           title="Typeset pages"
           srcDoc={html}
-          className="h-full w-full border-0"
+          // While the engine transcribes, an accidental touch/pinch on the
+          // preview would change its zoom and corrupt the measurements the
+          // transcriber reads from the live layout — block interaction.
+          className={`h-full w-full border-0${phase === "exporting" ? " pointer-events-none" : ""}`}
           sandbox="allow-same-origin allow-scripts allow-modals"
         />
         {phase === "layout" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg/85">
             <Icon name="loader" size={22} className="animate-spin text-accent" />
-            <p className="text-sm text-ink-2">Typesetting your pages…</p>
+            <p className="text-sm text-ink-2">
+              {laidOut > 0 ? `Typesetting your pages… ${laidOut} so far` : "Typesetting your pages…"}
+            </p>
           </div>
         )}
         {phase === "exporting" && (

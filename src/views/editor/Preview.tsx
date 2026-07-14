@@ -35,6 +35,7 @@ export function Preview({
   fullscreen,
   onToggleFullscreen,
   onCollapse,
+  suspended,
 }: {
   doc: Doc;
   brand: BrandConfig;
@@ -50,17 +51,30 @@ export function Preview({
   onToggleFullscreen: () => void;
   /** Tucks the preview pane away to a slim rail (desktop/tablet three-pane layout only). */
   onCollapse?: () => void;
+  /** While the Publish overlay is open it paginates the same document in
+      its own iframe — keeping the Pages preview's full paginated DOM
+      alive underneath doubles peak memory for zero visible benefit,
+      which is exactly what pushes Android Chrome tabs over the edge on
+      large documents. Suspension tears the paged iframe down; closing
+      Publish rebuilds it (the same work a settings change already does). */
+  suspended?: boolean;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
   const [srcDoc, setSrcDoc] = useState("");
   const [pages, setPages] = useState<number | null>(null);
   const [current, setCurrent] = useState(1);
   const [paginating, setPaginating] = useState(false);
+  const [layoutProgress, setLayoutProgress] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const frameRef = useRef<HTMLIFrameElement>(null);
   const readyRef = useRef(false);
   const lastContentRef = useRef("");
+  // Mirror of the srcDoc state + the last settled page count — needed to
+  // detect a rebuild whose HTML is identical to what the iframe already
+  // shows (see the pages branch below).
+  const srcDocRef = useRef("");
+  const lastPagesRef = useRef<number | null>(null);
   const editingRef = useRef(false);
   const shellKeyRef = useRef("");
   const cursorRef = useRef(cursorLine);
@@ -83,11 +97,25 @@ export function Preview({
   // Content pipeline — full shell rebuild only when the shell itself
   // (fonts, page geometry, template CSS, mode) changes.
   useEffect(() => {
+    // Publish is paginating the same document in its own iframe — drop
+    // the heavy paged DOM for the duration (see the prop's doc comment).
+    // Flow mode stays: it's one lightweight copy of the content.
+    if (suspended && mode === "pages") {
+      readyRef.current = false;
+      shellKeyRef.current = "";
+      lastContentRef.current = "";
+      srcDocRef.current = "";
+      setSrcDoc("");
+      setPages(null);
+      setPaginating(false);
+      return;
+    }
     const shellKey = `${mode}|${buildShellKey(doc, brand, theme)}`;
     const rebuild = shellKey !== shellKeyRef.current || !readyRef.current;
     if (mode === "pages") {
       setPaginating(true);
       setPages(null);
+      setLayoutProgress(0);
     }
     // Adaptive debounce: very large documents render and (especially)
     // paginate slower, so give typing a longer quiet window before the
@@ -98,15 +126,32 @@ export function Preview({
     const timer = setTimeout(
       () => {
         if (mode === "pages") {
+          const html = buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", theme });
+          // Identical output — e.g. a setting toggled and toggled straight
+          // back. React skips the state update for an identical srcDoc, so
+          // the iframe never reloads and paged-done never re-fires; without
+          // this branch the pane sat on "Laying out pages…" forever. If the
+          // iframe already settled, restore its result; if that exact HTML
+          // is still paginating, just let its own paged-done land.
+          if (html === srcDocRef.current) {
+            if (readyRef.current) {
+              setPaginating(false);
+              setPages(lastPagesRef.current);
+            }
+            return;
+          }
           shellKeyRef.current = shellKey;
           readyRef.current = false;
           pendingZoomRestoreRef.current = zoomCmdRef.current;
-          setSrcDoc(buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", theme }));
+          srcDocRef.current = html;
+          setSrcDoc(html);
         } else if (rebuild) {
           shellKeyRef.current = shellKey;
           readyRef.current = false;
           lastContentRef.current = "";
-          setSrcDoc(buildDocumentHtml(doc, brand, { mode: "flow", purpose: "preview", theme }));
+          const html = buildDocumentHtml(doc, brand, { mode: "flow", purpose: "preview", theme });
+          srcDocRef.current = html;
+          setSrcDoc(html);
         } else if (!editingRef.current) {
           const html = buildDocContent(doc, brand);
           // Skip the innerHTML swap (and the layout it forces) when the
@@ -121,7 +166,7 @@ export function Preview({
     );
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, brand, mode, theme]);
+  }, [doc, brand, mode, theme, suspended]);
 
   // Cursor follows the editor into the preview.
   useEffect(() => {
@@ -141,7 +186,9 @@ export function Preview({
       } else if (d.type === "paged-done") {
         readyRef.current = true;
         setPaginating(false);
-        setPages(typeof d.pages === "number" && d.pages > 0 ? d.pages : null);
+        const settled = typeof d.pages === "number" && d.pages > 0 ? d.pages : null;
+        lastPagesRef.current = settled;
+        setPages(settled);
         // Repagination reloads the iframe from scratch, which resets its
         // zoom to fit-width — restore whatever the reader last chose.
         if (pendingZoomRestoreRef.current !== null) {
@@ -149,6 +196,8 @@ export function Preview({
           pendingZoomRestoreRef.current = null;
         }
         if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
+      } else if (d.type === "paged-progress" && typeof d.pages === "number") {
+        setLayoutProgress(d.pages);
       } else if (d.type === "page-visible") {
         setCurrent(d.page);
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
@@ -212,7 +261,13 @@ export function Preview({
           </>
         ) : (
           <span className="text-xs text-faint" aria-live="polite">
-            {isPages ? (paginating ? "Laying out pages…" : "") : "Live preview · tap a title to edit"}
+            {isPages
+              ? paginating
+                ? layoutProgress > 0
+                  ? `Laying out pages… ${layoutProgress}`
+                  : "Laying out pages…"
+                : ""
+              : "Live preview · tap a title to edit"}
           </span>
         )}
 

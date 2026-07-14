@@ -206,8 +206,20 @@ export const HARNESS_JS = String.raw`(function () {
     return (s || "").split(/\s*[:—–]\s+|\s+[-]\s+/)[0].trim();
   }
 
+  // Live layout progress — on a large document (or slow tablet) the
+  // full layout takes long enough that a silent spinner reads as a hang;
+  // a moving page count is the difference between "working" and "stuck".
+  var laidOut = 0;
+  var lastProgressAt = 0;
+
   class StudioHandler extends window.Paged.Handler {
     afterPageLayout(pageElement) {
+      laidOut += 1;
+      var now = Date.now();
+      if (now - lastProgressAt > 300) {
+        lastProgressAt = now;
+        try { parent.postMessage({ type: "paged-progress", pages: laidOut }, "*"); } catch (e) {}
+      }
       var topicBox = pageElement.querySelector(".pagedjs_margin-top-center .run-head-topic");
       if (topicBox) topicBox.textContent = shortTopic(curChap || curSect);
       var heads = pageElement.querySelectorAll(".doc h1, .doc h2, .mcq h1, .mcq h2, .deck h1, .deck h2");
@@ -241,30 +253,38 @@ export const HARNESS_JS = String.raw`(function () {
   // which forced the whole export onto the print fallback. Instead of
   // failing on a timer, watch the page count and only give up once
   // pagination has genuinely stalled, reporting whatever pages exist.
-  var watching = false;
+  // One stall watcher, always on. It runs from the start with a wide
+  // window (~25s without a single new page) so Paged.js stopping silently
+  // (pathological content, no error event) can never leave the host on
+  // "Typesetting pages…" forever — the old watchdog only armed after an
+  // error event, which made a silent stall a true hang. A recoverable
+  // error/rejection during layout tightens the window to ~3s: at that
+  // point a stall means the error genuinely aborted layout, and a slow
+  // tablet is still safe because any page progress resets the count.
+  var stallTicks = 100;
+  var stallReason = "layout stalled";
   function unblock(ev) {
-    if (watching || window.__PAGED_DONE__) return;
-    watching = true;
-    var reason = (ev && (ev.message || ev.reason)) || "render error";
-    var lastCount = -1;
-    var stalls = 0;
-    (function check() {
-      if (window.__PAGED_DONE__) return; // afterRendered already reported success
-      var count = document.querySelectorAll(".pagedjs_page").length;
-      if (count !== lastCount) { lastCount = count; stalls = 0; } // still making progress
-      else stalls += 1;
-      // ~3s with no new page = genuinely stuck. Pages already laid out are
-      // a real (if partial) render, so keep them rather than discard the
-      // whole export; only a zero-page render is a true failure.
-      if (stalls >= 12) {
-        report(count, count ? null : reason);
-        return;
-      }
-      setTimeout(check, 250);
-    })();
+    stallTicks = 12;
+    stallReason = (ev && (ev.message || ev.reason)) || "render error";
   }
   window.addEventListener("error", unblock);
   window.addEventListener("unhandledrejection", unblock);
+  var lastCount = -1;
+  var stalls = 0;
+  (function check() {
+    if (window.__PAGED_DONE__) return; // afterRendered already reported success
+    var count = document.querySelectorAll(".pagedjs_page").length;
+    if (count !== lastCount) { lastCount = count; stalls = 0; } // still making progress
+    else stalls += 1;
+    // No new page for the whole window = genuinely stuck. Pages already
+    // laid out are a real (if partial) render, so keep them rather than
+    // discard the whole export; only a zero-page render is a true failure.
+    if (stalls >= stallTicks) {
+      report(count, count ? null : stallReason);
+      return;
+    }
+    setTimeout(check, 250);
+  })();
 })();`;
 
 /**
