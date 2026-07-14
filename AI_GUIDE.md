@@ -201,6 +201,31 @@ scripted Playwright pass if you want it automated for one session.
   so a drop never falls through to CodeMirror's own file handling.
   Testing drops (Playwright or otherwise) needs a real `DragEvent` with a
   `DataTransfer` built via `new DataTransfer()` — no `dragenter` required.
+- **A state-driven `srcDoc` iframe never reloads for identical HTML.**
+  The Pages preview rebuilds its iframe by `setSrcDoc(buildDocumentHtml(…))`;
+  when a setting is toggled and toggled back, the rebuilt HTML is
+  byte-identical, React skips the no-op state update, the iframe never
+  reloads — and anything waiting on the iframe's "done" message waits
+  forever. `Preview.tsx` detects the identical rebuild and restores the
+  settled state instead (see the pages branch of its content-pipeline
+  effect). If you add another srcDoc-driven iframe with a completion
+  signal, handle the identical-content case or you'll reintroduce the
+  v3.1.1 "Laying out pages… forever" hang.
+- **Pseudo-element scans must be scoped, not exhaustive.** Calling
+  `getComputedStyle(el, "::before"/"::after")` across every element of
+  every paginated page is a synchronous full-DOM scan that freezes the
+  tab for seconds on 100+ page documents (measured 3.1s at 4× CPU
+  throttle, 55k elements, 2.2% hit rate). Both consumers are already
+  scoped: `htmlExport.ts` to the four known counter selectors,
+  `engine/materialize.ts` by enumerating the stylesheets' own
+  `::before`/`::after` selectors (complete by construction — inline
+  styles can't create pseudos and every sheet is first-party; it falls
+  back to the exhaustive scan if the stylesheet walk fails). Keep any
+  new generated-content code on the same pattern.
+- **`npm run test:visual` rebuilds by default** — pass
+  `VISUAL_SKIP_BUILD=1` only when you *just* built and know `dist/` is
+  current. It used to silently reuse whatever `dist/` existed, which
+  once validated a stale build as "pixel-identical".
 - **CodeMirror's view isn't reachable from the DOM in production builds.**
   When testing/inspecting editor content externally, read
   `document.querySelector(".cm-content").innerText` — note it renders

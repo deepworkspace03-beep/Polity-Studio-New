@@ -3,6 +3,54 @@
 High-level evolution of Polity Studio — meaningful milestones only, not
 a commit log. See `git log` for the full history.
 
+## v3.1.1 — 2026-07-14
+
+**Production stabilization pass** — no new features; every change makes
+the existing workflow survive large documents, slow tablets and long
+sessions. All fixes verified against 130–437-page documents in a real
+Chromium, including at 4× CPU throttling (an Android-tablet proxy), and
+confirmed pixel-identical to the previous release's PDF output by the
+visual-regression benchmark.
+
+- **Fixed: Pages preview hung forever after toggling a setting and
+  toggling it back.** Rebuilding the paged preview with byte-identical
+  HTML never reloaded the iframe (React skips identical state), so the
+  "layout finished" signal never re-fired and the pane sat on "Laying
+  out pages…" indefinitely — the exact repeated-setting-changes hang
+  reported from production. The preview now recognizes an identical
+  rebuild and restores the already-settled result instantly.
+- **Fixed: multi-second UI freeze at the start of every PDF export.**
+  The engine's pseudo-element materializer probed every element of
+  every page with `getComputedStyle` twice, synchronously (measured:
+  3.1s frozen for a 55k-element/405-page document at 4× throttle, only
+  2.2% of probes hitting a real pseudo). It now enumerates the
+  stylesheets' own `::before`/`::after` selectors — provably complete,
+  verified element-for-element equivalent on a 405-page document — and
+  yields between pages. Throttled 405-page export dropped from 180s to
+  149s with a lower peak heap.
+- **Halved peak memory while Publish is open.** The editor's Pages
+  preview kept its own full paginated DOM alive underneath the Publish
+  overlay — two copies of a 400-page layout is what pushes Android
+  Chrome tabs into OOM "hangs". The preview now suspends while Publish
+  is open and rebuilds on return.
+- **Typesetting can no longer hang silently.** The layout stall
+  watchdog previously armed only after a JS error; a silent Paged.js
+  stall waited forever. It now always runs (wide ~25s no-progress
+  window, tightened to ~3s after a real error), and both Publish and
+  the Pages preview show a live "Typesetting pages… N" count so slow
+  layout on a tablet is visibly working, not stuck.
+- **Touch safety during export** — the Publish preview ignores touches
+  while the engine transcribes, so an accidental pinch can't corrupt
+  the measurements being read from the live layout.
+- **Storage durability on tablets** — the app now requests persistent
+  storage, taking Chrome's under-pressure eviction of IndexedDB (where
+  every document lives) off the table.
+- `npm run test:visual` now always rebuilds before benchmarking
+  (`VISUAL_SKIP_BUILD=1` opts out) — it previously reused any stale
+  `dist/` silently, which could validate the wrong build. Baseline
+  refreshed (was stale since v3.1.0's kerning fix, as HANDOVER.md
+  documented).
+
 ## v3.1.0 — 2026-07-14
 
 **What changed.** A large improvement pass across the whole publishing
