@@ -5,7 +5,38 @@ a commit log. See `git log` for the full history.
 
 ## v3.2.0 — 2026-07-14
 
-**Second stabilization pass + settings-panel reorganization.**
+**Second stabilization pass, tablet-first navigation, PDF word-spacing
+fix, settings-panel reorganization.** Primary target platform for the
+stability work: Chrome on Android tablets.
+
+- **Fixed: the intermittent "preview stuck until reboot" hang.** Root
+  cause: every settings change reloads the paged preview iframe, whose
+  Paged.js/font requests flow through the service worker — and Android
+  Chrome kills/restarts service workers aggressively. A stalled cache
+  lookup left the iframe's `<script src>` pending forever, so the
+  inline harness (which owned the only layout watchdog) never ran and
+  the pane waited forever. Three independent layers now prevent it:
+  the service worker races every cache lookup against a 4s timeout
+  (a stall becomes an ordinary network fetch); a **host-side watchdog**
+  in both the editor preview and Publish — outside the iframe, so it
+  survives anything that kills the iframe — silently rebuilds after 20s
+  of silence and offers a Retry button if that fails too. Verified by
+  injecting real request stalls: transient stalls self-heal with no
+  user action.
+- **Fixed: merged words in the exported PDF** ("PreventiveDetention").
+  pdf-lib draws words with raw un-kerned advances, so a word could
+  render a few px wider than the browser measured and swallow the gap
+  before its neighbor. Every text run is now width-checked and any
+  divergence is distributed across the run as PDF character spacing,
+  so each word occupies exactly its browser-measured width — one extra
+  operator per affected word, no per-character fallback, complex
+  scripts (Devanagari) never split. PDF word spacing now matches the
+  HTML preview throughout.
+- **Three-pane navigation (tablet-first).** The editor and settings
+  panes get always-visible, touch-draggable scrollbars; both preview
+  iframes style theirs to match; and the paged preview gains a page
+  navigator rail — page-number ticks, a viewport thumb, drag-to-jump
+  and a live "page / total" bubble.
 
 - **Fixed: preview wedged on a broken 1-page layout after hiding the
   pane.** Collapsing the preview pane (or switching to the mobile Write

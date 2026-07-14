@@ -340,6 +340,23 @@ Two representations of the same typefaces ship, both offline:
   a Map hit after warm-up, which removes millions of microtask
   allocations on a 400-page export. The transcriber yields to the
   event loop after every page so the progress bar stays live.
+- Every text run's PDF width is reconciled with its browser-measured
+  rect: pdf-lib lays glyphs out with raw, un-kerned advances (no GPOS),
+  so a word can come out a few px wider than the browser rendered it —
+  wide enough to visually swallow the gap before the next absolutely-
+  positioned word. The divergence is distributed across the run as PDF
+  character spacing (one extra operator), with a per-face shaped-width
+  cache so repeated words are measured once; complex scripts are never
+  split per character (that would break Devanagari shaping).
+- Paged previews and Publish are guarded by a **host-side** stall
+  watchdog on top of the iframe's own: the iframe watchdog is an inline
+  script, so anything that prevents the iframe from running scripts at
+  all (a stalled vendor/font request through a dying Android service
+  worker, the browser reclaiming the frame) would otherwise hang the
+  host forever. Silence past the window rebuilds the preview once
+  automatically, then surfaces a Retry button; Publish surfaces its
+  error screen. The service worker itself races every cache lookup
+  against a 4s timeout so a dying worker can stall nothing.
 - The engine's pseudo-element materializer scopes its scan to the base
   selectors that the document's stylesheets actually attach `::before`/
   `::after` to (complete ground truth — inline styles can't create
