@@ -67,8 +67,15 @@ function log(msg) {
 }
 
 async function ensureBuilt() {
-  if (existsSync(path.join(ROOT, "dist", "index.html"))) return;
-  log("dist/ not found — building…");
+  // Always rebuild by default: reusing whatever dist/ happens to be lying
+  // around silently benchmarks a stale build — a diff can pass (or fail)
+  // against code that isn't the working tree's. VISUAL_SKIP_BUILD=1 opts
+  // back into reuse when the caller just built and knows dist/ is current.
+  if (process.env.VISUAL_SKIP_BUILD && existsSync(path.join(ROOT, "dist", "index.html"))) {
+    log("VISUAL_SKIP_BUILD set — reusing existing dist/");
+    return;
+  }
+  log("building…");
   const res = spawnSync("npm", ["run", "build"], { cwd: ROOT, stdio: "inherit" });
   if (res.status !== 0) throw new Error("build failed");
 }

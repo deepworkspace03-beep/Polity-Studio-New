@@ -340,6 +340,22 @@ Two representations of the same typefaces ship, both offline:
   a Map hit after warm-up, which removes millions of microtask
   allocations on a 400-page export. The transcriber yields to the
   event loop after every page so the progress bar stays live.
+- The engine's pseudo-element materializer scopes its scan to the base
+  selectors that the document's stylesheets actually attach `::before`/
+  `::after` to (complete ground truth — inline styles can't create
+  pseudos and every sheet is first-party), instead of probing every
+  element of every page, and yields between pages. On a 405-page
+  document that removes a measured ~3s synchronous freeze at the start
+  of every export on tablet-class CPUs.
+- While Publish is open, the editor's Pages preview suspends (tears its
+  paginated DOM down and rebuilds on return) — otherwise two full
+  copies of a large document's layout are alive at once, which is what
+  pushes memory-constrained Android Chrome tabs into OOM.
+- Paged.js layout reports live progress (`paged-progress` → "Typesetting
+  pages… N" in Publish and the Pages preview), and a stall watchdog in
+  the harness always runs: ~25s with no new page reports a partial (or
+  failed-if-empty) layout instead of hanging the host forever; a caught
+  error tightens the window to ~3s.
 - The standalone HTML export snapshots the already-paginated DOM from
   the Publish iframe instead of re-shipping Paged.js (~500 KB saved);
   it inlines only the font faces whose scripts (latin / latin-ext /
