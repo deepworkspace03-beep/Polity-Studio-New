@@ -1,6 +1,6 @@
 /* ── Domain model ─────────────────────────────────────────────────── */
 
-export type TemplateId = "notes" | "revision" | "mcq" | "pyq" | "flashcards";
+export type TemplateId = "notes" | "question-bank" | "revision" | "universal";
 
 export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse" | "custom";
 
@@ -36,8 +36,16 @@ export interface CoverDesign {
   logo?: string;
 }
 export type PageSize = "a4" | "a5" | "letter";
-export type Density = "compact" | "comfort" | "relaxed";
+export type Density = "compact" | "comfort" | "relaxed" | "ultra";
 export type AnswersMode = "inline" | "end" | "none";
+/** Body typeface pairing — both use only already-bundled fonts (no new
+    downloads). "serif" is the original Literata-body/Manrope-heading
+    pairing; "sans" is fully Manrope for a more modern, compact feel. */
+export type Typography = "serif" | "sans";
+/** Revision template only: "notes" is the dense summary/bullet layout
+    (former Quick Revision), "cards" is the front/back deck layout
+    (former Flash Cards). */
+export type RevisionStyle = "notes" | "cards";
 
 /** Per-document layout & PDF options — everything the user can tune
     about the exported document without touching code. */
@@ -60,8 +68,12 @@ export interface DocLayout {
   watermark: boolean;
   pageSize: PageSize;
   density: Density;
-  /** MCQ booklets only: where answers & explanations appear. */
+  /** Question Bank only: where answers & explanations appear. */
   answers: AnswersMode;
+  /** Revision only: summary/bullet layout vs. front/back card deck. */
+  revisionStyle: RevisionStyle;
+  /** Body typeface pairing — see the Typography type. */
+  typography: Typography;
 }
 
 export interface Doc {
@@ -74,7 +86,14 @@ export interface Doc {
   paper: string;
   session: string;
   author: string;
-  lang: "en" | "hi";
+  /** Cover language label — "both" shows Hindi + English, "none" shows
+      neither. Purely a cover badge + <html lang> for screen readers; it
+      never translates the document body. */
+  lang: "en" | "hi" | "both" | "none";
+  /** Optional edition badge on the cover ("2nd Edition") — separate from
+      Session so the two can be shown independently. Absent/empty hides
+      the badge entirely. */
+  edition?: string;
   /** Per-document publisher/institute name shown on the cover. Absent =
       use the global brand name (Settings → Branding). */
   institute?: string;

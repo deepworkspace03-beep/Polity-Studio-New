@@ -53,9 +53,25 @@ describe("buildDocumentHtml", () => {
     const noToc = buildDocumentHtml(baseDoc({ layout: { ...DEFAULT_LAYOUT, toc: false } }), DEFAULT_BRAND, { mode: "flow" });
     expect(noToc).not.toContain('class="toc"');
 
-    // MCQ template never has a TOC, regardless of the layout flag.
-    const mcq = buildDocumentHtml(baseDoc({ template: "mcq", body: "Q. Test?\nA) a\nB) b *" }), DEFAULT_BRAND, { mode: "flow" });
+    // Question Bank template never has a TOC, regardless of the layout flag.
+    const mcq = buildDocumentHtml(baseDoc({ template: "question-bank", body: "Q. Test?\nA) a\nB) b *" }), DEFAULT_BRAND, { mode: "flow" });
     expect(mcq).not.toContain('class="toc"');
+
+    // Flashcard-style Revision has no meaningful TOC (every "##" is a
+    // card front, not a section) even though Revision otherwise supports one.
+    const cards = buildDocumentHtml(
+      baseDoc({ template: "revision", body: "## Front\nBack.", layout: { ...DEFAULT_LAYOUT, revisionStyle: "cards" } }),
+      DEFAULT_BRAND,
+      { mode: "flow" },
+    );
+    expect(cards).not.toContain('class="toc"');
+  });
+
+  it("sets --font-body from layout.typography", () => {
+    const serif = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow" });
+    expect(serif).toContain('--font-body: "Literata"');
+    const sans = buildDocumentHtml(baseDoc({ layout: { ...DEFAULT_LAYOUT, typography: "sans" } }), DEFAULT_BRAND, { mode: "flow" });
+    expect(sans).toContain('--font-body: "Manrope"');
   });
 
   it("reflects layout.watermark in the data-watermark attribute", () => {
@@ -129,9 +145,10 @@ describe("buildDocumentHtml", () => {
 describe("buildShellKey", () => {
   it("changes when the template, page size, density, language or theme changes", () => {
     const key = buildShellKey(baseDoc(), DEFAULT_BRAND, "light");
-    expect(buildShellKey(baseDoc({ template: "mcq" }), DEFAULT_BRAND, "light")).not.toBe(key);
+    expect(buildShellKey(baseDoc({ template: "question-bank" }), DEFAULT_BRAND, "light")).not.toBe(key);
     expect(buildShellKey(baseDoc({ layout: { ...DEFAULT_LAYOUT, pageSize: "a5" } }), DEFAULT_BRAND, "light")).not.toBe(key);
     expect(buildShellKey(baseDoc({ layout: { ...DEFAULT_LAYOUT, density: "compact" } }), DEFAULT_BRAND, "light")).not.toBe(key);
+    expect(buildShellKey(baseDoc({ layout: { ...DEFAULT_LAYOUT, typography: "sans" } }), DEFAULT_BRAND, "light")).not.toBe(key);
     expect(buildShellKey(baseDoc({ lang: "hi" }), DEFAULT_BRAND, "light")).not.toBe(key);
     expect(buildShellKey(baseDoc(), DEFAULT_BRAND, "dark")).not.toBe(key);
   });

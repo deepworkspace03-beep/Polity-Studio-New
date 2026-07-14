@@ -188,9 +188,20 @@ export function Settings() {
                 value={settings.newDocLayout.density}
                 onChange={(density) => saveSettings({ newDocLayout: { ...settings.newDocLayout, density } })}
                 options={[
+                  { value: "ultra", label: "Ultra" },
                   { value: "compact", label: "Compact" },
                   { value: "comfort", label: "Comfort" },
                   { value: "relaxed", label: "Relaxed" },
+                ]}
+              />
+            </Field>
+            <Field label="Typography">
+              <Segmented
+                value={settings.newDocLayout.typography}
+                onChange={(typography) => saveSettings({ newDocLayout: { ...settings.newDocLayout, typography } })}
+                options={[
+                  { value: "serif", label: "Serif body" },
+                  { value: "sans", label: "Sans body" },
                 ]}
               />
             </Field>

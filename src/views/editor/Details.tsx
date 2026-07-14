@@ -5,7 +5,7 @@ import { DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../bra
 import { canSavePreset, deletePreset, duplicatePreset, MAX_PRESETS, renamePreset, savePreset, usePresets } from "../../lib/presets";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
-import { Button, Field, HintBubble, IconButton, Modal, Segmented, Toggle, inputClass, useFocusTrap, useLongPressHint, useToast } from "../../components/ui";
+import { Button, Disclosure, Field, HintBubble, IconButton, Modal, Segmented, Toggle, inputClass, useFocusTrap, useLongPressHint, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { cx } from "../../lib/utils";
 
@@ -379,8 +379,7 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
   const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
 
   const mcqIssues = useMemo(() => {
-    // PYQ shares the MCQ grammar, so it gets the same live validation.
-    if (doc.template !== "mcq" && doc.template !== "pyq") return [];
+    if (doc.template !== "question-bank") return [];
     return validateMcq(parseMcq(doc.body));
   }, [doc.template, doc.body]);
 
@@ -403,10 +402,18 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           <Field label="Paper / Unit">
             <input className={inputClass} value={doc.paper} onChange={(e) => onChange({ paper: e.target.value })} placeholder="Paper 2 · Unit 1" />
           </Field>
-          <Field label="Session / Edition">
+          <Field label="Session">
             <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="2026" />
           </Field>
         </div>
+        <Field label="Edition (optional)" hint="A small, quiet badge next to Session on the cover — e.g. '2nd Edition'. Leave blank to hide it.">
+          <input
+            className={inputClass}
+            value={doc.edition ?? ""}
+            onChange={(e) => onChange({ edition: e.target.value || undefined })}
+            placeholder="2nd Edition"
+          />
+        </Field>
         <Field label="Author">
           <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
         </Field>
@@ -425,13 +432,15 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             placeholder={"Premium Study Notes\nExam-Ready Coverage"}
           />
         </Field>
-        <Field label="Language" hint="Hindi prints a हिन्दी badge on the cover and sets the PDF/HTML language for screen readers; English shows no label. It doesn't translate your content.">
+        <Field label="Language" hint="Controls the cover language badge and the PDF/HTML language for screen readers. It doesn't translate your content.">
           <Segmented
             value={doc.lang}
             onChange={(lang) => onChange({ lang })}
             options={[
-              { value: "en", label: "English" },
-              { value: "hi", label: "हिन्दी" },
+              { value: "en", label: "English", hint: "Cover shows an English badge." },
+              { value: "hi", label: "हिन्दी", hint: "Cover shows a हिन्दी badge." },
+              { value: "both", label: "Both", hint: "Cover shows both हिन्दी and English badges." },
+              { value: "none", label: "None", hint: "No language badge on the cover." },
             ]}
           />
         </Field>
@@ -478,50 +487,83 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             </button>
           </div>
         )}
-        {doc.layout.cover && doc.layout.coverStyle === "custom" && <CoverDesigner doc={doc} onChange={onChange} />}
-        {doc.layout.cover && doc.layout.coverStyle !== "custom" && (
-          <div>
-            <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
-            <CoverColorPicker doc={doc} onChange={onChange} />
-          </div>
+        {doc.layout.cover && (
+          <Disclosure title="Design Cover" subtitle="Colors, pattern, typography, frame, emblem" icon="edit">
+            {doc.layout.coverStyle === "custom" ? (
+              <CoverDesigner doc={doc} onChange={onChange} />
+            ) : (
+              <div>
+                <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
+                <CoverColorPicker doc={doc} onChange={onChange} />
+              </div>
+            )}
+          </Disclosure>
         )}
-        {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
-        <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
-        {template.hasAnswers && (
-          <Field label="Answers & explanations">
+
+        <Disclosure title="PDF Design" subtitle="Typography, density, page size, answers, watermark" icon="sliders" defaultOpen>
+          <Field label="Typography" hint="Both use only the studio's own bundled fonts. Sans reads more modern and slightly more compact.">
             <Segmented
-              value={doc.layout.answers}
-              onChange={(answers) => layout({ answers })}
+              value={doc.layout.typography}
+              onChange={(typography) => layout({ typography })}
               options={[
-                { value: "end", label: "At the end" },
-                { value: "inline", label: "Inline" },
-                { value: "none", label: "Hidden" },
+                { value: "serif", label: "Serif body" },
+                { value: "sans", label: "Sans body" },
               ]}
             />
           </Field>
-        )}
-        <Field label="Page size">
-          <Segmented
-            value={doc.layout.pageSize}
-            onChange={(pageSize) => layout({ pageSize })}
-            options={[
-              { value: "a4", label: "A4" },
-              { value: "a5", label: "A5" },
-              { value: "letter", label: "Letter" },
-            ]}
-          />
-        </Field>
-        <Field label="Text density">
-          <Segmented
-            value={doc.layout.density}
-            onChange={(density) => layout({ density })}
-            options={[
-              { value: "compact", label: "Compact" },
-              { value: "comfort", label: "Comfort" },
-              { value: "relaxed", label: "Relaxed" },
-            ]}
-          />
-        </Field>
+          <Field label="Text density" hint="Ultra-Compact tightens spacing (not just font size) for very large question banks or long notes.">
+            <Segmented
+              value={doc.layout.density}
+              onChange={(density) => layout({ density })}
+              options={[
+                { value: "ultra", label: "Ultra" },
+                { value: "compact", label: "Compact" },
+                { value: "comfort", label: "Comfort" },
+                { value: "relaxed", label: "Relaxed" },
+              ]}
+            />
+          </Field>
+          <Field label="Page size">
+            <Segmented
+              value={doc.layout.pageSize}
+              onChange={(pageSize) => layout({ pageSize })}
+              options={[
+                { value: "a4", label: "A4" },
+                { value: "a5", label: "A5" },
+                { value: "letter", label: "Letter" },
+              ]}
+            />
+          </Field>
+          {template.hasToc && doc.layout.revisionStyle !== "cards" && (
+            <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />
+          )}
+          {template.hasWatermark && <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />}
+          {template.hasAnswers && (
+            <Field label="Answers & explanations" hint="Inline reveals the answer (✓ on the correct option) and any Solution right under each question. At the end prints a back-of-book answer key and explanations.">
+              <Segmented
+                value={doc.layout.answers}
+                onChange={(answers) => layout({ answers })}
+                options={[
+                  { value: "end", label: "At the end" },
+                  { value: "inline", label: "Inline" },
+                  { value: "none", label: "Hidden" },
+                ]}
+              />
+            </Field>
+          )}
+          {template.hasRevisionStyle && (
+            <Field label="Layout" hint={'Notes is a dense summary/bullet layout. Flashcards splits each "##" heading into a front/back card for a cut-out deck.'}>
+              <Segmented
+                value={doc.layout.revisionStyle}
+                onChange={(revisionStyle) => layout({ revisionStyle })}
+                options={[
+                  { value: "notes", label: "Notes" },
+                  { value: "cards", label: "Flashcards" },
+                ]}
+              />
+            </Field>
+          )}
+        </Disclosure>
       </div>
 
       {mcqIssues.length > 0 && (

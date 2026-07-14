@@ -236,6 +236,36 @@ export function parseMcq(body: string): McqDocument {
   return { preamble: preamble.join("\n").trim(), sections, issues, total: n };
 }
 
+const STOPWORDS = new Set(["the", "of", "and", "a", "an", "in", "on", "to", "is", "was", "by", "for", "with", "as", "at", "or", "which", "who"]);
+
+/** Normalizes to lowercase word tokens with stopwords/punctuation
+    dropped, so "Theory of Forms (Plato)" and "Plato's theory" compare on
+    their substantive words only. */
+function significantWords(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+}
+
+/** Heuristic for Improvement 1.5: a per-question "Topic" chip should be
+    hidden — falling back to the section's Unit heading only — when the
+    topic text would hand the reader the answer before they've attempted
+    the question (e.g. `Topic: Plato` on a question whose answer option is
+    "Plato"). Deliberately conservative: it only fires when every
+    significant word of the correct option's text also appears in the
+    topic, so a topic that merely shares a common word with the answer
+    stays visible. */
+export function topicRevealsAnswer(q: McqQuestion): boolean {
+  if (!q.topic || !q.answer) return false;
+  const correct = q.options.find((o) => o.key === q.answer);
+  const answerText = correct?.text || q.answer;
+  const answerWords = significantWords(answerText);
+  if (answerWords.length === 0) return false;
+  const topicWords = new Set(significantWords(q.topic));
+  return answerWords.every((w) => topicWords.has(w));
+}
+
 /** Light validation surfaced in the editor so broken booklets are
     caught before export — errors never block, they inform. */
 export function validateMcq(doc: McqDocument): McqIssue[] {

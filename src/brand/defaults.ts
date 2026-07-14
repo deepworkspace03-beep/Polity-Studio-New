@@ -43,6 +43,8 @@ export const DEFAULT_LAYOUT: DocLayout = {
   pageSize: "a4",
   density: "comfort",
   answers: "end",
+  revisionStyle: "notes",
+  typography: "serif",
 };
 
 /* ── Cover Designer seeds ─────────────────────────────────────────────
@@ -56,7 +58,7 @@ export const DEFAULT_COVER_DESIGN: CoverDesign = {
   ink: "#f5f2ea",
   accent: "#c9bc9e",
   pattern: "grid",
-  patternOpacity: 0.05,
+  patternOpacity: 0.035,
   titleFont: "serif",
   titleScale: 1,
   align: "left",
@@ -66,9 +68,9 @@ export const DEFAULT_COVER_DESIGN: CoverDesign = {
 
 export function seedCoverDesign(from: CoverStyle): CoverDesign {
   const seeds: Partial<Record<CoverStyle, Partial<CoverDesign>>> = {
-    aurora: { bg1: "#123c93", bg2: "#0a9f80", angle: 158, ink: "#ffffff", accent: "#eafff6", pattern: "rings", patternOpacity: 0.09, titleFont: "sans" },
-    heritage: { bg1: "#faf8f2", bg2: "#f2eee2", angle: 168, ink: "#1a2740", accent: "#8a6d3b", pattern: "lines", patternOpacity: 0.07, frame: true },
-    eclipse: { bg1: "#0c1017", bg2: "#1a2434", angle: 172, ink: "#f0f3f9", accent: "#d3a662", pattern: "rings", patternOpacity: 0.08, frame: true },
+    aurora: { bg1: "#123c93", bg2: "#0a9f80", angle: 158, ink: "#ffffff", accent: "#eafff6", pattern: "rings", patternOpacity: 0.07, titleFont: "sans" },
+    heritage: { bg1: "#faf8f2", bg2: "#f2eee2", angle: 168, ink: "#1a2740", accent: "#8a6d3b", pattern: "lines", patternOpacity: 0.055, frame: true },
+    eclipse: { bg1: "#0c1017", bg2: "#1a2434", angle: 172, ink: "#f0f3f9", accent: "#d3a662", pattern: "rings", patternOpacity: 0.065, frame: true },
   };
   return { ...DEFAULT_COVER_DESIGN, ...seeds[from] };
 }
