@@ -550,20 +550,33 @@ class Transcriber {
       if (rects.length === 1 && opt.letterSpacing === 0) {
         // pdf-lib's encodeText lays glyphs out with the font's raw,
         // un-kerned advance widths — it doesn't replay GPOS kerning
-        // pairs the way the browser does. For most text that's an
-        // imperceptible sub-pixel difference, but a heavily-kerned pair
-        // (a capital "T" before a lowercase vowel is the classic case —
-        // "To", "Ta") can land 1-3px wider than the browser rendered it,
-        // most visible at heading sizes: the pair reads as loosely
-        // spaced next to its neighbors, close to what bug reports
-        // describe as the first character looking "clipped" or
-        // "compressed" against the rest of the word. Comparing pdf-lib's
-        // predicted width against the browser's own measured rect width
-        // catches exactly those runs; only they pay for the
-        // character-by-character fallback below, which already
-        // reproduces the browser's (correctly kerned) spacing exactly.
-        const predicted = face.pdfFont.widthOfTextAtSize(text, opt.fontSize);
-        if (Math.abs(predicted - rects[0].width) < 0.15) {
+        // pairs the way the browser does. Measured directly: a short,
+        // heavily-kerned pair ("To", "Ta") can land 2-3px wider than the
+        // browser rendered it at heading sizes, visible as the pair
+        // reading loosely spaced against its neighbors. But kerning
+        // divergence *accumulates* across a run's length, not just its
+        // "badness" — an ordinary 11-letter word like "Fundamental"
+        // measured a similar 3.4px total divergence despite having no
+        // single dramatic pair and looking visually fine, because that
+        // divergence is spread thin across many small pair adjustments
+        // instead of concentrated in one visible gap. A whole-run
+        // width-divergence check can't tell those two cases apart, so
+        // checking it for every run (this session's first attempt)
+        // sent the *majority* of multi-syllable words through the
+        // character-by-character fallback below — each character its
+        // own PDF text-positioning operator instead of one per word —
+        // measurably inflating both export time and file size on real
+        // documents. Limiting the check to short runs targets exactly
+        // the case it was meant for (a single dominant pair, most
+        // visible as the first few characters of a word) without
+        // paying for it on the long words that make up most real text.
+        const KERNING_CHECK_MAX_LEN = 6;
+        let useFastPath = true;
+        if (text.length <= KERNING_CHECK_MAX_LEN) {
+          const predicted = face.pdfFont.widthOfTextAtSize(text, opt.fontSize);
+          useFastPath = Math.abs(predicted - rects[0].width) < 0.15;
+        }
+        if (useFastPath) {
           drawAt(text, rects[0]);
           return;
         }

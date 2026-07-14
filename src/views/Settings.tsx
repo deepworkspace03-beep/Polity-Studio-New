@@ -214,7 +214,12 @@ export function Settings() {
         >
           <p className="text-sm text-ink-2">
             {docs.length} document{docs.length === 1 ? "" : "s"}
-            {usage !== null && <span className="text-faint"> · ~{formatBytes(usage)} of browser storage in use</span>}
+            {usage !== null && (
+              <span className="text-faint">
+                {" "}
+                · ~{formatBytes(usage)} total app storage (your documents plus the offline app cache — not document size)
+              </span>
+            )}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
