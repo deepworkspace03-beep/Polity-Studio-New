@@ -30,7 +30,13 @@ and how to extend it.
 3. **One builder, three consumers.** `buildDocumentHtml()` produces a
    self-contained HTML document used by the flow preview, the Publish
    review and the PDF download. The pages you approve in Publish are
-   the pages you download — same iframe, same document.
+   the pages you download — same iframe, same document. The standalone
+   HTML export (`pdf/htmlExport.ts`) is a fourth consumer of that same
+   already-paginated DOM, not a separate render: it snapshots exactly
+   what Publish is showing, which is why a Paged.js-only generated-content
+   feature (target-counter TOC references, the chapter-number counter)
+   needed its own resolution step before serializing — see
+   `engine/materialize.ts`'s `resolveContent`, reused by both consumers.
 4. **The flow preview is persistent.** The iframe shell (fonts, styles,
    scripts) loads once; edits swap only the rendered content in place
    via `postMessage`, so typing never flashes the preview or loses its
@@ -52,14 +58,27 @@ and how to extend it.
    (+7 small plugins), Paged.js, Tailwind. Routing is a 40-line hash
    router; state is `useSyncExternalStore` over IndexedDB; there is no
    HTTP layer at all.
+8. **Offline-first, hand-rolled service worker.** `public/sw.js` is
+   framework-free: network-first navigations with a cached-shell
+   fallback, cache-first hashed assets (Vite content-hashing makes a
+   cache hit byte-identical to a fresh fetch, so cache-first is safe,
+   not just fast), and an install-time app-shell precache so the app
+   works offline after a single online visit — not only after a second
+   reload. Updates wait for the page to ask (`lib/pwa.ts` +
+   `UpdateBanner`) rather than swapping the running app out from under
+   an in-progress edit; documents live entirely in IndexedDB, untouched
+   by the worker, so an update can never lose data.
 
 ## Folder map
 
 ```
 public/
 ├─ fonts/                bundled woff2 subsets + fonts.css (offline, no CDN)
-└─ vendor/               Paged.js runtime (copied by scripts/sync-vendor.mjs
-                         on npm install; gitignored)
+├─ vendor/               Paged.js runtime (copied by scripts/sync-vendor.mjs
+│                        on npm install; gitignored)
+└─ sw.js                 service worker: network-first navigations (cached-
+                         shell fallback offline), cache-first hashed assets,
+                         install-time app-shell precache. See lib/pwa.ts.
 src/
 ├─ main.tsx · App.tsx    bootstrap, theme, route switch (4 views)
 ├─ app.css               Tailwind v4 + design tokens (dark/light)
@@ -105,6 +124,9 @@ src/
 │  ├─ search.ts          universal search: scored linear scan over the
 │  │                     in-memory corpus (title > metadata > body), with
 │  │                     snippet + line for editor deep links
+│  ├─ pwa.ts             service worker registration + update detection
+│  │                     (registers public/sw.js, surfaces UpdateBanner
+│  │                     when a new version has finished installing)
 │  └─ utils.ts           uid, cx, debounce, dates, download, stats
 ├─ brand/
 │  ├─ defaults.ts        default Polity Made Simple branding + settings
@@ -126,6 +148,12 @@ src/
 │  │                     (cover, TOC, runners, theme vars, @page);
 │  │                     also buildDocContent/buildShellKey for the
 │  │                     incremental flow preview
+│  ├─ htmlExport.ts      standalone HTML snapshot: clones the already-
+│  │                     paginated Publish DOM, bakes generated-content
+│  │                     counters that only resolve inside Paged.js's own
+│  │                     runtime (see engine/materialize.ts) into literal
+│  │                     CSS, and inlines only the font faces the
+│  │                     document actually uses
 │  ├─ harness.ts         scripts inlined into the iframes: paged harness
 │  │                     (running topic, watermark, fit/pinch zoom, page
 │  │                     nav, cursor sync, completion signalling) and
@@ -135,18 +163,21 @@ src/
 │  │                     first export): index (entry) · transcribe (DOM
 │  │                     walker) · canvas (CSS-space → PDF operators) ·
 │  │                     fonts (fontkit subset + CSS face matching) ·
-│  │                     gradient · svg · materialize (pseudo-elements) ·
-│  │                     geometry
+│  │                     gradient · svg · materialize (pseudo-elements +
+│  │                     generated-content counter resolution, shared by
+│  │                     both the PDF engine and htmlExport.ts) · geometry
 │  └─ styles/            print-base.css (foundation) · covers.css ·
-│                        notes/revision/mcq/flashcards.css · pyq.css
-│                        (layered on mcq.css: solved-question cards)
+│                        notes.css · question-bank.css (MCQ/PYQ merged —
+│                        one unified question-bank template) · revision.css
+│                        (Quick Revision + Flash Cards merged)
 ├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast,
 │                        file-drop hook/overlay, CommandPalette (Ctrl+K:
 │                        global search + actions), StudioNav (Home /
 │                        Resume last session / Restart Studio header
 │                        actions), ImportReview (confirm-or-edit staged
 │                        imports before they become a document or an
-│                        insert) — the latter two mounted once in App
+│                        insert), UpdateBanner (service-worker update
+│                        prompt) — mounted once in App
 └─ views/
    ├─ Library.tsx        home: hero, document grid, search, templates,
    │                     Examples, theme toggle (no persistent nav chrome)
@@ -154,10 +185,13 @@ src/
    │                     editor · preview), mobile write/preview tabs,
    │                     focus mode (hides toolbar + settings pane)
    ├─ editor/            CodeMirror wrapper (incl. find & replace via
-   │                     @codemirror/search), commands, Toolbar, Preview
-   │                     (flow/pages + doc-theme toggle), Details sheet
-   │                     (cover color overrides + the Cover Designer),
-   │                     Publish overlay
+   │                     @codemirror/search), commands (incl. image
+   │                     align/width layout, Smart Format, Replace from
+   │                     Clipboard), Toolbar, Preview (flow/pages +
+   │                     doc-theme toggle), Details sheet — collapsible
+   │                     Cover Designer + PDF Designer (typography,
+   │                     density, page size, TOC, watermark, answers)
+   │                     sections — Publish overlay
    ├─ Settings.tsx       appearance (incl. document reading theme),
    │                     branding, defaults, save/restore, your data
    └─ Help.tsx           the manual: Markdown syntax, a guide + tuned AI
