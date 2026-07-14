@@ -197,8 +197,30 @@ const BAKED_COUNTERS_ID = "x-baked-counters";
     a tiny scoped rule per affected element, so the snapshot renders
     correctly with no runtime involved. Purely static generated content
     (quote marks, decorative dividers) is untouched — cheap, correct,
-    already fine natively — this only fires for the handful of elements
-    whose content actually contains `counter(`. */
+    already fine natively.
+
+    Scoped to the exact selectors the codebase's CSS ever puts a
+    `counter(...)` in (grep for `counter(` across pdf/styles/ to verify:
+    `.doc h1::before` — chapter; `.toc__item a::after` — target-counter;
+    `.toc__item--l1 .toc__text::before` — tocc; the `@page @top-right`
+    margin box, materialized by Paged.js into `.pagedjs_margin-top`/
+    `-bottom` — page/pages) rather than every element on every page. An
+    earlier version called `getComputedStyle` on the *entire* DOM twice
+    per element (once per pseudo) to find these — a synchronous,
+    unyielding scan that was cheap on the 10-page document this session
+    tested against but scales with total element count, not with how
+    many elements actually use a counter, and became a real hang on the
+    100+ page documents this app is meant for. */
+const COUNTER_SCOPE_SELECTOR = [
+  "h1",
+  ".toc__item a",
+  ".toc__item--l1 .toc__text",
+  ".pagedjs_margin-top",
+  ".pagedjs_margin-top *",
+  ".pagedjs_margin-bottom",
+  ".pagedjs_margin-bottom *",
+].join(", ");
+
 function bakeGeneratedCounters(doc: Document): void {
   const win = doc.defaultView;
   if (!win || doc.getElementById(BAKED_COUNTERS_ID)) return;
@@ -209,7 +231,7 @@ function bakeGeneratedCounters(doc: Document): void {
   let n = 0;
   for (const page of pages) {
     const pageNum = parseInt(page.dataset.pageNumber || "0", 10);
-    for (const el of [page, ...page.querySelectorAll("*")]) {
+    for (const el of page.querySelectorAll(COUNTER_SCOPE_SELECTOR)) {
       for (const which of ["::before", "::after"] as const) {
         const content = win.getComputedStyle(el, which).content;
         if (!content || !content.includes("counter(")) continue;
@@ -231,6 +253,20 @@ function bakeGeneratedCounters(doc: Document): void {
     self-contained HTML file. `paginated` is the live iframe document in
     which Paged.js has already finished laying out the pages. */
 export async function buildStandaloneHtml(paginated: Document, fileTitle: string): Promise<string> {
+  // If a PDF was exported first (from this same live document — Publish
+  // reuses one iframe for both), the engine's materializePseudos already
+  // disabled every native ::before/::after with a `content: none
+  // !important` override (see engine/materialize.ts) and replaced them
+  // with static <x-pseudo> elements. Undo that on the *live* document —
+  // not a later clone — before bakeGeneratedCounters reads computed
+  // pseudo-element content below: reading through the disabled state
+  // would see "none" for every element and silently bake nothing,
+  // exactly reproducing the broken "Chapter 0"/TOC-page-"0" bug this
+  // function exists to fix. Doing the cleanup here means the clone
+  // below never has x-pseudo/x-po artifacts in the first place.
+  paginated.querySelectorAll("x-pseudo, #x-pseudo-off").forEach((el) => el.remove());
+  paginated.querySelectorAll(".x-po").forEach((el) => el.classList.remove("x-po"));
+
   bakeGeneratedCounters(paginated);
   const fontCss = await inlineFontFaces(paginated);
   const root = paginated.documentElement.cloneNode(true) as HTMLElement;
@@ -239,14 +275,6 @@ export async function buildStandaloneHtml(paginated: Document, fileTitle: string
   // Paged.js scripts, the consumed watermark template, and the
   // fonts.css link (replaced by the inlined faces below).
   root.querySelectorAll("script, template, link[rel='stylesheet']").forEach((el) => el.remove());
-
-  // If a PDF was exported first, the engine materialized every
-  // ::before/::after into <x-pseudo> elements carrying multi-KB inline
-  // computed styles. Undo that for the snapshot — removing the disabling
-  // stylesheet restores the original CSS pseudo-elements, which render
-  // identically at a fraction of the size.
-  root.querySelectorAll("x-pseudo, #x-pseudo-off").forEach((el) => el.remove());
-  root.querySelectorAll(".x-po").forEach((el) => el.classList.remove("x-po"));
 
   const title = root.querySelector("title");
   if (title) title.textContent = fileTitle;
