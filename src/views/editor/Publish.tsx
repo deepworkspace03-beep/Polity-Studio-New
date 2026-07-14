@@ -109,9 +109,13 @@ export function Publish({
     try {
       // The PDF engine (pdf-lib + fontkit) loads only on first export.
       const { exportPaginatedPdf } = await import("../../pdf/engine");
+      // PDF metadata language must be a real BCP-47 tag — "both"/"none"
+      // (the cover badge setting) aren't valid values, so resolve to the
+      // same tag used for <html lang> (see pdf/document.ts).
+      const pdfLang = doc.lang === "hi" || doc.lang === "both" ? "hi" : "en";
       const result = await exportPaginatedPdf(
         srcDoc,
-        { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: doc.lang },
+        { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: pdfLang },
         (done, total) => setProgress(total ? done / total : 0),
       );
       downloadFile(`${fileTitle}.pdf`, result.blob, "application/pdf");

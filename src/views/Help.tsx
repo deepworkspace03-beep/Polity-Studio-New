@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { Button, useToast } from "../components/ui";
 import { StudioNav } from "../components/StudioNav";
+import { Icon, type IconName } from "../components/Icon";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
- * a template-by-template guide (Notes, Revision, MCQ/PYQ, Flash Cards),
+ * a template-by-template guide (Notes, Question Bank, Revision, Universal),
  * ready-made AI prompts per content type, and workspace tips. Content
  * only — no app logic — so it's safe to keep expanding without touching
  * anything else.
@@ -88,7 +89,7 @@ const NOTES_PROMPT = `Write study notes as Markdown for a PDF publishing tool. F
 
 Topic: <your topic here>. Aim for clear, exam-oriented prose with one "exam" callout per major section.`;
 
-const REVISION_PROMPT = `Write a quick-revision sheet as Markdown for a PDF publishing tool — compact, scannable, no long paragraphs:
+const REVISION_PROMPT = `Write a revision sheet as Markdown for a PDF publishing tool — compact, scannable, no long paragraphs:
 
 - "#" for the sheet title, "##" for each topic block.
 - Prefer short bullet points over prose; bold the term being defined.
@@ -99,24 +100,6 @@ const REVISION_PROMPT = `Write a quick-revision sheet as Markdown for a PDF publ
 
 Topic: <your topic here>. Summarize only what a student needs the night before the exam.`;
 
-const MCQ_PROMPT = `Write MCQ practice questions as Markdown for a PDF publishing tool, using exactly this grammar per question:
-
-Q. <question text>
-A) <option>
-B) <option> *        ← put the trailing * on the correct option
-C) <option>
-D) <option>
-Explanation: <one or two sentences>
-Topic: <short topic tag>
-Source: <exam/paper reference, or omit if unknown>
-
-- Group questions under "##" section headings (e.g. "## Section A — <topic>").
-- Exactly one correct option per question, always marked with a trailing *.
-- Keep explanations factual and short — they print in the answer key.
-- No difficulty labels, no raw HTML, no YAML front matter.
-
-Topic: <your topic here>. Write <N> questions at genuine exam difficulty, previous-year style where possible.`;
-
 const FLASHCARD_PROMPT = `Write an active-recall flashcard deck as Markdown for a PDF publishing tool:
 
 - Each card is one "##" heading (the front — a question or term) followed by its answer text (the back).
@@ -124,24 +107,38 @@ const FLASHCARD_PROMPT = `Write an active-recall flashcard deck as Markdown for 
 - Bold the key term in the back with **term**.
 - No raw HTML, no YAML front matter, no images.
 
-Topic: <your topic here>. Write <N> cards covering the most exam-relevant terms and questions.`;
+Topic: <your topic here>. Write <N> cards covering the most exam-relevant terms and questions.
 
-const PYQ_PROMPT = `Write solved previous-year questions (PYQs) as Markdown for a PDF publishing tool, using exactly this grammar per question:
+(This document's Layout must be set to Flashcards in the settings pane for "##" headings to render as cards.)`;
 
-Q1. <question text>
+const QUESTION_BANK_PROMPT = `Write practice questions as Markdown for a PDF publishing tool, using exactly this grammar per question:
+
+Q. <question text>
 A) <option>
 B) <option> *        ← put the trailing * on the correct option
 C) <option>
 D) <option>
-Source: <exam + year, e.g. UGC-NET Dec 2023>
-Solution: <2–5 sentences: why the answer is right and why the tempting options are wrong; a small Markdown table is allowed>
+Source: <exam + year, e.g. UGC-NET Dec 2023 — omit for a plain practice question that isn't from a real paper>
+Solution: <a worked explanation, as short or as long as it needs to be — "Explanation:" also works>
+Topic: <short topic tag, optional>
 
-- Group questions by paper/topic under "##" section headings.
-- Every question needs a Source line (exam + year) and a Solution.
-- Exactly one correct option per question, one option per line.
-- No raw HTML, no YAML front matter, no difficulty labels.
+- Group questions under "##" section headings (e.g. "## Section A — <topic>" or "## Unit 4 — <topic>").
+- Exactly one correct option per question, always marked with a trailing * (or "Answer: B").
+- A Source line makes the question read as a previous-year question (headline exam badge); leave it out for a plain MCQ.
+- No difficulty labels, no raw HTML, no YAML front matter.
 
-Exam & topic: <your exam and topic here>. Reproduce <N> genuine previous-year questions with faithful wording where possible.`;
+Topic: <your topic here>. Write <N> questions at genuine exam difficulty, previous-year style where possible.`;
+
+const UNIVERSAL_PROMPT = `Write a Markdown document for a PDF publishing tool. Follow these rules exactly:
+
+- Use "#" for the document title and "##" / "###" for sections — the table of contents is built from them.
+- Plain paragraphs, **bold** for key terms, *italic* for emphasis.
+- Use Markdown tables for comparisons, and numbered/bulleted lists for enumerations.
+- Callout blocks are available if useful (::: definition, example, important, summary, tip, warning, note, exam ... :::) — skip them entirely for plain prose.
+- Write "\\pagebreak" alone on a line to force a new PDF page.
+- Do NOT use raw HTML, YAML front matter, images from the web, or code fences unless showing actual code.
+
+Topic: <describe what you want — a report, a guide, an article, meeting notes, anything>. Write clear, well-organized prose with headings.`;
 
 /** The complete authoring contract, in one copyable block — paste it
     into any AI tool before your request and the reply imports clean.
@@ -170,7 +167,7 @@ Body text.
 :::
 Types: definition · example · important · summary · tip · warning · note · exam.
 
-QUESTIONS (for MCQ / PYQ documents)
+QUESTIONS (for Question Bank documents)
 Q1. Question text?
 A) option
 B) option *        ← trailing * marks the correct option (or add "Answer: B")
@@ -178,10 +175,10 @@ C) option
 D) option
 Solution: worked explanation ("Explanation:" also works)
 Topic: short tag
-Source: UPSC 2021
+Source: UPSC 2021        ← optional; present = reads as a previous-year question
 - One option per line, A)–E) or 1)–5). Group questions under "##" headings.
 
-FLASHCARDS
+FLASHCARDS (Revision documents with Layout set to Flashcards)
 - Each "##" heading is a card front; the text under it is the back.
 
 AVOID
@@ -189,7 +186,7 @@ AVOID
 - Bold question numbers like "**Q1.**" — write "Q1." plainly.
 - Code fences unless showing actual code.`;
 
-const MCQ_EXAMPLE = `## Section A — Greek Political Thought
+const QUESTION_BANK_EXAMPLE = `## Section A — Greek Political Thought
 
 Q. Who called man "a political animal"?
 A) Plato
@@ -231,6 +228,52 @@ const TABLE_EXAMPLE = `| Feature | Federal | Unitary |
 - [ ] Read this chapter
 - [x] Highlight key terms
 [^1]: A footnote, collected at the end.`;
+
+interface ToolbarGuideItem {
+  icon: IconName;
+  name: string;
+  purpose: string;
+  shortcut?: string;
+}
+
+/** Mirrors views/editor/Toolbar.tsx's GROUPS and standalone actions —
+    every icon a first-time user sees in the editor, explained once here
+    instead of by trial and error. Keep in lockstep with the toolbar's own
+    tooltip strings when either changes. */
+const TOOLBAR_GUIDE: ToolbarGuideItem[] = [
+  { icon: "undo", name: "Undo", purpose: "Step back one edit.", shortcut: "Ctrl+Z" },
+  { icon: "redo", name: "Redo", purpose: "Reapply an edit you just undid.", shortcut: "Ctrl+Y" },
+  { icon: "h1", name: "Chapter heading", purpose: "Starts a new chapter — builds the table of contents.", shortcut: "#" },
+  { icon: "h2", name: "Section heading", purpose: "Also sets the running page-header topic.", shortcut: "##" },
+  { icon: "h3", name: "Subsection heading", purpose: "A sub-point within a section.", shortcut: "###" },
+  { icon: "bold", name: "Bold", purpose: "Emphasize key terms or a short phrase.", shortcut: "Ctrl+B" },
+  { icon: "italic", name: "Italic", purpose: "Titles, foreign terms or light emphasis.", shortcut: "Ctrl+I" },
+  { icon: "underline", name: "Underline", purpose: "A second emphasis style, rarely needed alongside Bold.", shortcut: "Ctrl+U" },
+  { icon: "highlighter", name: "Highlight", purpose: "Marks the single most exam-critical phrase — not whole sentences.", shortcut: "Ctrl+Shift+H" },
+  { icon: "strikethrough", name: "Strikethrough", purpose: "Shows a correction or a superseded fact." },
+  { icon: "superscript", name: "Superscript", purpose: "For x² or a footnote-style mark." },
+  { icon: "subscript", name: "Subscript", purpose: "For chemical formulas like H₂O." },
+  { icon: "code", name: "Inline code", purpose: "A short literal term or value within a sentence." },
+  { icon: "eraser", name: "Clear formatting", purpose: "Strips bold/italic/highlight/etc. from the selection, keeps the text." },
+  { icon: "list", name: "Bullet list", purpose: "Unordered points." },
+  { icon: "listOrdered", name: "Numbered list", purpose: "Ranked or sequential steps." },
+  { icon: "checklist", name: "Checklist", purpose: "A to-do list or a tick-box comparison." },
+  { icon: "quote", name: "Quote", purpose: "A citation or an excerpted line." },
+  { icon: "link", name: "Link", purpose: "Select a URL first to link its own text automatically.", shortcut: "Ctrl+K" },
+  { icon: "table", name: "Insert table", purpose: "A structured comparison — inserts a starter 3×3 grid." },
+  { icon: "file", name: "Code block", purpose: "Multi-line literal text or actual code, kept verbatim." },
+  { icon: "minus", name: "Divider line", purpose: "A visual break between unrelated sections." },
+  { icon: "pagebreak", name: "Page break", purpose: "Forces the next content onto a new PDF page." },
+  { icon: "callout", name: "Callout box", purpose: "A colored box — definition, example, important, summary, tip, warning, note or exam." },
+  { icon: "replace", name: "Find & replace", purpose: "Leave “Replace” blank to find & delete instead.", shortcut: "Ctrl+F" },
+  { icon: "sparkles", name: "Smart Format", purpose: "Cleans up structure (headings, spacing, question fields) across the whole document — deterministic, and one Ctrl+Z undoes it." },
+  { icon: "copy", name: "Copy entire document", purpose: "Copies everything to the clipboard, unchanged." },
+  { icon: "cut", name: "Cut entire document", purpose: "Copies everything, then clears the editor — only after the copy succeeds." },
+  { icon: "clipboard", name: "Paste from clipboard at cursor", purpose: "Inserts without replacing anything — handy on touch devices without an easy paste gesture." },
+  { icon: "refresh", name: "Replace from Clipboard", purpose: "Swaps the whole document for the clipboard contents — for pasting in a document an AI tool just generated. Asks for confirmation first." },
+  { icon: "image", name: "Insert image", purpose: "Upload a picture; also works via paste or drag & drop." },
+  { icon: "upload", name: "Insert file", purpose: "Markdown, text, HTML or Word (.docx) inserted at the cursor." },
+];
 
 export function Help() {
   return (
@@ -303,70 +346,64 @@ export function Help() {
             <li>Copy the specification below and paste it at the start of your chat (Claude, Google Gemini, ChatGPT — any of them).</li>
             <li>Add your request, e.g. <em>"Notes on Federalism in India, exam-oriented, ~2000 words"</em> — or use a tuned per-template prompt from the next section.</li>
             <li>Copy the AI's reply and paste it into a new document here — Smart Paste cleans up whatever the chat window adds.</li>
-            <li>Pick the matching template (Notes, MCQ, PYQ…), check the preview, publish.</li>
+            <li>Pick the matching template (Notes, Question Bank, Revision, Universal), check the preview, publish.</li>
           </ol>
           <Snippet>{MASTER_SPEC}</Snippet>
           <CopyButton text={MASTER_SPEC} label="Copy specification" />
         </Section>
 
-        <Section title="Templates, one by one" intro="Each template has its own body grammar and its own tuned AI prompt below.">
+        <Section title="Templates, one by one" intro="Four templates cover every document — each has its own body grammar and a tuned AI prompt below.">
           <TemplateGuide
-            name="Theory Notes"
+            name="Notes"
             forWhat="Long-form chapters — the default for explanatory writing, with a cover, table of contents and callouts."
             grammar={<span>Plain Markdown — headings, paragraphs, tables, callouts, footnotes all apply as above.</span>}
             prompt={NOTES_PROMPT}
           />
           <TemplateGuide
-            name="Quick Revision"
-            forWhat="Compact, bullet-first sheets for last-minute review — same Markdown as Notes, laid out tighter."
-            grammar={<span>Plain Markdown, but favor short bullets over paragraphs — the print style is denser and skips ceremony.</span>}
-            prompt={REVISION_PROMPT}
-          />
-          <TemplateGuide
-            name="MCQ Booklet"
-            forWhat="Practice questions where answers sit in a back-of-booklet key with explanations — a clean test to attempt first, then check."
+            name="Question Bank"
+            forWhat="MCQs and previous-year questions in one template. A question with a Source line reads as a previous-year question — headline exam badge, and the answer/solution revealed right under it when Answers is set to Inline. A question with no Source reads as a plain practice MCQ, answered via a back-of-booklet key when Answers is set to At the end."
             grammar={
               <span>
                 <code className="font-mono">Q.</code> starts a question, <code className="font-mono">A)</code>…
                 <code className="font-mono">D)</code> are options, a trailing <code className="font-mono">*</code>{" "}
                 (or <code className="font-mono">Answer: B</code>) marks the correct one.{" "}
-                <code className="font-mono">Explanation: / Topic: / Source:</code> lines are optional. Use{" "}
-                <code className="font-mono">##</code> headings to split into sections.
+                <code className="font-mono">Source: / Solution: / Topic: / Marks:</code> lines are all optional. Use{" "}
+                <code className="font-mono">##</code> headings for Units/Sections. Choose where answers appear (Inline, At
+                the end, or Hidden) in the document's settings pane — pasting or importing a solved paper sets this to
+                Inline automatically.
               </span>
             }
-            prompt={MCQ_PROMPT}
+            prompt={QUESTION_BANK_PROMPT}
           />
           <TemplateGuide
-            name="PYQ Collection"
-            forWhat="Solved previous-year questions — each shows its exam/year badge, the correct answer and a worked solution right under it (no back-of-book flipping). Best target when you paste a solved paper."
-            grammar={
-              <span>
-                Same grammar as MCQ. Add <code className="font-mono">Source: UPSC 2021</code> (or{" "}
-                <code className="font-mono">Exam: / Year:</code>) for the badge and{" "}
-                <code className="font-mono">Solution:</code> (also <code className="font-mono">Detailed Solution:</code>) for the
-                worked answer — tables inside a solution render as tables. Pasting or importing a real paper fills these in
-                automatically.
-              </span>
-            }
-            prompt={PYQ_PROMPT}
+            name="Revision — Notes layout"
+            forWhat="Compact, bullet-first sheets for last-minute review — same Markdown as Notes, laid out tighter. The default Layout for this template."
+            grammar={<span>Plain Markdown, but favor short bullets over paragraphs — the print style is denser and skips ceremony.</span>}
+            prompt={REVISION_PROMPT}
           />
           <TemplateGuide
-            name="Flash Cards"
-            forWhat="Active-recall decks for spaced repetition — one card per term or question."
+            name="Revision — Flashcards layout"
+            forWhat="Active-recall decks for spaced repetition — one card per term or question. Set this document's Layout to Flashcards in the settings pane."
             grammar={<span>Each <code className="font-mono">##</code> heading is the front of a card; the text under it is the back.</span>}
             prompt={FLASHCARD_PROMPT}
           />
+          <TemplateGuide
+            name="Universal"
+            forWhat="A brand-neutral document for anything that isn't exam prep — reports, manuals, personal writing. No fixed institute name, watermark or social links; the cover shows only what you fill in."
+            grammar={<span>Plain Markdown — headings, paragraphs, tables, callouts, footnotes all apply as above.</span>}
+            prompt={UNIVERSAL_PROMPT}
+          />
         </Section>
 
-        <Section title="MCQ / PYQ example">
-          <Snippet>{MCQ_EXAMPLE}</Snippet>
+        <Section title="Question Bank example">
+          <Snippet>{QUESTION_BANK_EXAMPLE}</Snippet>
           <p className="text-xs text-faint">
-            The answer key and explanations position (end of booklet, inline under each question, or hidden) is chosen
-            in the document's Settings pane.
+            Where the answer appears — a checkmark inline under each question, a back-of-booklet key with
+            explanations, or hidden entirely — is chosen in the document's settings pane.
           </p>
         </Section>
 
-        <Section title="Flash card example">
+        <Section title="Flashcard example">
           <Snippet>{FLASHCARD_EXAMPLE}</Snippet>
         </Section>
 
@@ -382,6 +419,25 @@ export function Help() {
           </ul>
         </Section>
 
+        <Section title="Editor toolbar guide" intro="Every icon in the editor toolbar, in order — the same explanation shows on desktop hover and on a touch long-press.">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
+            {TOOLBAR_GUIDE.map((item) => (
+              <div key={item.name} className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-lg border border-edge bg-raised text-ink-2">
+                  <Icon name={item.icon} size={14} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink">
+                    {item.name}
+                    {item.shortcut && <span className="ml-1.5 font-mono text-[11px] font-normal text-faint">{item.shortcut}</span>}
+                  </p>
+                  <p className="text-xs text-faint">{item.purpose}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
         <Section title="Working efficiently" intro="The workspace has a few features worth knowing about.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
@@ -391,7 +447,7 @@ export function Help() {
             <li>In the <b>Flow</b> preview, click the cover title, subtitle or any heading to edit it right there — it writes straight back to your Markdown.</li>
             <li>The <b>Pages</b> preview shows the exact pages you'll publish — headers, footers, watermark and all — with pinch/±/fit-width/fit-page zoom.</li>
             <li>Smart Import converts pasted Word, Google Docs, web and AI-chat content automatically; drag a <code className="font-mono text-xs">.md</code>, <code className="font-mono text-xs">.txt</code>, <code className="font-mono text-xs">.html</code> or <code className="font-mono text-xs">.docx</code> file onto the Library (new documents) or the editor (inserts at the cursor) — either way you get a review step to confirm or edit before anything is saved.</li>
-            <li>Paste or import a raw <b>exam paper</b> and Smart Import restructures it into clean questions on its own — it recognises <code className="font-mono text-xs">Q.</code> / <code className="font-mono text-xs">Que.</code> / <code className="font-mono text-xs">[3/23]</code> numbering, statement lists, the real options (even two to a line), the answer and the worked solution, tags the exam/year, and strips page-number noise. Pick <b>PYQ Collection</b> in the review for the solved layout.</li>
+            <li>Paste or import a raw <b>exam paper</b> and Smart Import restructures it into clean questions on its own — it recognises <code className="font-mono text-xs">Q.</code> / <code className="font-mono text-xs">Que.</code> / <code className="font-mono text-xs">[3/23]</code> numbering, statement lists, the real options (even two to a line), the answer and the worked solution, tags the exam/year, and strips page-number noise. It lands in <b>Question Bank</b> with Answers set to Inline automatically when the paper has worked solutions.</li>
             <li>Select several documents in the Library (the checklist icon) to merge them into one PDF, each starting on its own page.</li>
             <li><b>Home</b>, <b>Resume last session</b> and <b>Restart Studio</b> in the header work from anywhere — resume reopens your last document at the exact cursor line; restart safely reloads the app (autosave already covers your work).</li>
           </ul>

@@ -78,7 +78,7 @@ if (typeof window !== "undefined") {
 /** Optional `Doc` fields (`institute?`, `coverLines?`) — the single place
     to register a new one. Typed `satisfies readonly (keyof Doc)[]` so a
     typo or a renamed/removed field fails `tsc`, not a user's reload. */
-export const DOC_OPTIONAL_KEYS = ["institute", "coverLines"] as const satisfies readonly (keyof Doc)[];
+export const DOC_OPTIONAL_KEYS = ["institute", "coverLines", "edition"] as const satisfies readonly (keyof Doc)[];
 /** Optional `DocLayout` fields (`coverColors?`, `coverDesign?`) — same
     contract as DOC_OPTIONAL_KEYS, one level down. */
 export const LAYOUT_OPTIONAL_KEYS = ["coverColors", "coverDesign"] as const satisfies readonly (keyof DocLayout)[];
@@ -120,9 +120,42 @@ const LEGACY_COVERS: Record<string, Doc["layout"]["coverStyle"]> = {
   midnight: "eclipse",
 };
 
-function normalizeDoc(doc: Doc): Doc {
-  const mapped = LEGACY_COVERS[doc.layout.coverStyle as string];
-  return mapped ? { ...doc, layout: { ...doc.layout, coverStyle: mapped } } : doc;
+/** Retired document types (five templates → four, see Doc["template"])
+    map onto the unified template that absorbed them. mcq/pyq both become
+    question-bank (a single presentation, parametrized by layout.answers);
+    flashcards becomes revision (parametrized by layout.revisionStyle). */
+const LEGACY_TEMPLATES: Record<string, Doc["template"]> = {
+  mcq: "question-bank",
+  pyq: "question-bank",
+  flashcards: "revision",
+};
+
+/** Layout overrides that reproduce a retired template's fixed behavior
+    now that it's a parametrized mode of the template that absorbed it —
+    e.g. a "pyq" doc always showed the answer inline, so it must keep
+    doing that once its template becomes "question-bank". */
+const LEGACY_TEMPLATE_LAYOUT: Partial<Record<string, Partial<DocLayout>>> = {
+  pyq: { answers: "inline" },
+  flashcards: { revisionStyle: "cards" },
+};
+
+/** Exported for the migration regression test in store.test.ts — not
+    meant to be called from outside this module otherwise. */
+export function normalizeDoc(doc: Doc): Doc {
+  let out = doc;
+  const mappedCover = LEGACY_COVERS[out.layout.coverStyle as string];
+  if (mappedCover) out = { ...out, layout: { ...out.layout, coverStyle: mappedCover } };
+
+  const oldTemplate = out.template as string;
+  const mappedTemplate = LEGACY_TEMPLATES[oldTemplate];
+  if (mappedTemplate) {
+    out = {
+      ...out,
+      template: mappedTemplate,
+      layout: { ...out.layout, ...LEGACY_TEMPLATE_LAYOUT[oldTemplate] },
+    };
+  }
+  return out;
 }
 
 function normalizeSettings(settings: Settings): Settings {
@@ -172,12 +205,23 @@ function blankDoc(): Doc {
   };
 }
 
-export function createDoc(partial: Pick<Doc, "template" | "title" | "body"> & Partial<Doc>): Doc {
+export function createDoc(
+  partial: Pick<Doc, "template" | "title" | "body"> & Partial<Omit<Doc, "layout">> & { layout?: Partial<DocLayout> },
+): Doc {
+  const base = blankDoc();
   const doc: Doc = {
-    ...blankDoc(),
-    exam: state.brand.exams[0] ?? "",
+    ...base,
+    // Universal carries no fixed branding, so it doesn't default to the
+    // brand's exam list either — an empty Exam field there instead of a
+    // random institute's exam name.
+    exam: partial.template === "universal" ? "" : state.brand.exams[0] ?? "",
     session: String(new Date().getFullYear()),
     ...partial,
+    // A partial layout (e.g. an example/import wanting layout.answers:
+    // "inline") merges over the defaults instead of replacing the whole
+    // object, so it doesn't silently drop the author's other layout
+    // preferences (cover style, page size, density…).
+    layout: { ...base.layout, ...partial.layout },
     id: uid(),
   };
   setState({ ...state, docs: [doc, ...state.docs] });

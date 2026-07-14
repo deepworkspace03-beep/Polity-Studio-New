@@ -18,12 +18,13 @@ npm run dev        # Vite dev server
 npm run typecheck  # tsc --noEmit — run before considering a change done
 npm test            # vitest run
 npm run build        # production build → dist/
+npm run test:visual  # opt-in PDF-engine visual regression check — not in CI
 ```
 
 `typecheck` + `test` + a manual pass in the browser (`npm run dev`) is
 the verification loop; CI runs the first two plus `build` on every push
 to `main` and every PR. See AI_GUIDE.md § Testing for what is and isn't
-covered, and why there's no lint script yet.
+covered, why there's no lint script yet, and what `test:visual` checks.
 
 ## Conventions
 

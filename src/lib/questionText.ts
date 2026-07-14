@@ -210,6 +210,12 @@ export function normalizeQuestionText(text: string): { markdown: string; questio
       continue;
     }
     if (phase === "solution") {
+      // Some answer sheets restate "Ans. (c)" / "Correct Answer: C" a
+      // second time at the end of the worked solution. The answer is
+      // already captured in q.answer and gets re-emitted once as the
+      // canonical "Answer:" line (see emitQuestion) — pushing this
+      // restatement too would print the answer twice in the final PDF.
+      if (ANSWER.test(line)) continue;
       q.solution.push(line);
       continue;
     }

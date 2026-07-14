@@ -115,6 +115,26 @@ using the pre-installed Chromium + Playwright before shipping engine or
 harness changes; don't try to fake this with jsdom/happy-dom, it will
 give false confidence.
 
+**Permanent visual regression benchmark** (`npm run test:visual`,
+`scripts/visual-regression.mjs`) — opt-in, not part of `npm test` or CI
+(it needs a real Chromium + a production build, both too heavy for the
+required pipeline). Builds the app, opens the built-in "Fundamental
+Rights — Complete Notes" demo, exports it to PDF and standalone HTML,
+and checks two things: (1) page count agrees across the live paged
+preview, the PDF, and the HTML export — a cheap, reliable proxy for
+"did pagination break," since pixel-diffing the HTML (Blink layout) and
+PDF (PDFium) renderers against each other isn't practical to keep
+false-positive-free; (2) each PDF page, screenshotted via Chromium's
+own PDF viewer, is pixel-diffed against a saved baseline
+(`scripts/visual-baseline/*.png`, committed) — same renderer both
+times, so any real difference is a real regression. The 3% per-page
+tolerance absorbs measured cross-build PDFium anti-aliasing jitter
+(~0.2–1.7%, confirmed to trace glyph edges uniformly, not a layout
+shift) with headroom below what an actual layout regression produces
+(6–10%+, confirmed by deliberately bumping a heading's font-size).
+Run after touching `pdf/engine/`, `pdf/document.ts`, or `pdf/styles/*.css`;
+re-run with `--update` to intentionally move the baseline.
+
 **No ESLint currently.** `typescript-eslint@8.x` crashes against
 TypeScript 7's restructured compiler internals as of this writing —
 this is an upstream compatibility gap, not a missing config. `tsc --noEmit`

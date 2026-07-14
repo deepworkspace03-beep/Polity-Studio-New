@@ -1,5 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
-   PYQ / MCQ BOOKLET — template-specific print styles
+   QUESTION BANK — template-specific print styles
+   One card design for both practice MCQs and previous-year questions:
+   a question tagged with a Source (exam/year) gets the headline exam
+   badge and the .pyq accent border; one without just gets plain chips.
    Coaching-institute grade question cards.
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -17,7 +20,7 @@
   display: flex;
   align-items: center;
   gap: 0.7em;
-  margin: 1.6em 0 1em;
+  margin: var(--sec-gap, 1.6em 0 1em);
   break-after: avoid;
 }
 .mcq-section:first-child { margin-top: 0; }
@@ -44,17 +47,30 @@
   break-inside: avoid;
   border: 0.7pt solid var(--c-edge);
   border-radius: 7pt;
-  padding: 0.75em 0.95em 0.8em;
-  margin: 0 0 0.85em;
+  padding: var(--q-pad, 0.75em 0.95em 0.8em);
+  margin: 0 0 var(--q-gap, 0.85em);
   background: var(--c-mix, white);
 }
+/* A source-tagged (previous-year) question gets a quiet accent border —
+   the headline exam badge in .q__head is what actually signals it. */
+.pyq { padding: var(--q-pad, 0.85em 1em 0.9em); border-left: 2.5pt solid var(--c-primary); }
+
+/* A question with a long inline explanation must be free to break across
+   pages — only its head+text+options "prompt" (below) stays welded. */
+.q--long { break-inside: auto; }
+.q__prompt { break-inside: avoid; }
+
+/* Order: number → Unit/Topic/Marks chips (educational context, close to
+   the question) → Source/exam badge (provenance, pushed to the far
+   right via margin-left:auto below — secondary to the question itself). */
 .q__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.8em;
+  flex-wrap: wrap;
+  gap: 0.4em 0.6em;
   margin-bottom: 0.45em;
 }
+.q__head .pyq__exam { margin-left: auto; }
 .q__num {
   font-family: "Manrope", sans-serif;
   font-weight: 800;
@@ -68,7 +84,7 @@
   padding: 1.2pt 6pt 1.6pt;
   letter-spacing: 0.04em;
 }
-.q__chips { display: flex; gap: 3pt; flex-wrap: wrap; justify-content: flex-end; }
+.q__chips { display: flex; gap: 3pt; flex-wrap: wrap; }
 .qchip {
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-size: 6.9pt;
@@ -81,7 +97,23 @@
   padding: 1pt 5pt;
   background: var(--c-band);
 }
-.qchip--source   { color: var(--c-accent); border-color: color-mix(in srgb, var(--c-accent) 35%, var(--c-mix, white)); background: var(--c-accentSoft); }
+.qchip--unit { color: var(--c-primary); border-color: color-mix(in srgb, var(--c-primary) 30%, var(--c-mix, white)); }
+
+/* Exam/year badge — the headline provenance marker for a sourced (PYQ)
+   question, always right-aligned in .q__head via the rule above. */
+.pyq__exam {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 7.4pt;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-primary);
+  background: color-mix(in srgb, var(--c-gold) 22%, var(--c-mix, white));
+  border: 0.6pt solid color-mix(in srgb, var(--c-gold) 55%, var(--c-mix, white));
+  border-radius: 99pt;
+  padding: 1.4pt 8pt;
+  white-space: nowrap;
+}
 
 .q__text { font-weight: 500; }
 .q__text p { margin-bottom: 0.5em; }
@@ -92,7 +124,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2.5pt 10pt;
+  gap: var(--opt-gap, 2.5pt 10pt);
 }
 /* Long options fall back to a single column via the harness adding
    .q__options--long when any option exceeds ~55 characters. */
@@ -123,28 +155,43 @@
 }
 .q__opt-text { font-size: 0.97em; }
 
-/* Study mode: correct option is softly highlighted. */
+/* Reveal mode: the correct option is softly highlighted, plus a small
+   checkmark — a compact substitute for a separate "Correct Answer" line. */
 .q__opt--correct { background: color-mix(in srgb, var(--c-good) 8%, var(--c-mix, white)); }
 .q__opt--correct .q__key { color: white; background: var(--c-good); border-color: var(--c-good); }
-
-.q__answer {
-  margin-top: 0.6em;
-  border-top: 0.8pt dashed var(--c-edge);
-  padding-top: 0.55em;
-  font-size: 0.93em;
-}
-.q__answer-label {
-  font-family: "Manrope", sans-serif;
-  font-weight: 700;
-  font-size: 0.88em;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.q__check {
+  margin-left: auto;
+  flex: none;
+  align-self: center;
   color: var(--c-good);
-  margin-bottom: 0.25em;
+  font-weight: 800;
 }
-.q__answer-body p:last-child { margin-bottom: 0; }
 
-/* ── Answer key ──────────────────────────────────────────────────── */
+/* Worked solution — visible in "inline" answers mode; tables/bullets
+   inherit print-base. */
+.pyq__sol {
+  margin-top: 0.7em;
+  border-top: 0.7pt solid var(--c-edge);
+  padding-top: 0.6em;
+  font-size: 0.94em;
+}
+.pyq__sol-label {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 0.74em;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  margin-bottom: 0.4em;
+}
+.pyq__sol-body > :first-child { margin-top: 0; }
+.pyq__sol-body > :last-child { margin-bottom: 0; }
+/* Solution tables run edge-to-edge and read tighter than body tables. */
+.pyq__sol-body table { font-size: 0.86em; margin: 0.7em 0; }
+.pyq__sol-body th { padding: 4pt 6pt; }
+.pyq__sol-body td { padding: 3.5pt 6pt; }
+
+/* ── Answer key ("end" answers mode) ────────────────────────────── */
 
 .answer-key { break-before: page; }
 .key {
@@ -165,7 +212,7 @@
 .key__q { font-family: "Manrope", sans-serif; font-weight: 600; font-size: 0.86em; color: var(--c-muted); }
 .key__a { font-family: "Manrope", sans-serif; font-weight: 800; color: var(--c-primary); }
 
-/* ── Explanations (practice mode) ────────────────────────────────── */
+/* ── Explanations ("end" answers mode) ──────────────────────────── */
 
 .explanations { break-before: page; }
 .exp {

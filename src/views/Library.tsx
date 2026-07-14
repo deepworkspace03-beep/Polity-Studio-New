@@ -105,6 +105,7 @@ export function Library() {
       body: demo.body,
       subtitle: demo.subtitle,
       paper: demo.paper,
+      layout: demo.layout,
     });
     setExamplesOpen(false);
     navigate({ edit: doc.id });

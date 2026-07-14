@@ -4,7 +4,7 @@ import type { TemplateId } from "../lib/types";
     supported syntax for each template. */
 export const STARTERS: Record<TemplateId, { title: string; body: string }> = {
   notes: {
-    title: "Untitled Theory Notes",
+    title: "Untitled Notes",
     body: `# Introduction to Political Theory
 
 Political theory examines the foundations of political life, including authority, justice, rights, and obligations.
@@ -45,8 +45,34 @@ Political theory questions frequently test Plato, Aristotle, Hobbes, Locke and R
 `,
   },
 
+  "question-bank": {
+    title: "Untitled Question Bank",
+    body: `Attempt all questions. Each carries 2 marks. There is no negative marking. Add \`Source:\`, \`Exam:\` or \`Year:\` to stamp the source badge — questions with a Source read as previous-year questions; without one, as plain practice MCQs.
+
+## Section A — Political Theory
+
+Q. Who described political science as "the master science"?
+A) Plato
+B) Aristotle *
+C) Machiavelli
+D) Harold Laski
+Explanation: Aristotle called politics the master science because it determines what other sciences should be studied within the state.
+Topic: Greek Political Thought
+Source: UGC-NET Dec 2023
+
+Q. The concept of "Judicial Review" in the Indian Constitution is borrowed from —
+A) United Kingdom
+B) United States *
+C) Ireland
+D) Canada
+Answer: B
+Source: UPSC CSE 2021
+Solution: Judicial review — the power of courts to test laws against the Constitution — is drawn from the **United States**. India adopts a moderated form: unlike the American "due process", Indian courts review under "procedure established by law" (Article 21).
+`,
+  },
+
   revision: {
-    title: "Untitled Quick Revision",
+    title: "Untitled Revision",
     body: `# Unit at a Glance
 
 **One-line thesis:** put the single most examinable idea of this unit here.
@@ -72,84 +98,32 @@ Asked in Dec 2023, June 2024. The examiner favours exact attributions here.
 1. Point one
 2. Point two
 3. Point three
+
+*Prefer a cut-out flashcard deck instead? Switch "Layout" to Flashcards in the settings pane — each "##" heading becomes a card front, and the text below it the back.*
 `,
   },
 
-  mcq: {
-    title: "Untitled MCQ Booklet",
-    body: `Attempt all questions. Each question carries 2 marks. There is no negative marking.
+  universal: {
+    title: "Untitled Document",
+    body: `# Document Title
 
-## Section A — Political Theory
+A brand-neutral starting point for any Markdown document — a report, a manual, a proposal, personal writing. No fixed institute name, watermark or social links; the cover shows only what you fill in.
 
-Q. Who described political science as "the master science"?
-A) Plato
-B) Aristotle *
-C) Machiavelli
-D) Harold Laski
-Explanation: Aristotle called politics the master science because it determines what other sciences should be studied within the state.
-Topic: Greek Political Thought
-Source: UGC-NET Dec 2023
+## Section One
 
-Q. "The Republic" of Plato is primarily a treatise on —
-A) Education *
-B) Warfare
-C) Economics
-D) Diplomacy
-Explanation: Rousseau called The Republic "the finest treatise on education ever written" — its central concern is the education scheme for guardians.
-Topic: Plato
-Source: UGC-NET June 2024
-`,
-  },
+Write your content using the same Markdown as every other template: **bold**, *italic*, tables, lists, callouts, footnotes and page breaks all work here.
 
-  pyq: {
-    title: "Untitled PYQ Collection",
-    body: `Previous-year questions with the correct answer and a worked solution under each one. Add \`Year:\` or \`Exam:\` to stamp the source badge.
+::: note
+Callout boxes (definition, example, important, summary, tip, warning, note, exam) are available if useful, or skip them entirely for plain prose.
+:::
 
-## Indian Polity
+## Section Two
 
-Q. The concept of "Judicial Review" in the Indian Constitution is borrowed from —
-A) United Kingdom
-B) United States *
-C) Ireland
-D) Canada
-Answer: B
-Exam: UPSC CSE 2021
-Solution: Judicial review — the power of courts to test laws against the Constitution — is drawn from the **United States**. India adopts a moderated form: unlike the American "due process", Indian courts review under "procedure established by law" (Article 21).
+- Point one
+- Point two
+- Point three
 
-Q. Which schedule of the Constitution deals with the allocation of seats in the Rajya Sabha?
-A) Third Schedule
-B) Fourth Schedule *
-C) Fifth Schedule
-D) Sixth Schedule
-Answer: B
-Exam: SSC CGL 2022
-Solution: The **Fourth Schedule** allocates Rajya Sabha seats to states and union territories.
-
-| Schedule | Subject |
-|----------|---------|
-| Third | Forms of oaths and affirmations |
-| Fourth | Rajya Sabha seat allocation |
-| Fifth | Administration of Scheduled Areas |
-`,
-  },
-
-  flashcards: {
-    title: "Untitled Flash Cards",
-    body: `# Deck Title
-
-One line about what this deck covers.
-
-## Who called man "a political animal"?
-
-**Aristotle**, in *Politics* — society precedes the individual.
-
-## The Republic's subtitle?
-
-**"Concerning Justice"** — Plato's central question.
-
-## Grotius is the father of…
-
-**International law** — *De Jure Belli ac Pacis* (1625).
+Open Settings → Details to add an author name, an optional cover, and a table of contents — everything here is opt-in.
 `,
   },
 };

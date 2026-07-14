@@ -25,7 +25,7 @@
   --cv-accent: #c9bc9e;
   --cv-line: rgba(255, 255, 255, 0.18);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
-  --cv-edition-tx: #10203c;
+  --cv-session-tx: #10203c;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -82,24 +82,11 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
   color: var(--cv-soft);
   margin-top: 0.8mm;
 }
-.cv-top__meta { display: flex; align-items: center; gap: 3mm; flex: none; }
-/* Language badge — only rendered for Hindi documents (हिन्दी); English
-   shows no label. A quiet outlined pill so it reads as metadata, not a
-   selling point. */
-.cv-lang {
-  font-family: "Noto Sans Devanagari", "Manrope", sans-serif;
-  font-weight: 600;
-  font-size: 10.5pt;
-  line-height: 1;
-  padding: 0 3mm;
-  height: 12mm;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 2.8mm;
-  color: var(--cv-ink);
-  border: 0.8pt solid var(--cv-line);
-}
-.cv-edition {
+/* Session only — Language lives in the footer (see .cv-foot__lang) and
+   Edition is pinned to the corner (see .cv-edition-badge) so this row
+   stays a single quiet item that never competes with the title. */
+.cv-top__meta { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 2.4mm; flex: none; row-gap: 2mm; }
+.cv-session {
   flex: none;
   font-family: "Manrope", sans-serif;
   font-weight: 800;
@@ -113,8 +100,33 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
   align-items: center;
   justify-content: center;
   border-radius: 2.8mm;
-  color: var(--cv-edition-tx);
+  color: var(--cv-session-tx);
   background: var(--cv-accent);
+}
+/* Edition — optional, pinned to the cover's extreme top-right corner
+   (inset just enough to stay inside the printable safe area, well
+   short of the 17mm/18mm the main content respects) as a standalone
+   corner badge, deliberately separate from the Session pill so it
+   reads as a quiet footnote rather than part of the main metadata
+   row. Outlined, not filled, for the same reason. */
+.cv-edition-badge {
+  position: absolute;
+  top: 9mm;
+  right: 9mm;
+  z-index: 2;
+  font-family: "Manrope", sans-serif;
+  font-weight: 700;
+  font-size: 7.5pt;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  padding: 0 2.6mm;
+  height: 7mm;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 2.4mm;
+  color: var(--cv-ink);
+  border: 0.8pt solid var(--cv-line);
+  opacity: 0.8;
 }
 
 /* ── Hero + highlights (body) ────────────────────────────────────── */
@@ -197,6 +209,28 @@ body.mode-paged .cv-guide--empty { display: none; }
   font-size: 9.5pt;
   color: var(--cv-ink);
 }
+/* Language — secondary metadata, quiet by design. Lives in the footer
+   (not the top-right corner, which is Session/Edition only) so it
+   supports the title instead of crowding the header. */
+.cv-foot__lang { display: flex; align-items: center; gap: 1.8mm; }
+.cv-lang-badge {
+  /* Manrope first — matches every other dual-script stack in this
+     codebase. The badge can hold "English"/"Both" (Latin) as often as
+     "हिन्दी" (Devanagari); per-glyph font fallback still reaches Noto
+     Sans Devanagari for the Devanagari text, but keeps Latin text off a
+     Devanagari font's own Latin glyphs. */
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 600;
+  font-size: 7.4pt;
+  line-height: 1;
+  padding: 1.6pt 2.6mm;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 99pt;
+  color: var(--cv-soft);
+  border: 0.6pt solid var(--cv-line);
+  opacity: 0.85;
+}
 
 /* ── 01 · Regal (oxford navy + champagne platinum, default) ─────────
    A restrained, library-grade cover: deep navy ground, warm ivory
@@ -208,7 +242,7 @@ body.mode-paged .cv-guide--empty { display: none; }
   --cv-accent: #c9bc9e;
   --cv-line: rgba(201, 188, 158, 0.38);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
-  --cv-edition-tx: #142441;
+  --cv-session-tx: #142441;
 }
 .cover--regal .cv-shade {
   background: radial-gradient(130% 90% at 50% -10%, transparent 45%, rgba(5, 11, 24, 0.5));
@@ -222,10 +256,10 @@ body.mode-paged .cv-guide--empty { display: none; }
   --cv-accent: #eafff6;
   --cv-line: rgba(255, 255, 255, 0.32);
   --cv-title-font: "Manrope", "Noto Sans Devanagari", sans-serif;
-  --cv-edition-tx: #0d4b8a;
+  --cv-session-tx: #0d4b8a;
 }
 .cover--aurora .cv-shade { background: radial-gradient(120% 80% at 50% 120%, rgba(0, 0, 0, 0.16), transparent 60%); }
-.cover--aurora .cv-edition { background: #ffffff; }
+.cover--aurora .cv-session { background: #ffffff; }
 
 /* ── 03 · Heritage (porcelain academic) ─────────────────────────────
    A classical university-press cover: warm porcelain ground with a
@@ -238,7 +272,7 @@ body.mode-paged .cv-guide--empty { display: none; }
   --cv-accent: #8a6d3b;
   --cv-line: rgba(26, 39, 64, 0.22);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
-  --cv-edition-tx: #f8f5ec;
+  --cv-session-tx: #f8f5ec;
   padding: 22mm 21mm 19mm;
 }
 /* The shade layer becomes the outer frame; ::after draws the inner
@@ -257,7 +291,7 @@ body.mode-paged .cv-guide--empty { display: none; }
   pointer-events: none;
   z-index: 0;
 }
-.cover--heritage .cv-edition { background: #1a2740; }
+.cover--heritage .cv-session { background: #1a2740; }
 .cover--heritage .cv-emblem { opacity: 0.1; right: 16mm; bottom: 27mm; }
 .cover--heritage .cv-highlights li::before { border-radius: 50%; }
 
@@ -272,7 +306,7 @@ body.mode-paged .cv-guide--empty { display: none; }
   --cv-accent: #d3a662;
   --cv-line: rgba(211, 166, 98, 0.38);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
-  --cv-edition-tx: #171208;
+  --cv-session-tx: #171208;
 }
 .cover--eclipse .cv-shade {
   background: radial-gradient(120% 85% at 82% -6%, rgba(211, 166, 98, 0.16), transparent 55%);

@@ -47,28 +47,45 @@ export function watermarkHtml(text: string): string {
  * Full-bleed cover pattern layer, generated as inline SVG (mm units) so
  * it stays vector in print and in the PDF engine — CSS repeating
  * gradients would be rasterized by the browser's print pipeline.
+ *
+ * Every pattern is deliberately sparse — wide spacing, a hairline
+ * stroke and a low caller-supplied opacity — so covers read as
+ * minimal and premium rather than a dense technical texture once
+ * exported to vector PDF (see Improvement 4.4 in the design brief).
  */
 export function coverPatternSvg(style: "grid" | "rings" | "weave" | "lines", wMm: number, hMm: number, color: string): string {
   const parts: string[] = [];
   if (style === "grid") {
-    const step = 12;
+    const step = 19;
     for (let x = step; x < wMm; x += step) parts.push(`<line x1="${x}" y1="0" x2="${x}" y2="${hMm}"/>`);
     for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y}" x2="${wMm}" y2="${y}"/>`);
   } else if (style === "lines") {
     // Laid-paper texture: fine horizontal rules only.
-    const step = 7;
+    const step = 11;
     for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y}" x2="${wMm}" y2="${y}"/>`);
   } else if (style === "rings") {
     const cx = wMm * 0.82;
     const cy = hMm * 0.1;
     const max = Math.hypot(wMm, hMm);
-    for (let r = 6.4; r < max; r += 6.4) parts.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none"/>`);
+    for (let r = 9; r < max; r += 9) parts.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none"/>`);
   } else {
-    const step = 5.8;
-    for (let d = -hMm; d < wMm + hMm; d += step) {
-      parts.push(`<line x1="${d.toFixed(1)}" y1="0" x2="${(d + hMm).toFixed(1)}" y2="${hMm}"/>`);
-      parts.push(`<line x1="${d.toFixed(1)}" y1="${hMm}" x2="${(d + hMm).toFixed(1)}" y2="0"/>`);
+    // Gentle horizontal wave lines — one continuous bezier curve per
+    // row, spaced generously. Lighter and more elegant than the old
+    // crosshatch (which drew twice as many strokes for the same area).
+    const step = 15;
+    const amp = 3;
+    const seg = 24;
+    for (let y = step; y < hMm; y += step) {
+      let d = `M 0 ${y}`;
+      let up = true;
+      for (let x = 0; x < wMm; x += seg) {
+        const cx1 = x + seg / 2;
+        const x2 = Math.min(x + seg, wMm);
+        d += ` Q ${cx1.toFixed(1)} ${(y + (up ? -amp : amp)).toFixed(1)} ${x2.toFixed(1)} ${y}`;
+        up = !up;
+      }
+      parts.push(`<path d="${d}" fill="none"/>`);
     }
   }
-  return `<svg class="cv-pattern" viewBox="0 0 ${wMm} ${hMm}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" stroke="${color}" stroke-width="0.16">${parts.join("")}</svg>`;
+  return `<svg class="cv-pattern" viewBox="0 0 ${wMm} ${hMm}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" stroke="${color}" stroke-width="0.14">${parts.join("")}</svg>`;
 }

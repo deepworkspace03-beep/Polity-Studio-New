@@ -548,11 +548,28 @@ class Transcriber {
     // whether failures were widespread enough to abort.
     try {
       if (rects.length === 1 && opt.letterSpacing === 0) {
-        drawAt(text, rects[0]);
-        return;
+        // pdf-lib's encodeText lays glyphs out with the font's raw,
+        // un-kerned advance widths — it doesn't replay GPOS kerning
+        // pairs the way the browser does. For most text that's an
+        // imperceptible sub-pixel difference, but a heavily-kerned pair
+        // (a capital "T" before a lowercase vowel is the classic case —
+        // "To", "Ta") can land 1-3px wider than the browser rendered it,
+        // most visible at heading sizes: the pair reads as loosely
+        // spaced next to its neighbors, close to what bug reports
+        // describe as the first character looking "clipped" or
+        // "compressed" against the rest of the word. Comparing pdf-lib's
+        // predicted width against the browser's own measured rect width
+        // catches exactly those runs; only they pay for the
+        // character-by-character fallback below, which already
+        // reproduces the browser's (correctly kerned) spacing exactly.
+        const predicted = face.pdfFont.widthOfTextAtSize(text, opt.fontSize);
+        if (Math.abs(predicted - rects[0].width) < 0.15) {
+          drawAt(text, rects[0]);
+          return;
+        }
       }
-      // Letter-spaced or fragmented runs: position character by character
-      // with exact browser rects.
+      // Letter-spaced, kerning-diverged, or fragmented runs: position
+      // character by character with exact browser rects.
       let idx = from;
       for (const ch of text) {
         this.range.setStart(node, idx);
