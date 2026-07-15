@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import type { EditorView } from "@codemirror/view";
 import type { BrandConfig, Doc, DocTheme } from "../../lib/types";
 import { buildDocContent, buildDocumentHtml, buildShellKey } from "../../pdf/document";
 import { saveSettings } from "../../lib/store";
-import { IconButton, Segmented } from "../../components/ui";
+import { IconButton, Segmented, useToast } from "../../components/ui";
+import { imageFileToDataUrl } from "../../lib/image";
+import { parseImageLine, patchImageLine, removeImageLine } from "./imageLine";
+import { ImageEditControls } from "./ImageEditControls";
 
 type PreviewMode = "flow" | "pages";
 type ZoomMode = "fit-width" | "fit-page" | "custom";
@@ -36,6 +40,7 @@ export function Preview({
   fullscreen,
   onToggleFullscreen,
   onCollapse,
+  getView,
 }: {
   doc: Doc;
   brand: BrandConfig;
@@ -53,6 +58,10 @@ export function Preview({
   onToggleFullscreen: () => void;
   /** Tucks the preview pane away to a slim rail (desktop/tablet three-pane layout only). */
   onCollapse?: () => void;
+  /** Same CodeMirror view accessor the toolbar uses — lets a clicked
+      image in the Flow preview be edited (resize/align/caption/replace/
+      remove) in place, by patching the same Markdown source line. */
+  getView?: () => EditorView | null;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
   const [srcDoc, setSrcDoc] = useState("");
@@ -62,6 +71,8 @@ export function Preview({
   const [paginating, setPaginating] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
+  const [selectedImageLine, setSelectedImageLine] = useState<number | null>(null);
+  const toast = useToast();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const readyRef = useRef(false);
   const lastContentRef = useRef("");
@@ -134,6 +145,14 @@ export function Preview({
     return () => clearTimeout(timer);
   }, [cursorLine]);
 
+  // The floating image toolbar only makes sense in the live Flow view —
+  // switching documents or to Pages (the exact paginated "what you'll
+  // publish" view) drops any selection rather than risk it pointing at
+  // the wrong line.
+  useEffect(() => {
+    setSelectedImageLine(null);
+  }, [doc.id, mode]);
+
   // Frame → host messages.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -170,7 +189,12 @@ export function Preview({
         if (typeof d.line === "number") onEditRef.current({ line: d.line, text: d.text });
         else if (typeof d.field === "string") onEditRef.current({ field: d.field, text: d.text });
       } else if (d.type === "preview-click" && typeof d.line === "number") {
-        onFocusLineRef.current(d.line, !d.editable);
+        if (d.image) {
+          setSelectedImageLine(d.line); // keep focus in the preview — don't jump to the editor
+        } else {
+          setSelectedImageLine(null);
+          if (d.line > 0) onFocusLineRef.current(d.line, !d.editable);
+        }
       }
     };
     window.addEventListener("message", onMessage);
@@ -186,6 +210,8 @@ export function Preview({
 
   const isPages = mode === "pages";
   const isDark = theme === "dark";
+  const editorView = getView?.() ?? null;
+  const selectedImage = !isPages && selectedImageLine != null && editorView ? parseImageLine(editorView, selectedImageLine) : null;
   const pagesPercent = pages ? Math.round((current / pages) * 100) : 0;
   const flowTotal = estimatedPages && estimatedPages > 1 ? estimatedPages : 0;
   const flowPage = flowTotal ? Math.min(flowTotal, Math.floor(flowPct * flowTotal) + 1) : 0;
@@ -257,13 +283,48 @@ export function Preview({
           <IconButton label="Collapse preview panel" name="chevronRight" size={15} className="hidden md:inline-flex" onClick={onCollapse} />
         )}
       </div>
-      <iframe
-        ref={frameRef}
-        title="Document preview"
-        srcDoc={srcDoc}
-        className="h-full w-full flex-1 border-0 bg-white"
-        sandbox="allow-same-origin allow-scripts"
-      />
+      <div className="relative min-h-0 flex-1">
+        <iframe
+          ref={frameRef}
+          title="Document preview"
+          srcDoc={srcDoc}
+          className="h-full w-full border-0 bg-white"
+          sandbox="allow-same-origin allow-scripts"
+        />
+        {selectedImage && (
+          <div className="absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-start gap-1 rounded-xl border border-edge bg-surface px-3 py-2 shadow-xl">
+            <ImageEditControls
+              key={selectedImage.line}
+              info={selectedImage}
+              onWidth={(width) => {
+                const v = getView?.();
+                if (v) patchImageLine(v, selectedImage.line, { width });
+              }}
+              onAlign={(align) => {
+                const v = getView?.();
+                if (v) patchImageLine(v, selectedImage.line, { align });
+              }}
+              onCaption={(title) => {
+                const v = getView?.();
+                if (v) patchImageLine(v, selectedImage.line, { title });
+              }}
+              onReplace={async (file) => {
+                const v = getView?.();
+                if (!v) return;
+                const src = await imageFileToDataUrl(file);
+                patchImageLine(v, selectedImage.line, { src });
+                toast("Image replaced", "ok");
+              }}
+              onRemove={() => {
+                const v = getView?.();
+                if (v) removeImageLine(v, selectedImage.line);
+                setSelectedImageLine(null);
+              }}
+            />
+            <IconButton label="Close image toolbar" name="x" size={14} onClick={() => setSelectedImageLine(null)} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

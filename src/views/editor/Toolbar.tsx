@@ -52,12 +52,17 @@ const GROUPS: Action[][] = [
   [
     { id: "bold", icon: "bold", label: "Bold (Ctrl+B)", run: (v) => wrapSelection(v, "**") },
     { id: "italic", icon: "italic", label: "Italic (Ctrl+I)", run: (v) => wrapSelection(v, "*") },
+    { id: "highlight", icon: "highlighter", label: "Highlight (Ctrl+Shift+H)", run: (v) => wrapSelection(v, "==") },
   ],
   [
     { id: "list", icon: "list", label: "Bullet list", run: (v) => toggleLinePrefix(v, "- ") },
     { id: "listOrdered", icon: "listOrdered", label: "Numbered list", run: (v) => toggleLinePrefix(v, "", true) },
   ],
   [{ id: "link", icon: "link", label: "Link (Ctrl+K)", run: insertLink }],
+  [
+    { id: "hr", icon: "minus", label: "Divider line", run: (v) => insertBlock(v, "---") },
+    { id: "pagebreak", icon: "pagebreak", label: "Page break (starts a new PDF page)", run: (v) => insertBlock(v, "\\pagebreak") },
+  ],
   [{ id: "findReplace", icon: "replace", label: "Find & replace (Ctrl+F) — leave “Replace” blank to find & delete", run: (v) => void openSearchPanel(v) }],
 ];
 
@@ -68,7 +73,6 @@ const MORE_GROUPS: { title: string; items: Action[] }[] = [
     title: "Text style",
     items: [
       { id: "underline", icon: "underline", label: "Underline (Ctrl+U)", run: (v) => wrapSelection(v, "++") },
-      { id: "highlight", icon: "highlighter", label: "Highlight (Ctrl+Shift+H)", run: (v) => wrapSelection(v, "==") },
       { id: "strike", icon: "strikethrough", label: "Strikethrough", run: (v) => wrapSelection(v, "~~") },
       { id: "sup", icon: "superscript", label: "Superscript — x^2^", run: (v) => wrapSelection(v, "^", "^", "2") },
       { id: "sub", icon: "subscript", label: "Subscript — H~2~O", run: (v) => wrapSelection(v, "~", "~", "2") },
@@ -88,8 +92,6 @@ const MORE_GROUPS: { title: string; items: Action[] }[] = [
     items: [
       { id: "table", icon: "table", label: "Insert table", run: (v) => insertBlock(v, TABLE_SNIPPET) },
       { id: "codeBlock", icon: "file", label: "Code block", run: (v) => insertBlock(v, CODE_SNIPPET) },
-      { id: "hr", icon: "minus", label: "Divider line", run: (v) => insertBlock(v, "---") },
-      { id: "pagebreak", icon: "pagebreak", label: "Page break (starts a new PDF page)", run: (v) => insertBlock(v, "\\pagebreak") },
     ],
   },
 ];
@@ -156,7 +158,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           vertical overflow (a long-standing CSS quirk), so it can't wrap
           anything that opens a dropdown below it. Everything that does
           (callouts, More) lives outside this div, pinned and always reachable. */}
-      <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
+      <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
         {GROUPS.map((group, gi) => (
           <Fragment key={gi}>
             {gi > 0 && <span className="mx-1 h-5 w-px flex-none bg-edge" />}
@@ -165,6 +167,35 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
             ))}
           </Fragment>
         ))}
+        <span className="mx-1 h-5 w-px flex-none bg-edge" />
+        <IconButton
+          label="Cut entire document"
+          name="cut"
+          onClick={withView(async (v) => {
+            const result = await cutAll(v);
+            if (result === "empty") toast("Nothing to cut", "info");
+            else if (result === "denied") toast("Clipboard access blocked — document left untouched", "error");
+            else toast("Cut entire document to clipboard", "ok");
+          })}
+        />
+        <IconButton
+          label="Copy entire document"
+          name="copy"
+          onClick={withView(async (v) => {
+            const ok = await copyAll(v);
+            toast(ok ? "Copied entire document" : "Clipboard access blocked", ok ? "ok" : "error");
+          })}
+        />
+        <IconButton
+          label="Paste from clipboard at cursor"
+          name="clipboard"
+          onClick={withView(async (v) => {
+            const result = await pasteFromClipboard(v, (text) => smartPaste("", text)?.markdown ?? null);
+            if (result === "denied") toast("Clipboard access blocked — use Ctrl+V instead", "error");
+            else if (result === "empty") toast("Clipboard is empty", "info");
+            else toast("Pasted from clipboard", "ok");
+          })}
+        />
       </div>
 
       <span className="mx-1 h-5 w-px flex-none bg-edge" />
@@ -253,49 +284,6 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
               >
                 <Icon name="upload" size={15} className="flex-none" />
                 Insert file — Markdown, text, HTML or Word (.docx)
-              </button>
-              <button
-                onClick={async () => {
-                  setMoreOpen(false);
-                  const view = getView();
-                  if (!view) return;
-                  const ok = await copyAll(view);
-                  toast(ok ? "Copied entire document" : "Clipboard access blocked", ok ? "ok" : "error");
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
-              >
-                <Icon name="copy" size={15} className="flex-none" />
-                Copy entire document
-              </button>
-              <button
-                onClick={async () => {
-                  setMoreOpen(false);
-                  const view = getView();
-                  if (!view) return;
-                  const result = await cutAll(view);
-                  if (result === "empty") toast("Nothing to cut", "info");
-                  else if (result === "denied") toast("Clipboard access blocked — document left untouched", "error");
-                  else toast("Cut entire document to clipboard", "ok");
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
-              >
-                <Icon name="cut" size={15} className="flex-none" />
-                Cut entire document
-              </button>
-              <button
-                onClick={async () => {
-                  setMoreOpen(false);
-                  const view = getView();
-                  if (!view) return;
-                  const result = await pasteFromClipboard(view, (text) => smartPaste("", text)?.markdown ?? null);
-                  if (result === "denied") toast("Clipboard access blocked — use Ctrl+V instead", "error");
-                  else if (result === "empty") toast("Clipboard is empty", "info");
-                  else toast("Pasted from clipboard", "ok");
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
-              >
-                <Icon name="clipboard" size={15} className="flex-none" />
-                Paste from clipboard at cursor
               </button>
               <button
                 onClick={() => {
