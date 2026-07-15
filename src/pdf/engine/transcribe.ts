@@ -547,12 +547,23 @@ class Transcriber {
     // fallback — record the miss and keep transcribing; the caller decides
     // whether failures were widespread enough to abort.
     try {
-      if (rects.length === 1 && opt.letterSpacing === 0) {
+      // getClientRects() fragments a run into several rects *on the same
+      // line* at kerning/shaping-cluster boundaries — Chrome does this under
+      // `text-rendering: optimizeLegibility`, so e.g. the word "The" comes
+      // back as two rects ("Th" | "e"). That is not a line wrap. Such a run
+      // must be drawn as one shaped run at its left edge, letting the font's
+      // own kerning place the glyphs (identical to how every non-fragmented
+      // word already renders). Trusting per-character rects here corrupts the
+      // word: inside a kerned cluster a character reports its whole cluster's
+      // width or zero width, so glyphs desync and collapse onto one x.
+      // Only a genuine mid-word wrap puts fragments on different lines
+      // (different `top`); that alone keeps the exact per-character path.
+      const wrapped = rects.some((r) => Math.abs(r.top - rects[0].top) > 1);
+      if (!wrapped) {
         drawAt(text, rects[0]);
         return;
       }
-      // Letter-spaced or fragmented runs: position character by character
-      // with exact browser rects.
+      // Wrapped run: position character by character with exact browser rects.
       let idx = from;
       for (const ch of text) {
         this.range.setStart(node, idx);
