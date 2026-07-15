@@ -1,7 +1,7 @@
 {
   "name": "polity-studio",
   "productName": "Polity Studio",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Polity Made Simple — premium publishing studio for educational PDFs",
   "private": true,
   "type": "module",

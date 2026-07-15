@@ -162,6 +162,23 @@ export async function pasteFromClipboard(view: EditorView, convert: (text: strin
   return "ok";
 }
 
+/** Replaces the entire document with the clipboard's text contents —
+    distinct from Paste, which inserts at the cursor. Callers are expected
+    to confirm with the author first when the document isn't empty. */
+export async function replaceAllFromClipboard(view: EditorView, convert: (text: string) => string | null): Promise<"empty" | "denied" | "ok"> {
+  let text: string;
+  try {
+    text = await navigator.clipboard.readText();
+  } catch {
+    return "denied";
+  }
+  if (!text) return "empty";
+  const markdown = convert(text) ?? text;
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: markdown } });
+  view.focus();
+  return "ok";
+}
+
 export const TABLE_SNIPPET = `| Column 1 | Column 2 | Column 3 |
 |---|---|---|
 | Cell | Cell | Cell |
