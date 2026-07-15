@@ -65,3 +65,17 @@ export async function imageFileToMarkdown(file: File): Promise<string> {
   const dataUrl = await imageFileToDataUrl(file);
   return `\n\n![${altFromName(file.name)}](${dataUrl})\n\n`;
 }
+
+/** Standalone-image line carrying Studio's `{width=… align=…}` figure
+    attributes — the shape renderer.ts turns into a <figure>. */
+const FIGURE_ATTR_LINE_RE = /^(!\[[^\]]*\]\([^)\s]+(?:\s+"[^"]*")?\))\{[^}]*\}([ \t]*)$/gm;
+
+/** Rewrites a document body to portable, standard Markdown for the
+    plain-`.md` export: the `{…}` figure-attribute block is a Studio
+    extension that generic Markdown viewers render as literal text after
+    the image, so strip it, leaving a clean `![alt](src)` (data URIs and
+    captions preserved) that renders correctly anywhere it's reopened.
+    Re-importing into Studio simply restores the default layout. */
+export function toPortableMarkdown(body: string): string {
+  return body.replace(FIGURE_ATTR_LINE_RE, "$1$2");
+}

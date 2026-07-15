@@ -21,6 +21,7 @@ function doc(partial: Partial<Doc> & { id: string }): Doc {
     exam: "",
     paper: "",
     session: "",
+    edition: "",
     author: "",
     lang: "en",
     layout: LAYOUT,

@@ -24,6 +24,7 @@ function baseDoc(partial: Partial<Doc> = {}): Doc {
     exam: "UGC-NET",
     paper: "",
     session: "2026",
+    edition: "",
     author: "Author Name",
     lang: "en",
     layout: { ...DEFAULT_LAYOUT },
@@ -185,6 +186,28 @@ describe("buildDocumentHtml", () => {
   it("wraps the title block in a cv-titlebox for every cover", () => {
     const html = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow" });
     expect(html).toContain('class="cv-titlebox"');
+  });
+
+  it("renders the edition badge from doc.edition and the session in the eyebrow", () => {
+    const html = buildDocumentHtml(baseDoc({ edition: "2e", session: "June 2026" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(html).toContain('class="cv-edition">2e<');
+    expect(html).toContain("June 2026"); // in the eyebrow, not the badge
+    // No edition set → no badge at all (no year fallback).
+    const noBadge = buildDocumentHtml(baseDoc({ edition: "" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(noBadge).not.toContain('class="cv-edition"');
+  });
+
+  it("shows the language badge per the four cover-only states", () => {
+    const en = buildDocumentHtml(baseDoc({ lang: "en" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(en).toContain(">English<");
+    const hi = buildDocumentHtml(baseDoc({ lang: "hi" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(hi).toContain("हिन्दी");
+    expect(hi).not.toContain(">English<");
+    const both = buildDocumentHtml(baseDoc({ lang: "both" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(both).toContain(">English<");
+    expect(both).toContain("हिन्दी");
+    const none = buildDocumentHtml(baseDoc({ lang: "none" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(none).not.toContain("cv-lang");
   });
 });
 

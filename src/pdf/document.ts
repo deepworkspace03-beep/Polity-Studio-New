@@ -192,12 +192,21 @@ function customCoverVars(d: CoverDesign): string {
 
 function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): string {
   if (!doc.layout.cover) return "";
-  const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
+  const eyebrowParts = [doc.exam, doc.paper, doc.session].filter(Boolean);
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
   const author = doc.author || brand.author;
   const institute = doc.institute?.trim() || brand.name;
-  // Language label — Hindi shows हिन्दी; English intentionally shows nothing.
-  const langLabel = doc.lang === "hi" ? `<span class="cv-lang">हिन्दी</span>` : "";
+  // Cover language badge — cover page only, never touches content. Four
+  // states: English · हिन्दी · Both · None.
+  const langBadge = (label: string, hindi = false) => `<span class="cv-lang${hindi ? " cv-lang--hi" : ""}">${label}</span>`;
+  const langLabel =
+    doc.lang === "hi"
+      ? langBadge("हिन्दी", true)
+      : doc.lang === "en"
+        ? langBadge("English")
+        : doc.lang === "both"
+          ? langBadge("English") + langBadge("हिन्दी", true)
+          : "";
   // Author-authored highlight lines override the template's defaults; an
   // explicit empty array hides them entirely.
   const coverLines = (doc.coverLines ?? defaultCoverLines).map((l) => l.trim()).filter(Boolean);
@@ -239,7 +248,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
     </div>
     <div class="cv-top__meta">
       ${langLabel}
-      <span class="cv-edition">${escapeHtml(doc.session || String(new Date().getFullYear()))}</span>
+      ${doc.edition.trim() ? `<span class="cv-edition">${escapeHtml(doc.edition.trim())}</span>` : ""}
     </div>
   </header>
   <div class="cv-body">

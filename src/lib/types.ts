@@ -104,8 +104,13 @@ export interface Doc {
   exam: string;
   paper: string;
   session: string;
+  /** Cover edition badge (top-right), e.g. "1e", "2e". Separate from
+      the session so both can be managed independently. */
+  edition: string;
   author: string;
-  lang: "en" | "hi";
+  /** Cover language badge only — never affects document content. "both"
+      shows English + हिन्दी, "none" shows no badge. */
+  lang: "en" | "hi" | "both" | "none";
   /** Per-document publisher/institute name shown on the cover. Absent =
       use the global brand name (Settings → Branding). */
   institute?: string;

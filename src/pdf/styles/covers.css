@@ -83,13 +83,12 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
   margin-top: 0.8mm;
 }
 .cv-top__meta { display: flex; align-items: center; gap: 3mm; flex: none; }
-/* Language badge — only rendered for Hindi documents (हिन्दी); English
-   shows no label. A quiet outlined pill so it reads as metadata, not a
-   selling point. */
+/* Language badge — cover page only. English / हिन्दी / both / none. A
+   quiet outlined pill so it reads as metadata, not a selling point. */
 .cv-lang {
-  font-family: "Noto Sans Devanagari", "Manrope", sans-serif;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-weight: 600;
-  font-size: 10.5pt;
+  font-size: 10pt;
   line-height: 1;
   padding: 0 3mm;
   height: 12mm;
@@ -99,6 +98,7 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
   color: var(--cv-ink);
   border: 0.8pt solid var(--cv-line);
 }
+.cv-lang--hi { font-family: "Noto Sans Devanagari", "Manrope", sans-serif; font-size: 10.5pt; }
 .cv-edition {
   flex: none;
   font-family: "Manrope", sans-serif;

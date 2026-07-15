@@ -15,6 +15,7 @@ import { buildZip } from "../lib/zip";
 import { Button, Field, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { StudioNav } from "../components/StudioNav";
+import { toPortableMarkdown } from "../lib/image";
 
 /** Remembers a section's open/closed state across reloads, falling back
     silently where storage is unavailable (private mode). */
@@ -292,7 +293,7 @@ export function Settings() {
                     let name = `${base}.md`;
                     for (let i = 2; used.has(name); i++) name = `${base} (${i}).md`;
                     used.add(name);
-                    const body = d.body.trim();
+                    const body = toPortableMarkdown(d.body.trim());
                     const content = /^#\s+/.test(body) ? body : `# ${d.title || "Untitled"}\n\n${body}`;
                     return { name, data: encoder.encode(content) };
                   });

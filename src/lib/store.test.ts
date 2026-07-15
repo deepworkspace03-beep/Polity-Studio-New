@@ -52,6 +52,7 @@ describe("withDefaults", () => {
       exam: "",
       paper: "",
       session: "",
+      edition: "",
       author: "Author",
       lang: "en",
       layout: { ...DEFAULT_LAYOUT },
