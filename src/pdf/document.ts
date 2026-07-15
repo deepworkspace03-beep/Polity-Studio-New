@@ -1,7 +1,7 @@
 import type { BrandConfig, CoverColors, CoverDesign, Doc, PageSize } from "../lib/types";
 import { DEFAULT_COVER_DESIGN } from "../brand/defaults";
 import { escapeHtml } from "../lib/utils";
-import { coverPatternSvg, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
+import { coverPatternSvg, type CoverPatternKind, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
 import { extractToc } from "../markdown/renderer";
 import { TEMPLATE_RENDERERS } from "../templates";
 import { TEMPLATE_META } from "../templates/meta";
@@ -42,7 +42,7 @@ const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; marg
 
 /** Vector pattern layer per cover style (SVG so print stays vector).
     "custom" is absent — its pattern comes from the CoverDesign. */
-const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { kind: "grid" | "rings" | "weave" | "lines"; color: string }> = {
+const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { kind: CoverPatternKind; color: string }> = {
   regal: { kind: "grid", color: "rgba(245,242,234,0.045)" },
   aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
   heritage: { kind: "lines", color: "rgba(26,39,64,0.07)" },
@@ -159,6 +159,8 @@ function resolveDesign(design: CoverDesign | undefined): CoverDesign {
     accent: safeHex(d.accent, DEFAULT_COVER_DESIGN.accent),
     angle: clampNum(d.angle, 0, 360, 160),
     patternOpacity: clampNum(d.patternOpacity, 0, 0.3, 0.05),
+    patternDensity: clampNum(d.patternDensity, 0.5, 2, 1),
+    patternSize: clampNum(d.patternSize, 0.5, 2.5, 1),
     titleScale: clampNum(d.titleScale, 0.6, 1.5, 1),
     logo: typeof d.logo === "string" && d.logo.startsWith("data:image/") ? d.logo : undefined,
   };
@@ -195,15 +197,16 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
   // The four preset styles are CSS palettes; "custom" carries its whole
   // design on the doc and is rendered from inline --cv-* variables.
   const design = doc.layout.coverStyle === "custom" ? resolveDesign(doc.layout.coverDesign) : null;
-  const pattern = design
+  const pattern: { kind: CoverPatternKind; color: string; density?: number; size?: number } | null = design
     ? design.pattern === "none"
       ? null
-      : { kind: design.pattern, color: hexToRgba(design.ink, design.patternOpacity) }
+      : { kind: design.pattern, color: hexToRgba(design.ink, design.patternOpacity), density: design.patternDensity, size: design.patternSize }
     : COVER_PATTERNS[doc.layout.coverStyle as Exclude<Doc["layout"]["coverStyle"], "custom">];
   const classes = [
     `cover--${doc.layout.coverStyle}`,
     design?.align === "center" ? "cover--center" : "",
     design?.frame ? "cover--framed" : "",
+    design?.headerRule ? "cover--header-rule" : "",
   ].filter(Boolean).join(" ");
   const styleAttr = design ? customCoverVars(design) : coverColorVars(doc.layout.coverColors);
   const emblem = design && !design.emblem ? "" : templeEmblemSvg("cv-emblem");
@@ -213,7 +216,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
 
   return `
 <section class="cover ${classes}"${styleAttr}>
-  ${pattern ? coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color) : ""}
+  ${pattern ? coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color, { density: pattern.density, size: pattern.size }) : ""}
   <div class="cv-shade" aria-hidden="true"></div>
   ${emblem}
   <header class="cv-top">

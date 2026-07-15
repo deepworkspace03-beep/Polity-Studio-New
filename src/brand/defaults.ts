@@ -57,10 +57,13 @@ export const DEFAULT_COVER_DESIGN: CoverDesign = {
   accent: "#c9bc9e",
   pattern: "grid",
   patternOpacity: 0.05,
+  patternDensity: 1,
+  patternSize: 1,
   titleFont: "serif",
   titleScale: 1,
   align: "left",
   frame: false,
+  headerRule: false,
   emblem: true,
 };
 

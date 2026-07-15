@@ -30,6 +30,7 @@ export function Preview({
   brand,
   theme,
   cursorLine,
+  estimatedPages,
   onInlineEdit,
   onFocusLine,
   fullscreen,
@@ -41,6 +42,8 @@ export function Preview({
   /** Reading theme for the rendered document (Settings → Appearance). */
   theme: DocTheme;
   cursorLine: number;
+  /** Estimated total pages for the flow view's navigation readout. */
+  estimatedPages?: number;
   onInlineEdit: (edit: InlineEdit) => void;
   /** Preview → editor: the reader clicked a sourced element. `focusEditor`
       is false for elements that are themselves inline-editable (moving
@@ -55,6 +58,7 @@ export function Preview({
   const [srcDoc, setSrcDoc] = useState("");
   const [pages, setPages] = useState<number | null>(null);
   const [current, setCurrent] = useState(1);
+  const [flowPct, setFlowPct] = useState(0);
   const [paginating, setPaginating] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
@@ -151,6 +155,8 @@ export function Preview({
         if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "page-visible") {
         setCurrent(d.page);
+      } else if (d.type === "flow-scroll" && typeof d.pct === "number") {
+        setFlowPct(d.pct);
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
         setZoom(d.zoom);
         const nextMode = d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom";
@@ -180,6 +186,10 @@ export function Preview({
 
   const isPages = mode === "pages";
   const isDark = theme === "dark";
+  const pagesPercent = pages ? Math.round((current / pages) * 100) : 0;
+  const flowTotal = estimatedPages && estimatedPages > 1 ? estimatedPages : 0;
+  const flowPage = flowTotal ? Math.min(flowTotal, Math.floor(flowPct * flowTotal) + 1) : 0;
+  const flowPercent = Math.round(flowPct * 100);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -208,11 +218,24 @@ export function Preview({
               <IconButton label="Previous page" name="chevronLeft" size={14} onClick={() => goTo(current - 1)} />
               <span className="min-w-12 text-center text-[11px] font-semibold tabular-nums text-ink-2">{current} / {pages}</span>
               <IconButton label="Next page" name="chevronRight" size={14} onClick={() => goTo(current + 1)} />
+              <span className="ml-0.5 min-w-9 text-center text-[11px] font-semibold tabular-nums text-faint">{pagesPercent}%</span>
             </div>
           </>
+        ) : !isPages ? (
+          <span
+            className="text-[11px] tabular-nums text-ink-2"
+            aria-live="polite"
+            title="Estimated position — exact pages appear in the Pages view"
+          >
+            {flowTotal ? (
+              <><span className="font-semibold">≈ Page {flowPage} / {flowTotal}</span> <span className="text-faint">· {flowPercent}%</span></>
+            ) : (
+              <span className="text-faint">Live preview · tap a title to edit</span>
+            )}
+          </span>
         ) : (
           <span className="text-xs text-faint" aria-live="polite">
-            {isPages ? (paginating ? "Laying out pages…" : "") : "Live preview · tap a title to edit"}
+            {paginating ? "Laying out pages…" : ""}
           </span>
         )}
 

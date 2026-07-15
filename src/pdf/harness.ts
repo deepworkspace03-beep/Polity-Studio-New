@@ -185,6 +185,21 @@ export const HARNESS_JS = String.raw`(function () {
     }
   });
 
+  // Table-of-contents navigation: a chapter click jumps straight to that
+  // chapter's page inside this same preview — never a nested window or a
+  // fragment reload. getElementById reaches the heading on whatever page
+  // it landed on; we scroll that page to the top.
+  document.addEventListener("click", function (e) {
+    var link = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!link) return;
+    var id = decodeURIComponent((link.getAttribute("href") || "").slice(1));
+    var dest = id && document.getElementById(id);
+    if (!dest) return;
+    e.preventDefault();
+    var page = dest.closest(".pagedjs_page");
+    (page || dest).scrollIntoView({ block: "start", behavior: "smooth" });
+  });
+
   // Preview → editor: clicking any sourced element reports its line so
   // the host can move the editor cursor there (read-only pages view —
   // no inline editing here, that's the flow preview's job).
@@ -428,6 +443,13 @@ export const PREVIEW_JS = String.raw`(function () {
   // host syncs the editor cursor without stealing DOM focus from the
   // contenteditable the click just entered.
   root.addEventListener("click", function (e) {
+    // TOC chapter click → scroll to that heading in this same preview.
+    var link = e.target.closest('a[href^="#"]');
+    if (link) {
+      var id = decodeURIComponent((link.getAttribute("href") || "").slice(1));
+      var dest = id && document.getElementById(id);
+      if (dest) { e.preventDefault(); dest.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
+    }
     if (e.target.closest("a, input")) return;
     var target = e.target.closest("[data-line]");
     if (!target) return;
@@ -448,6 +470,23 @@ export const PREVIEW_JS = String.raw`(function () {
     }
   });
 
+  // Report scroll progress so the host can show an estimated page /
+  // percentage readout for the continuous flow view (throttled to a frame).
+  var scrollTick = false;
+  function reportScroll() {
+    scrollTick = false;
+    var doc = document.documentElement;
+    var max = doc.scrollHeight - doc.clientHeight;
+    var pct = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    try { parent.postMessage({ type: "flow-scroll", pct: pct }, "*"); } catch (e) {}
+  }
+  window.addEventListener("scroll", function () {
+    if (scrollTick) return;
+    scrollTick = true;
+    requestAnimationFrame(reportScroll);
+  }, { passive: true });
+
   wireEditables();
   try { parent.postMessage({ type: "preview-ready" }, "*"); } catch (e) { /* detached */ }
+  reportScroll();
 })();`;

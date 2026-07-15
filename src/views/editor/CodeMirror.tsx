@@ -20,6 +20,7 @@ const mdHighlight = HighlightStyle.define([
   { tag: tags.url, color: "var(--faint)" },
   { tag: tags.monospace, fontFamily: "var(--font-mono)", color: "var(--ink-2)" },
   { tag: tags.quote, color: "var(--faint)", fontStyle: "italic" },
+  { tag: tags.list, color: "var(--accent)", fontWeight: "700" },
   { tag: tags.contentSeparator, color: "var(--faint)" },
   { tag: tags.meta, color: "var(--faint)" },
   { tag: tags.processingInstruction, color: "var(--faint)" },
@@ -87,10 +88,12 @@ export interface CodeMirrorProps {
   onSmartPaste?: (summary: string) => void;
   /** Fired when image files are pasted — the host inserts them at the cursor. */
   onImageFiles?: (files: File[]) => void;
+  /** Estimated total pages for the scrollbar's position readout. */
+  estimatedPages?: number;
   viewRef: React.MutableRefObject<EditorView | null>;
 }
 
-export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, viewRef }: CodeMirrorProps) {
+export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, estimatedPages, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   // The scroller element + a revision counter feed the custom scrollbar
   // overlay; revision bumps on doc changes so the thumb resizes as content
@@ -203,7 +206,7 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   return (
     <div className="relative h-full min-h-0">
       <div ref={hostRef} className="h-full min-h-0" />
-      <EditorScrollbar scroller={scroller} revision={revision} />
+      <EditorScrollbar scroller={scroller} revision={revision} estimatedPages={estimatedPages} />
     </div>
   );
 }

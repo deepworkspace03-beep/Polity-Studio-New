@@ -203,6 +203,28 @@ function getRenderer(): MarkdownIt {
     }
   });
 
+  // Typographic arrow shortcuts — a few unambiguous ASCII sequences that
+  // read as arrows in study notes (cause→effect, mappings) become real
+  // Unicode glyphs. Runs on plain text runs only (never code spans, code
+  // blocks, links or attributes), so pasted Markdown and code stay intact.
+  // Longest sequences are ordered first so "<->" wins over "->".
+  const ARROWS: Record<string, string> = {
+    "<-->": "↔", "<->": "↔", "<--": "←", "<-": "←", "-->": "→", "->": "→", "==>": "⇒", "=>": "⇒",
+  };
+  const ARROW_RE = /<-->|<->|<--|<-|-->|->|==>|=>/g;
+  // Before the typographer's dash rule, so "-->" becomes an arrow rather
+  // than an en-dash + ">".
+  md.core.ruler.before("replacements", "studio_arrows", (state) => {
+    for (const token of state.tokens) {
+      if (token.type !== "inline" || !token.children) continue;
+      for (const child of token.children) {
+        if (child.type === "text" && (child.content.includes("-") || child.content.includes("="))) {
+          child.content = child.content.replace(ARROW_RE, (m) => ARROWS[m]);
+        }
+      }
+    }
+  });
+
   // `\pagebreak` (or `\newpage`) alone on a line forces a page break.
   md.core.ruler.push("studio_pagebreak", (state) => {
     const tokens = state.tokens;

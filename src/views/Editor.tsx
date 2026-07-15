@@ -1,8 +1,9 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
+import { openSearchPanel } from "@codemirror/search";
 import { navigate } from "../lib/router";
 import { flushSaves, updateDoc, useApp } from "../lib/store";
-import { contentStats, cx } from "../lib/utils";
+import { contentStats, cx, estimatePages } from "../lib/utils";
 import { imageFileToMarkdown, isImageFile } from "../lib/image";
 import type { Doc } from "../lib/types";
 import { Button, DropOverlay, IconButton, Segmented, useFileDrop, useToast } from "../components/ui";
@@ -26,8 +27,8 @@ const SETTINGS_MAX = 480;
 const PREVIEW_MIN = 320;
 const PREVIEW_MAX = 720;
 const EDITOR_MIN = 300;
-const RESIZER_W = 6;
-const RAIL_W = 16;
+const RESIZER_W = 8;
+const RAIL_W = 18;
 
 const DEFAULT_SETTINGS_WIDTH = 300;
 const DEFAULT_PREVIEW_WIDTH = 440;
@@ -70,7 +71,7 @@ function PaneResizer({ onDrag, label }: { onDrag: (deltaX: number) => void; labe
       aria-orientation="vertical"
       aria-label={label}
       tabIndex={0}
-      className="group relative hidden w-1.5 flex-none cursor-col-resize touch-none select-none focus-visible:outline-none md:block"
+      className="group relative hidden w-2 flex-none cursor-col-resize touch-none select-none focus-visible:outline-none md:block"
       onPointerDown={(e) => {
         dragging.current = true;
         lastX.current = e.clientX;
@@ -339,6 +340,17 @@ export function Editor({ id, line }: { id: string; line?: number }) {
     [id, docs],
   );
 
+  /** The editor header's search button searches only inside the Markdown
+      editor (highlight, next/previous, auto-scroll, focus stays in the
+      editor) — global cross-document search stays on Ctrl+K. Surfaces the
+      write pane first on mobile so the find bar is visible. */
+  const searchInEditor = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return openPalette();
+    setTab("write");
+    openSearchPanel(view);
+  }, []);
+
   /** Preview → editor: move the CodeMirror cursor to the clicked
       element's source line, focusing the editor unless the click landed
       on something the preview itself is already editing inline. */
@@ -359,6 +371,10 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   // a keystroke on very large documents.
   const deferredBody = useDeferredValue(doc?.body ?? "");
   const stats = useMemo(() => contentStats(deferredBody), [deferredBody]);
+  const estPages = useMemo(
+    () => estimatePages(stats.words, doc?.layout.density ?? "comfort", !!doc?.layout.cover, !!(doc?.layout.toc && stats.headings > 0)),
+    [stats.words, stats.headings, doc?.layout.density, doc?.layout.cover, doc?.layout.toc],
+  );
 
   if (!doc) {
     return (
@@ -383,7 +399,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           aria-label="Document title"
         />
         <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
-        <IconButton label="Search everything (Ctrl+K)" name="search" size={17} onClick={openPalette} />
+        <IconButton label="Find in this document (Ctrl+F) — search the Markdown editor" name="search" size={17} onClick={searchInEditor} />
         <IconButton label="Markdown guide" name="help" size={17} onClick={() => navigate("help")} />
         <IconButton
           label="Document details & layout"
@@ -470,6 +486,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
               }}
               onSmartPaste={(summary) => toast(`${summary} — Ctrl+Z restores the original`, "ok")}
               onImageFiles={insertImages}
+              estimatedPages={estPages}
               viewRef={viewRef}
             />
           </div>
@@ -492,6 +509,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
             brand={brand}
             theme={settings.docTheme}
             cursorLine={cursorLine}
+            estimatedPages={estPages}
             onInlineEdit={onInlineEdit}
             onFocusLine={onFocusLine}
             fullscreen={fullscreen}

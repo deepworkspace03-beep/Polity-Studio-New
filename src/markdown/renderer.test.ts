@@ -64,4 +64,18 @@ describe("renderMarkdown", () => {
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener"');
   });
+
+  it("converts ASCII arrow shortcuts to Unicode glyphs in prose", () => {
+    const html = renderMarkdown("cause -> effect, back <- here, both <-> ways, implies => result");
+    expect(html).toContain("cause → effect");
+    expect(html).toContain("back ← here");
+    expect(html).toContain("both ↔ ways");
+    expect(html).toContain("implies ⇒ result");
+  });
+
+  it("leaves arrow-like sequences inside inline code untouched", () => {
+    const html = renderMarkdown("`a -> b` and text -> here");
+    expect(html).toContain("<code>a -&gt; b</code>");
+    expect(html).toContain("text → here");
+  });
 });
