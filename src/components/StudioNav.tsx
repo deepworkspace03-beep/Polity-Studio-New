@@ -1,14 +1,15 @@
 import { goBack, canGoBack, navigate } from "../lib/router";
 import { getLastSession } from "../lib/session";
+import { restartStudio } from "../lib/store";
 import { IconButton, useToast } from "./ui";
 
 /**
  * Cross-app header actions, shared by every top-level view so the reader
  * is never more than one tap from safety: step back to the previous page,
- * jump home, or resume exactly where they left off. ("Restart Studio" —
- * a hard reload — lives in Settings → Your data, not here: it's a rare
- * recovery action, not something that deserves permanent header real
- * estate that implies the app expects to get stuck.)
+ * jump home, resume exactly where they left off, or — as a last resort —
+ * Quick Reboot the app if the UI ever wedges. Quick Reboot is a plain,
+ * non-destructive reload (pending edits are flushed first); it lives here
+ * permanently so recovery is always one tap away, in every view.
  */
 export function StudioNav({ home = true }: { home?: boolean }) {
   const toast = useToast();
@@ -33,6 +34,12 @@ export function StudioNav({ home = true }: { home?: boolean }) {
       <IconButton label="Back — return to the previous page" name="back" size={18} disabled={!canGoBack()} onClick={back} />
       {home && <IconButton label="Home — back to your library" name="home" size={18} onClick={() => navigate("library")} />}
       <IconButton label="Resume last session — reopen where you left off" name="history" size={18} onClick={resume} />
+      <IconButton
+        label="Quick Reboot — reload the app if it becomes unresponsive. Your documents are saved first."
+        name="refresh"
+        size={18}
+        onClick={() => void restartStudio()}
+      />
     </>
   );
 }

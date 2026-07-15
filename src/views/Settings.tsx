@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   deleteAllDocs,
   exportBackup,
-  flushSaves,
   importBackup,
   resetSettingsAndBrand,
   saveBrand,
@@ -198,85 +197,103 @@ export function Settings() {
         </Section>
 
         <Section
-          title="Your data"
-          description="Documents and settings live in this browser's local database (IndexedDB) — nothing is uploaded anywhere. Exported PDFs are saved by your browser to your device and are never stored by the app."
+          title="Storage & data"
+          description="Nothing is ever uploaded — everything below lives only in this browser, on this device."
         >
-          <p className="text-sm text-ink-2">
-            {docs.length} document{docs.length === 1 ? "" : "s"}
-            {usage !== null && <span className="text-faint"> · ~{formatBytes(usage)} of browser storage in use</span>}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              icon="download"
-              onClick={() => {
-                downloadFile(`polity-studio-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), "application/json");
-                toast("Backup downloaded", "ok");
-              }}
-            >
-              Download backup
-            </Button>
-            <Button icon="upload" onClick={() => fileRef.current?.click()}>
-              Restore backup
-            </Button>
-            <Button
-              icon="file"
-              disabled={docs.length === 0}
-              onClick={() => {
-                // Plain Markdown files, not the app's JSON format — opens in
-                // any editor, not just this app, if you ever need to leave.
-                const used = new Set<string>();
-                const encoder = new TextEncoder();
-                const entries = docs.map((d) => {
-                  const base = (d.title || "Untitled").replace(/[\\/:*?"<>|]/g, "·").trim() || "Untitled";
-                  let name = `${base}.md`;
-                  for (let i = 2; used.has(name); i++) name = `${base} (${i}).md`;
-                  used.add(name);
-                  const body = d.body.trim();
-                  const content = /^#\s+/.test(body) ? body : `# ${d.title || "Untitled"}\n\n${body}`;
-                  return { name, data: encoder.encode(content) };
-                });
-                downloadFile(`polity-studio-markdown-${new Date().toISOString().slice(0, 10)}.zip`, buildZip(entries), "application/zip");
-                toast(`Downloaded ${docs.length} document${docs.length === 1 ? "" : "s"} as Markdown`, "ok");
-              }}
-            >
-              Export all as Markdown (.zip)
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                try {
-                  const count = await importBackup(await file.text());
-                  toast(`Restored ${count} document${count === 1 ? "" : "s"}`, "ok");
-                } catch (err) {
-                  toast(err instanceof Error ? err.message : "Restore failed", "error");
-                }
-              }}
-            />
+          {/* 1 · The only thing that is your data and worth backing up. */}
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-ink">Documents & settings</h3>
+              <p className="mt-0.5 text-xs text-faint">
+                Saved in this browser's local database (IndexedDB). This is your work — back it up before clearing
+                browser data, since clearing site data deletes it.
+              </p>
+            </div>
+            <p className="text-sm text-ink-2">
+              {docs.length} document{docs.length === 1 ? "" : "s"}
+              {usage !== null && <span className="text-faint"> · ~{formatBytes(usage)} stored</span>}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                icon="download"
+                onClick={() => {
+                  downloadFile(`polity-studio-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), "application/json");
+                  toast("Backup downloaded", "ok");
+                }}
+              >
+                Download backup
+              </Button>
+              <Button icon="upload" onClick={() => fileRef.current?.click()}>
+                Restore backup
+              </Button>
+              <Button
+                icon="file"
+                disabled={docs.length === 0}
+                onClick={() => {
+                  // Plain Markdown files, not the app's JSON format — opens in
+                  // any editor, not just this app, if you ever need to leave.
+                  const used = new Set<string>();
+                  const encoder = new TextEncoder();
+                  const entries = docs.map((d) => {
+                    const base = (d.title || "Untitled").replace(/[\\/:*?"<>|]/g, "·").trim() || "Untitled";
+                    let name = `${base}.md`;
+                    for (let i = 2; used.has(name); i++) name = `${base} (${i}).md`;
+                    used.add(name);
+                    const body = d.body.trim();
+                    const content = /^#\s+/.test(body) ? body : `# ${d.title || "Untitled"}\n\n${body}`;
+                    return { name, data: encoder.encode(content) };
+                  });
+                  downloadFile(`polity-studio-markdown-${new Date().toISOString().slice(0, 10)}.zip`, buildZip(entries), "application/zip");
+                  toast(`Downloaded ${docs.length} document${docs.length === 1 ? "" : "s"} as Markdown`, "ok");
+                }}
+              >
+                Export all as Markdown (.zip)
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  try {
+                    const count = await importBackup(await file.text());
+                    toast(`Restored ${count} document${count === 1 ? "" : "s"}`, "ok");
+                  } catch (err) {
+                    toast(err instanceof Error ? err.message : "Restore failed", "error");
+                  }
+                }}
+              />
+            </div>
+            <p className="text-xs text-faint">
+              The JSON backup restores exactly here; the Markdown zip is one plain .md file per document, readable in
+              any editor if you ever need to leave.
+            </p>
           </div>
-          <p className="text-xs text-faint">
-            Back up before clearing browser data — clearing site data deletes your documents. The JSON backup restores
-            exactly here; the Markdown zip is one plain .md file per document, readable in any editor if you ever
-            need to leave.
-          </p>
+
+          {/* 2 · Not user data — the app's own files, managed by the browser. */}
+          <div className="border-t border-edge pt-4">
+            <h3 className="text-sm font-semibold text-ink">Offline app cache</h3>
+            <p className="mt-0.5 text-xs text-faint">
+              Polity Studio installs as an app, so the browser keeps a copy of its files to load fast and work
+              offline. This is the program, not your documents — it rebuilds itself automatically and never needs
+              backing up.
+            </p>
+          </div>
+
+          {/* 3 · Explicitly nothing is retained. */}
+          <div className="border-t border-edge pt-4">
+            <h3 className="text-sm font-semibold text-ink">Generated PDFs</h3>
+            <p className="mt-0.5 text-xs text-faint">
+              Not stored anywhere. Each export is built fresh in memory and handed straight to your browser's save
+              dialog, then discarded — the app keeps no copy.
+            </p>
+          </div>
+
+          {/* Destructive action, set apart. */}
           <div className="flex flex-wrap items-center gap-2 border-t border-edge pt-4">
-            <Button
-              icon="refresh"
-              onClick={async () => {
-                flushSaves();
-                // Give the debounced IndexedDB writes a beat to land before
-                // the reload tears down the page.
-                await new Promise((r) => setTimeout(r, 150));
-                location.reload();
-              }}
-            >
-              Restart Studio
-            </Button>
             <Button variant="danger" icon="trash" disabled={docs.length === 0} onClick={() => setConfirmWipe(true)}>
               Delete all documents…
             </Button>
