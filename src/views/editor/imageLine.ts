@@ -33,8 +33,11 @@ export function parseImageLine(view: EditorView, lineNumber: number): ImageLineI
 }
 
 /** Rewrites the image line with a patched layout/style/src/caption,
-    preserving the alt text and any attribute this UI doesn't own. */
-export function patchImageLine(view: EditorView, lineNumber: number, patch: ImageLinePatch): void {
+    preserving the alt text and any attribute this UI doesn't own.
+    `opts.focus: false` keeps focus where it is — the width slider patches
+    live while dragging, and yanking focus to the editor mid-drag would
+    end the drag. */
+export function patchImageLine(view: EditorView, lineNumber: number, patch: ImageLinePatch, opts: { focus?: boolean } = {}): void {
   if (lineNumber < 1 || lineNumber > view.state.doc.lines) return;
   const line = view.state.doc.line(lineNumber);
   const m = IMAGE_LINE_RE.exec(line.text);
@@ -56,7 +59,7 @@ export function patchImageLine(view: EditorView, lineNumber: number, patch: Imag
   const titlePart = title ? ` "${title.replace(/"/g, "'")}"` : "";
   const newText = `![${alt}](${src}${titlePart})${attrsOut ? `{${attrsOut}}` : ""}`;
   view.dispatch({ changes: { from: line.from, to: line.to, insert: newText } });
-  view.focus();
+  if (opts.focus !== false) view.focus();
 }
 
 /** Removes the image line, merging away the one blank line it was

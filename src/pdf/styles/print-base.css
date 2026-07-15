@@ -452,30 +452,40 @@ p > img:only-child {
 
 /* Book-style wrapping — the figure floats and the following paragraphs
    flow naturally beside it. Capped so a wrap image can never swallow the
-   column, and the caption reads left-aligned under the picture. The PDF
-   engine transcribes the browser-laid-out positions, so the wrap survives
-   export unchanged. */
+   column (small author-portrait sizes down to ~10% are fine), and the
+   caption reads left-aligned under the picture. The PDF engine
+   transcribes the browser-laid-out positions, so the wrap survives
+   export unchanged. The slight top margin drops the image to the first
+   line's cap height so picture and paragraph read as one unit. */
 .md-figure--left {
   float: left;
   clear: left;
   width: var(--fig-w, 42%);
   max-width: 60%;
-  margin: 0.3em var(--fig-gap) 0.7em 0;
+  margin: 0.3em var(--fig-gap) 0.6em 0;
 }
 .md-figure--right {
   float: right;
   clear: right;
   width: var(--fig-w, 42%);
   max-width: 60%;
-  margin: 0.3em 0 0.7em var(--fig-gap);
+  margin: 0.3em 0 0.6em var(--fig-gap);
 }
 .md-figure--left img,
 .md-figure--right img { width: 100%; }
 .md-figure--left figcaption,
 .md-figure--right figcaption { text-align: left; }
 
-/* A heading should never wrap around a floated figure — start it clear. */
-.doc h1, .doc h2, .doc h3 { clear: both; }
+/* Wrapped text must never leak into the next structural block. Plain
+   paragraphs keep wrapping beside a floated figure (the textbook look);
+   every other major block — headings, tables, callouts, lists,
+   blockquotes, code, rules, other figures, manual page breaks and the
+   footnotes block — starts clear below the image instead of colliding
+   with it. */
+h1, h2, h3, h4,
+table, .callout, blockquote, pre, hr,
+ul, ol, .footnotes, .page-break,
+.md-figure--center, .md-figure--full { clear: both; }
 
 /* ── Spacing ─────────────────────────────────────────────────────── */
 .md-fig--gap-sm { --fig-gap: 0.55em; margin-block: 0.7em; }
@@ -612,6 +622,50 @@ p > img:only-child {
 
 /* In the flow preview there are no page numbers to point at. */
 body.mode-flow .toc__item a::after { content: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK READING THEME REFINEMENTS
+   The dark palette itself comes from the --c-* variables (document.ts);
+   these rules only re-tune the handful of components whose light-theme
+   treatment doesn't translate — big light fills and heavy bands read as
+   glare on a dark page. Presentation only: no geometry changes, so
+   pagination is identical in both themes.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Tables: instead of a bright primary band, the header becomes a lifted
+   dark surface with light primary type over a crisp accent rule — the
+   classic dark-mode "professional report" table. */
+.doc-dark th {
+  background: #1D2735;
+  color: var(--c-primary);
+  border-bottom: 1pt solid color-mix(in srgb, var(--c-accent) 65%, transparent);
+}
+.doc-dark tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--c-band) 55%, transparent); }
+
+/* Callouts: hairlines tinted toward each callout's accent so the boxes
+   keep their color identity without bright fills. */
+.doc-dark .callout {
+  border-color: color-mix(in srgb, var(--co-accent, var(--c-accent)) 26%, var(--c-edge));
+}
+
+/* Blockquotes: a quiet accent-tinted panel; body text stays the normal
+   reading color rather than a colored ink. */
+.doc-dark blockquote {
+  background: color-mix(in srgb, var(--c-accent) 9%, var(--c-paper));
+  color: var(--c-text);
+}
+
+/* Watermark: lighter ink, slightly reduced strength — visible without
+   fogging the dark ground. */
+.doc-dark .page-watermark { color: #A9B6C7; opacity: 0.09; }
+
+/* Figure shadows need real darkness to lift off a dark page. */
+.doc-dark .md-fig--shadow img { box-shadow: 0 3pt 12pt rgba(0, 0, 0, 0.55); }
+
+/* Highlight strokes over dark paper: a touch more presence. */
+.doc-dark mark {
+  background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--c-gold) 30%, transparent) 45%);
+}
 
 /* Generic centered block titles (Answer Key, Explanations…) */
 .block-title {

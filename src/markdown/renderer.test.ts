@@ -54,6 +54,26 @@ describe("renderMarkdown", () => {
     expect(html).toContain("<figcaption>A caption</figcaption>");
   });
 
+  it("splits a leading image line off its paragraph into a figure (textbook wrap)", () => {
+    const html = renderMarkdown("![p](pic.png){align=left width=20%}\nIntro text wraps beside the portrait.");
+    expect(html).toContain("md-figure--left");
+    expect(html).toContain("--fig-w:20%");
+    expect(html).toContain("Intro text wraps beside the portrait.");
+    expect(html).not.toContain("{align=left");
+  });
+
+  it("splits a bare image line followed by text into a centered figure", () => {
+    const html = renderMarkdown("![p](pic.png)\nBody text on the next line.");
+    expect(html).toContain("md-figure--center");
+    expect(html).toContain("Body text on the next line.");
+  });
+
+  it("keeps an image inline when text follows on the same line", () => {
+    const html = renderMarkdown("![icon](i.png) label text");
+    expect(html).not.toContain("md-figure");
+    expect(html).toContain("<img");
+  });
+
   it("applies the new figure layout/style options as classes", () => {
     const html = renderMarkdown("![x](pic.png){align=full border round shadow gap=lg}");
     expect(html).toContain("md-figure--full");

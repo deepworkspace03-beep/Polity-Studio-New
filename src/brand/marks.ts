@@ -43,7 +43,7 @@ export function watermarkHtml(text: string): string {
 </div>`;
 }
 
-export type CoverPatternKind = "grid" | "dots" | "lines" | "rings" | "weave" | "abstract";
+export type CoverPatternKind = "grid" | "dots" | "lines" | "rings" | "weave" | "abstract" | "waves" | "mesh" | "geometry";
 
 /**
  * Full-bleed cover pattern layer, generated as inline SVG (mm units) so
@@ -84,6 +84,46 @@ export function coverPatternSvg(
     const max = Math.hypot(wMm, hMm);
     const step = 6.4 / d;
     for (let r = step; r < max; r += step) parts.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none"/>`);
+  } else if (style === "waves") {
+    // Stacked gentle sine waves — calm, editorial texture.
+    const step = 11 / d;
+    const wl = 26;
+    const amp = 2.4;
+    for (let y = step; y < hMm + amp; y += step) {
+      let path = `M ${-wl} ${y.toFixed(1)} q ${(wl / 4).toFixed(1)} ${(-amp * 2).toFixed(1)} ${(wl / 2).toFixed(1)} 0`;
+      for (let x = -wl / 2; x < wMm + wl; x += wl / 2) path += ` t ${(wl / 2).toFixed(1)} 0`;
+      parts.push(`<path d="${path}" fill="none"/>`);
+    }
+  } else if (style === "mesh") {
+    // Isometric triangle mesh: horizontal rows plus both diagonal
+    // families — an architectural, engineered texture.
+    const step = 16 / d;
+    const run = hMm * 0.577; // ~30° from vertical, equilateral-ish cells
+    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y.toFixed(1)}" x2="${wMm}" y2="${y.toFixed(1)}"/>`);
+    for (let x = -run; x < wMm + run; x += step) {
+      parts.push(`<line x1="${x.toFixed(1)}" y1="0" x2="${(x + run).toFixed(1)}" y2="${hMm}"/>`);
+      parts.push(`<line x1="${(x + run).toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${hMm}"/>`);
+    }
+  } else if (style === "geometry") {
+    // Sparse outlined shapes — circles, diamonds, triangles — on a
+    // staggered grid with deterministic size drift: a designed,
+    // non-repeating feel without any randomness.
+    const step = 30 / d;
+    const r0 = 4.6 * s;
+    let row = 0;
+    for (let y = step * 0.7; y < hMm + r0; y += step) {
+      for (let x = step * (0.55 + (row % 2) * 0.5); x < wMm + r0; x += step * 1.3) {
+        const kind = (row + Math.round(x / step)) % 3;
+        const r = r0 * (0.68 + ((row * 7 + Math.round(x)) % 5) * 0.13);
+        const [cx, cy, rr] = [x.toFixed(1), y.toFixed(1), r.toFixed(1)];
+        if (kind === 0) parts.push(`<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none"/>`);
+        else if (kind === 1)
+          parts.push(`<polygon points="${(x - r).toFixed(1)},${cy} ${cx},${(y - r).toFixed(1)} ${(x + r).toFixed(1)},${cy} ${cx},${(y + r).toFixed(1)}" fill="none"/>`);
+        else
+          parts.push(`<polygon points="${cx},${(y - r).toFixed(1)} ${(x + r * 0.87).toFixed(1)},${(y + r / 2).toFixed(1)} ${(x - r * 0.87).toFixed(1)},${(y + r / 2).toFixed(1)}" fill="none"/>`);
+      }
+      row++;
+    }
   } else if (style === "abstract") {
     // A few large, soft sweeping arcs from two corners — a modern,
     // premium "designed" texture rather than a repeating pattern.

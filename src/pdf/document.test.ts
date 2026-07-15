@@ -124,6 +124,68 @@ describe("buildDocumentHtml", () => {
     expect(html).not.toContain("--cv-title-scale:999");
     expect(html).toContain("--cv-title-scale:1.5"); // clamped to the 0.6–1.5 range
   });
+
+  function customCoverDoc(design: Partial<Doc["layout"]["coverDesign"] & object>): Doc {
+    return baseDoc({
+      layout: {
+        ...DEFAULT_LAYOUT,
+        coverStyle: "custom",
+        coverDesign: {
+          bg1: "#0d1930",
+          bg2: "#1d3357",
+          angle: 160,
+          ink: "#f5f2ea",
+          accent: "#c9bc9e",
+          pattern: "grid",
+          patternOpacity: 0.05,
+          titleFont: "serif",
+          titleScale: 1,
+          align: "left",
+          frame: false,
+          emblem: true,
+          ...design,
+        },
+      },
+    });
+  }
+
+  it("derives the frame class from the legacy `frame` boolean when frameStyle is absent", () => {
+    const html = buildDocumentHtml(customCoverDoc({ frame: true }), DEFAULT_BRAND, { mode: "flow" });
+    expect(html).toContain("cover--frame-single");
+  });
+
+  it("emits frameStyle and titleBox classes, sanitizing junk values", () => {
+    const styled = buildDocumentHtml(
+      customCoverDoc({ frameStyle: "double", titleBox: "premium" }),
+      DEFAULT_BRAND,
+      { mode: "flow" },
+    );
+    expect(styled).toContain("cover--frame-double");
+    expect(styled).toContain("cover--tbox-premium");
+
+    const junk = buildDocumentHtml(
+      customCoverDoc({
+        frameStyle: 'evil" onload="x' as never,
+        titleBox: "nope" as never,
+      }),
+      DEFAULT_BRAND,
+      { mode: "flow" },
+    );
+    expect(junk).not.toContain("evil");
+    expect(junk).not.toContain("cover--tbox-nope");
+  });
+
+  it("renders the new cover patterns as inline SVG", () => {
+    for (const pattern of ["waves", "mesh", "geometry"] as const) {
+      const html = buildDocumentHtml(customCoverDoc({ pattern }), DEFAULT_BRAND, { mode: "flow" });
+      expect(html).toContain('class="cv-pattern"');
+    }
+  });
+
+  it("wraps the title block in a cv-titlebox for every cover", () => {
+    const html = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow" });
+    expect(html).toContain('class="cv-titlebox"');
+  });
 });
 
 describe("buildShellKey", () => {

@@ -103,16 +103,16 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
   flex: none;
   font-family: "Manrope", sans-serif;
   font-weight: 800;
-  font-size: 12.5pt;
+  font-size: 12pt;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.01em;
   min-width: 12mm;
   height: 12mm;
-  padding: 0 3mm;
+  padding: 0 3.4mm;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2.8mm;
+  border-radius: 2.6mm;
   color: var(--cv-edition-tx);
   background: var(--cv-accent);
 }
@@ -121,8 +121,8 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
 .cv-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8mm 0; }
 .cv-eyebrow {
   font-family: "JetBrains Mono", "Noto Sans Devanagari", monospace;
-  font-size: 11pt;
-  letter-spacing: 0.2em;
+  font-size: 10.5pt;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--cv-accent);
   margin: 0 0 6mm;
@@ -131,8 +131,8 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
   font-family: var(--cv-title-font);
   font-weight: 800;
   font-size: calc(44pt * var(--cv-title-scale, 1));
-  line-height: 1.04;
-  letter-spacing: -0.02em;
+  line-height: 1.05;
+  letter-spacing: -0.022em;
   margin: 0;
   padding: 0;
   border: none;
@@ -143,14 +143,14 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
 .cv-guide {
   font-family: "Literata", "Noto Serif Devanagari", serif;
   font-size: 16.5pt;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--cv-soft);
-  margin: 7mm 0 0;
+  margin: 6mm 0 0;
   max-width: 152mm;
 }
 /* Empty subtitle: hidden when printing/paginating, editable in flow. */
 body.mode-paged .cv-guide--empty { display: none; }
-.cv-highlights { list-style: none; margin: 11mm 0 0; padding: 0; display: flex; flex-direction: column; gap: 3.4mm; }
+.cv-highlights { list-style: none; margin: 11mm 0 0; padding: 0; display: flex; flex-direction: column; gap: 3.6mm; }
 .cv-highlights li {
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-weight: 600;
@@ -300,7 +300,13 @@ body.mode-paged .cv-guide--empty { display: none; }
   max-width: 42mm;
   object-fit: contain;
 }
-.cover--framed::after {
+/* Hairline frame variants (Cover Designer → Structure). Real borders on
+   real boxes, so print and the PDF engine keep them crisp vector strokes.
+   The double frame borrows heritage's trick: the (background-free) shade
+   layer draws the inner line. */
+.cover--frame-single::after,
+.cover--frame-double::after,
+.cover--frame-accent::after {
   content: "";
   position: absolute;
   inset: 9mm;
@@ -308,6 +314,41 @@ body.mode-paged .cv-guide--empty { display: none; }
   pointer-events: none;
   z-index: 0;
 }
+.cover--frame-double::after { inset: 8mm; border-width: 0.9pt; }
+.cover--frame-double .cv-shade {
+  background: none;
+  inset: 10mm;
+  border: 0.45pt solid var(--cv-line);
+}
+.cover--frame-accent::after {
+  border: 0.8pt solid color-mix(in srgb, var(--cv-accent) 72%, transparent);
+}
+
+/* Title box — an optional publication-style treatment around the eyebrow,
+   title and subtitle. Outline is a quiet hairline card; Filled lifts the
+   block on a translucent panel; Premium is the classic typeset band — a
+   strong accent rule above, a hairline below, no box. */
+.cover--tbox-outline .cv-titlebox,
+.cover--tbox-filled .cv-titlebox {
+  padding: 9mm 10mm;
+  border-radius: 2.5mm;
+}
+.cover--tbox-outline .cv-titlebox { border: 0.7pt solid var(--cv-line); }
+.cover--tbox-filled .cv-titlebox {
+  background: color-mix(in srgb, var(--cv-ink) 7%, transparent);
+  border: 0.5pt solid color-mix(in srgb, var(--cv-ink) 14%, transparent);
+}
+.cover--tbox-premium .cv-titlebox {
+  padding: 7mm 0;
+  border-top: 1.2pt solid var(--cv-accent);
+  border-bottom: 0.45pt solid var(--cv-line);
+}
+.cover--tbox-outline .cv-highlights,
+.cover--tbox-filled .cv-highlights,
+.cover--tbox-premium .cv-highlights { margin-top: 9mm; }
+/* Centered layouts shrink-wrap the box around its text. */
+.cover--center.cover--tbox-outline .cv-titlebox,
+.cover--center.cover--tbox-filled .cv-titlebox { padding-inline: 12mm; }
 /* Optional premium header band — a thin rule at the very top plus a
    hairline divider under the publisher lockup. Structural, so it works on
    the custom cover regardless of the chosen colors. */

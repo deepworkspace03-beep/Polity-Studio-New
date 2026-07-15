@@ -154,25 +154,40 @@ function getRenderer(): MarkdownIt {
   };
 
   // Standalone images → <figure>. An author-friendly, dependency-free
-  // image layer: any paragraph that is just an image becomes a figure. A
+  // image layer: any source line that is just an image becomes a figure. A
   // caption comes from the Markdown title (`![alt](src "cap")`); size,
   // layout (center · left/right float-wrap · full width) and styling
   // (border, rounded corners, shadow, spacing) from an optional trailing
   // `{width=60% align=left border …}` — parsed by markdown/figure.ts so the
   // in-editor image controls write exactly what the renderer reads. Inline
   // images (inside a sentence) keep the default <img> rendering.
+  //
+  // The image line may open its paragraph with the wrapped text following
+  // on the very next line (no blank line) — the natural way to author a
+  // textbook float-wrap, and what the editor's image toolbar recognizes.
+  // That leading line splits into a figure and the paragraph continues
+  // without it; only a same-line trailing sentence keeps the image inline.
   md.core.ruler.push("studio_figures", (state) => {
     const t = state.tokens;
     for (let i = 0; i < t.length - 2; i++) {
       if (t[i].type !== "paragraph_open" || t[i + 1].type !== "inline" || t[i + 2].type !== "paragraph_close") continue;
-      const kids = (t[i + 1].children ?? []).filter((c) => !(c.type === "text" && !c.content.trim()) && c.type !== "softbreak");
+      const inline = t[i + 1];
+      const kids = (inline.children ?? []).filter((c) => !(c.type === "text" && !c.content.trim()));
       if (kids.length === 0 || kids[0].type !== "image") continue;
       let attrs = "";
-      if (kids.length === 2 && kids[1].type === "text") {
-        const m = /^\{([^}]*)\}$/.exec(kids[1].content.trim());
-        if (!m) continue; // image plus other text — leave as a normal paragraph
+      let next = 1;
+      if (kids[next]?.type === "text") {
+        const m = /^\{([^}]*)\}$/.exec(kids[next].content.trim());
+        if (!m) continue; // image plus other same-line text — stays inline
         attrs = m[1];
-      } else if (kids.length !== 1) continue;
+        next++;
+      }
+      // Whatever follows the image line must start on its own source line.
+      let rest: typeof kids | null = null;
+      if (next < kids.length) {
+        if (kids[next].type !== "softbreak") continue;
+        rest = kids.slice(next + 1);
+      }
 
       const img = kids[0];
       const src = img.attrGet("src") || "";
@@ -189,7 +204,16 @@ function getRenderer(): MarkdownIt {
         `${title ? `<figcaption>${esc(title)}</figcaption>` : ""}</figure>\n`;
       const tok = new state.Token("html_block", "", 0);
       tok.content = html;
-      t.splice(i, 3, tok);
+      if (rest && rest.length) {
+        // Figure first, then the paragraph keeps flowing with the image
+        // line removed; its source map moves down to the continuation.
+        inline.children = rest;
+        if (t[i].map) t[i].map = [t[i].map![0] + 1, t[i].map![1]];
+        if (inline.map) inline.map = [inline.map[0] + 1, inline.map[1]];
+        t.splice(i, 0, tok);
+      } else {
+        t.splice(i, 3, tok);
+      }
     }
   });
 
