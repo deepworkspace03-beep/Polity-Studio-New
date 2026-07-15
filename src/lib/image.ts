@@ -23,7 +23,7 @@ function altFromName(name: string): string {
   return name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
 }
 
-async function toDataUrl(file: File): Promise<string> {
+export async function imageFileToDataUrl(file: File): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -62,6 +62,6 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 /** Convert an image file to a block-level Markdown image, padded with blank
     lines so it always renders as its own figure. */
 export async function imageFileToMarkdown(file: File): Promise<string> {
-  const dataUrl = await toDataUrl(file);
+  const dataUrl = await imageFileToDataUrl(file);
   return `\n\n![${altFromName(file.name)}](${dataUrl})\n\n`;
 }

@@ -14,6 +14,7 @@ import { saveLastSession } from "../lib/session";
 import { StudioNav } from "../components/StudioNav";
 import { CodeMirror } from "./editor/CodeMirror";
 import { Toolbar } from "./editor/Toolbar";
+import { ImageTools } from "./editor/ImageTools";
 import { Preview, type InlineEdit } from "./editor/Preview";
 import { Details, DetailsPane } from "./editor/Details";
 import { Publish } from "./editor/Publish";
@@ -475,6 +476,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           {...drop.handlers}
         >
           {!focusMode && <Toolbar getView={() => viewRef.current} />}
+          {!focusMode && <ImageTools getView={() => viewRef.current} line={cursorLine} />}
           <div className="min-h-0 flex-1">
             <CodeMirror
               value={doc.body}

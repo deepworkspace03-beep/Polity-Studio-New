@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 import { Button, useToast } from "../components/ui";
 import { StudioNav } from "../components/StudioNav";
+import { downloadFile } from "../lib/utils";
+
+/** Keep this in lockstep with package.json's "version" — shown in the
+    "What's new" heading and stamped into the downloaded guide so it's
+    obvious which app build a saved copy matches. */
+const STUDIO_VERSION = "3.2";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -233,19 +239,154 @@ const TABLE_EXAMPLE = `| Feature | Federal | Unitary |
 - [x] Highlight key terms
 [^1]: A footnote, collected at the end.`;
 
+/** Assembles the on-page reference material into one self-contained
+    Markdown file — built from the same constants this page renders, so a
+    downloaded copy never drifts from what's shown here. Meant to be
+    uploaded to an AI chat as context before asking it to write content
+    for this app. */
+function buildGuideMarkdown(): string {
+  return `# Polity Studio — Markdown & Authoring Guide (v${STUDIO_VERSION})
+
+This is the complete authoring reference for Polity Studio, a Markdown-to-PDF
+publishing tool for exam-prep content. Give this whole file to an AI chat
+(Claude, Gemini, ChatGPT…) as context before asking it to write a document —
+its output will import with zero manual formatting.
+
+## Syntax specification
+
+${MASTER_SPEC}
+
+## Document structure
+
+\`\`\`
+${STRUCTURE_EXAMPLE}
+\`\`\`
+
+## Tables, lists & footnotes
+
+\`\`\`
+${TABLE_EXAMPLE}
+\`\`\`
+
+## Images
+
+\`\`\`
+${IMAGE_EXAMPLE}
+\`\`\`
+
+A standalone image becomes a centered figure. Caption in quotes; size and
+placement via an optional \`{width=60% align=left}\` (also
+\`align=center|right\`, \`fit=cover\`).
+
+## Callouts
+
+Eight types: definition · example · important · summary · tip · warning · note · exam.
+
+\`\`\`
+${CALLOUT_EXAMPLE}
+\`\`\`
+
+## Templates
+
+### Theory Notes
+Long-form chapters — the default for explanatory writing, with a cover, table of contents and callouts. Plain Markdown throughout.
+
+AI prompt:
+\`\`\`
+${NOTES_PROMPT}
+\`\`\`
+
+### Quick Revision
+Compact, bullet-first sheets for last-minute review — same Markdown as Notes, laid out tighter.
+
+AI prompt:
+\`\`\`
+${REVISION_PROMPT}
+\`\`\`
+
+### MCQ Booklet
+Practice questions with a back-of-booklet answer key.
+
+\`\`\`
+${MCQ_EXAMPLE}
+\`\`\`
+
+AI prompt:
+\`\`\`
+${MCQ_PROMPT}
+\`\`\`
+
+### PYQ Collection
+Solved previous-year questions — exam/year badge, correct answer and worked solution inline. Same grammar as MCQ, plus a \`Source:\` and \`Solution:\` line per question.
+
+AI prompt:
+\`\`\`
+${PYQ_PROMPT}
+\`\`\`
+
+### Flash Cards
+Active-recall decks — one \`##\` heading per card front, the text under it is the back.
+
+\`\`\`
+${FLASHCARD_EXAMPLE}
+\`\`\`
+
+AI prompt:
+\`\`\`
+${FLASHCARD_PROMPT}
+\`\`\`
+
+## Common mistakes to avoid
+
+- The whole reply wrapped in a single code fence — delete the fence lines, or the document renders as one code block.
+- Bold question numbers (\`**Q1.**\`) — write a plain \`Q1.\` at the start of the line.
+- Two options on one line (\`A) x B) y\`) — one option per line.
+- No correct answer marked — mark it with a trailing \`*\` or an \`Answer: B\` line.
+- Raw HTML (\`<br>\`, \`<table>\`) — use Markdown tables and blank lines instead.
+- Linking an image by a web URL — paste, drag in or upload the picture instead so it survives offline export.
+- An unclosed callout — every \`::: type\` needs its closing \`:::\` line.
+
+## Editor features worth knowing
+
+- The toolbar keeps everyday tools visible; the More (⋯) menu holds the rest (text styles, tables, page breaks, whole-document copy/cut/paste/replace).
+- Inserting an image shows a small toolbar to resize (S/M/L), align (left/center/right), replace or remove it.
+- "Replace with clipboard" (in the More menu) swaps the whole document for the clipboard's text, with a confirmation if the document isn't empty — separate from a normal paste at the cursor.
+- Ctrl/Cmd+K opens universal search and commands; Ctrl/Cmd+F searches inside the open document.
+`;
+}
+
 export function Help() {
+  const toast = useToast();
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
       <header className="mb-6 flex items-center gap-2">
         <StudioNav />
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold">Help &amp; Markdown guide</h1>
           <p className="text-xs text-faint">Everything Polity Studio understands, template by template — with examples.</p>
         </div>
+        <Button
+          icon="download"
+          onClick={() => {
+            downloadFile(`polity-studio-guide-v${STUDIO_VERSION}.md`, buildGuideMarkdown(), "text/markdown");
+            toast("Guide downloaded — upload it to any AI chat as context", "ok");
+          }}
+        >
+          <span className="hidden sm:inline">Download Guide (.md)</span>
+        </Button>
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title="What's new — version 3.1 (Workspace & Navigation)" intro="A focused update to the editing workspace, navigation and cover design — everything else is unchanged.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Workspace Refinement)`} intro="A focused pass on the toolbar, image handling and this guide — everything else is unchanged.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>Simplified toolbar</b> — everyday tools stay visible; the rest live in the new More (⋯) menu, with hover/long-press labels on every icon.</li>
+            <li><b>Image editing</b> — inserting or selecting an image shows a small toolbar to resize, align, replace or remove it.</li>
+            <li><b>Replace with clipboard</b> — swaps the whole document for your clipboard's text (with confirmation), separate from a normal paste.</li>
+            <li><b>Download Guide (.md)</b> — this page, top right, exports the full Markdown reference as a file you can hand to any AI.</li>
+          </ul>
+        </Section>
+
+        <Section title="Previously — version 3.1 (Workspace & Navigation)" intro="Still current: the editing workspace, navigation and cover design from the last update.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Find in document</b> — the editor header's search icon (and Ctrl/Cmd+F) now searches inside the Markdown editor, with match highlighting and next/previous.</li>
             <li><b>Position readouts</b> — the editor scrollbar and both previews show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
@@ -309,6 +450,10 @@ export function Help() {
             optional <code className="font-mono">{"{width=60% align=left}"}</code> (also <code className="font-mono">align=center|right</code>,{" "}
             <code className="font-mono">fit=cover</code>). Images are downscaled and saved as data URIs, so they travel with the
             document and render identically in the preview and the exported PDF — no web links, nothing to break offline.
+          </p>
+          <p className="text-xs text-faint">
+            Put the cursor on an image line and a small toolbar appears above the editor — resize (S/M/L), align left/center/right,
+            replace the picture or remove it, all without hand-editing the attribute syntax.
           </p>
         </Section>
 
@@ -413,6 +558,9 @@ export function Help() {
 
         <Section title="Working efficiently" intro="The workspace has a few features worth knowing about.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li>The formatting toolbar keeps everyday tools visible; the <b>More (⋯)</b> menu holds text styles, tables, page breaks, and whole-document copy/cut/paste/replace. Every icon shows its name on hover (desktop) or long-press (touch).</li>
+            <li><b>Replace with clipboard</b> (in the More menu) swaps the entire document for your clipboard's text — asks first if the document isn't empty. Different from a normal paste, which inserts at the cursor.</li>
+            <li><b>Download Guide (.md)</b> (top of this page) exports the complete Markdown reference — syntax, templates, AI prompts, common mistakes — as one file, kept in sync with this page.</li>
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
             <li><b>Ctrl/Cmd+F</b>, or the editor header's search icon, finds inside this document — matches are highlighted with next/previous, and the editor stays focused. (Cross-document search is on Ctrl/Cmd+K.)</li>
             <li><b>Navigation readouts</b> — drag the editor's scrollbar to see an estimated page and percentage; both previews show the same, and the Pages view gives the exact page count with prev/next.</li>
