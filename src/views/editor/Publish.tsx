@@ -111,7 +111,7 @@ export function Publish({
       const { exportPaginatedPdf } = await import("../../pdf/engine");
       const result = await exportPaginatedPdf(
         srcDoc,
-        { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: doc.lang },
+        { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: doc.lang === "hi" ? "hi" : "en" },
         (done, total) => setProgress(total ? done / total : 0),
       );
       downloadFile(`${fileTitle}.pdf`, result.blob, "application/pdf");

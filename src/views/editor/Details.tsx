@@ -551,10 +551,13 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           <Field label="Paper / Unit">
             <input className={inputClass} value={doc.paper} onChange={(e) => onChange({ paper: e.target.value })} placeholder="Paper 2 · Unit 1" />
           </Field>
-          <Field label="Author">
-            <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
+          <Field label="Session" hint="e.g. June 2026. Shown on the cover eyebrow.">
+            <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="June 2026" />
           </Field>
         </div>
+        <Field label="Author">
+          <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
+        </Field>
       </CollapsibleGroup>
 
       <CollapsibleGroup title="Cover" storageKey="ps2:details:cover" defaultOpen>
@@ -603,8 +606,8 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
                 <CoverColorPicker doc={doc} onChange={onChange} />
               </div>
             )}
-            <Field label="Edition badge" hint="The badge in the cover's top-right corner — a year or session works best.">
-              <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="2026" />
+            <Field label="Edition badge" hint="The badge in the cover's extreme top-right corner — e.g. 1e, 2e, 3e.">
+              <input className={inputClass} value={doc.edition} onChange={(e) => onChange({ edition: e.target.value })} placeholder="1e" />
             </Field>
             <Field label="Cover highlights" hint="One line per highlight. Leave empty to use the template's defaults.">
               <textarea
@@ -620,13 +623,15 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             </Field>
           </>
         )}
-        <Field label="Cover language badge" hint="Cover page only — Hindi shows a हिन्दी badge and sets the PDF language for screen readers. Your document content is never translated or changed.">
+        <Field label="Cover language badge" hint="Cover page only — controls which language badge appears on the cover. Your document content is never translated or changed.">
           <Segmented
             value={doc.lang}
             onChange={(lang) => onChange({ lang })}
             options={[
               { value: "en", label: "English" },
               { value: "hi", label: "हिन्दी" },
+              { value: "both", label: "Both" },
+              { value: "none", label: "None" },
             ]}
           />
         </Field>

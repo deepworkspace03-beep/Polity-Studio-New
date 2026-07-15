@@ -13,6 +13,7 @@ function baseDoc(partial: Partial<Doc>): Doc {
     exam: "",
     paper: "",
     session: "",
+    edition: "",
     author: "",
     lang: "en",
     layout: { ...DEFAULT_LAYOUT },
