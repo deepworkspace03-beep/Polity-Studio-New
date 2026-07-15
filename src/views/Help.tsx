@@ -453,7 +453,8 @@ export function Help() {
           </p>
           <p className="text-xs text-faint">
             Put the cursor on an image line and a small toolbar appears above the editor — resize (S/M/L), align left/center/right,
-            replace the picture or remove it, all without hand-editing the attribute syntax.
+            edit its caption, replace the picture or remove it, all without hand-editing the attribute syntax. The same controls
+            appear as a floating toolbar right in the <b>Flow</b> preview when you tap an image there.
           </p>
         </Section>
 

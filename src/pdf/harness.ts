@@ -452,11 +452,18 @@ export const PREVIEW_JS = String.raw`(function () {
     }
     if (e.target.closest("a, input")) return;
     var target = e.target.closest("[data-line]");
-    if (!target) return;
+    if (!target) {
+      // Clicked outside any sourced element — clears a selected image's
+      // floating toolbar (if the host has one open) without moving the
+      // editor cursor anywhere.
+      try { parent.postMessage({ type: "preview-click", line: 0, editable: false, image: false }, "*"); } catch (err) {}
+      return;
+    }
     var line = parseInt(target.getAttribute("data-line"), 10);
     if (!line) return;
     var editable = !!e.target.closest("[data-edit], [data-edit-line]");
-    try { parent.postMessage({ type: "preview-click", line: line, editable: editable }, "*"); } catch (err) {}
+    var image = !!e.target.closest(".md-figure");
+    try { parent.postMessage({ type: "preview-click", line: line, editable: editable, image: image }, "*"); } catch (err) {}
   });
 
   window.addEventListener("message", function (e) {

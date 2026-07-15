@@ -39,18 +39,19 @@ export function parseImageLine(view: EditorView, lineNumber: number): ImageLineI
   return { line: lineNumber, alt: m[1], src: m[2], title: m[3] ?? "", width: attrs.width ?? "", align };
 }
 
-/** Rewrites the image line with a patched width/align/src, preserving the
-    alt text, caption and any attribute this UI doesn't own. */
-export function patchImageLine(view: EditorView, lineNumber: number, patch: Partial<Pick<ImageLineInfo, "width" | "align" | "src">>): void {
+/** Rewrites the image line with a patched width/align/src/caption,
+    preserving the alt text and any attribute this UI doesn't own. */
+export function patchImageLine(view: EditorView, lineNumber: number, patch: Partial<Pick<ImageLineInfo, "width" | "align" | "src" | "title">>): void {
   if (lineNumber < 1 || lineNumber > view.state.doc.lines) return;
   const line = view.state.doc.line(lineNumber);
   const m = IMAGE_LINE_RE.exec(line.text);
   if (!m) return;
-  const [, alt, srcCur, title] = m;
+  const [, alt, srcCur, titleCur] = m;
   const attrs = parseAttrs(m[4] ?? "");
   const width = patch.width !== undefined ? patch.width : attrs.width ?? "";
   const align = patch.align !== undefined ? patch.align : (attrs.align as string | undefined) ?? "center";
   const src = patch.src ?? srcCur;
+  const title = patch.title !== undefined ? patch.title : titleCur ?? "";
   if (width) attrs.width = width;
   else delete attrs.width;
   if (align && align !== "center") attrs.align = align;
@@ -58,7 +59,7 @@ export function patchImageLine(view: EditorView, lineNumber: number, patch: Part
   const attrsOut = Object.entries(attrs)
     .map(([k, v]) => `${k}=${v}`)
     .join(" ");
-  const titlePart = title ? ` "${title}"` : "";
+  const titlePart = title ? ` "${title.replace(/"/g, "'")}"` : "";
   const newText = `![${alt}](${src}${titlePart})${attrsOut ? `{${attrsOut}}` : ""}`;
   view.dispatch({ changes: { from: line.from, to: line.to, insert: newText } });
   view.focus();
