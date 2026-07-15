@@ -73,8 +73,8 @@ function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   --c-accent: color-mix(in srgb, ${c.accent} 68%, #C9EEEA);
   --c-accentSoft: color-mix(in srgb, ${c.accent} 16%, #0F141B);
   --c-gold: color-mix(in srgb, ${c.gold} 68%, #F2DFAF);
-  --c-text: #DDE4EE;
-  --c-muted: #8B99AB;
+  --c-text: #E1E7F0;
+  --c-muted: #93A2B5;
   --c-paper: #0F141B;
   --c-band: #19212C;
   --c-edge: #2A3441;
@@ -148,7 +148,12 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha.toFixed(3)})`;
 }
 
-/** Sanitized copy of a stored design over the schema defaults. */
+const FRAME_STYLES = new Set<CoverDesign["frameStyle"]>(["none", "single", "double", "accent"]);
+const TITLE_BOXES = new Set<CoverDesign["titleBox"]>(["none", "outline", "filled", "premium"]);
+
+/** Sanitized copy of a stored design over the schema defaults. Values land
+    in class names and the srcdoc's style attribute, so every enum and
+    color is checked, never trusted. */
 function resolveDesign(design: CoverDesign | undefined): CoverDesign {
   const d = { ...DEFAULT_COVER_DESIGN, ...design };
   return {
@@ -162,6 +167,10 @@ function resolveDesign(design: CoverDesign | undefined): CoverDesign {
     patternDensity: clampNum(d.patternDensity, 0.5, 2, 1),
     patternSize: clampNum(d.patternSize, 0.5, 2.5, 1),
     titleScale: clampNum(d.titleScale, 0.6, 1.5, 1),
+    // frameStyle supersedes the legacy boolean — designs saved before it
+    // existed fall back to `frame` (true = the single hairline).
+    frameStyle: FRAME_STYLES.has(d.frameStyle) ? d.frameStyle : d.frame ? "single" : "none",
+    titleBox: TITLE_BOXES.has(d.titleBox) ? d.titleBox : "none",
     logo: typeof d.logo === "string" && d.logo.startsWith("data:image/") ? d.logo : undefined,
   };
 }
@@ -205,7 +214,8 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
   const classes = [
     `cover--${doc.layout.coverStyle}`,
     design?.align === "center" ? "cover--center" : "",
-    design?.frame ? "cover--framed" : "",
+    design && design.frameStyle !== "none" ? `cover--frame-${design.frameStyle}` : "",
+    design && design.titleBox !== "none" ? `cover--tbox-${design.titleBox}` : "",
     design?.headerRule ? "cover--header-rule" : "",
   ].filter(Boolean).join(" ");
   const styleAttr = design ? customCoverVars(design) : coverColorVars(doc.layout.coverColors);
@@ -233,9 +243,11 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
     </div>
   </header>
   <div class="cv-body">
-    ${eyebrow}
-    <h1 class="cv-exam" data-edit="title">${escapeHtml(doc.title || "Untitled")}</h1>
-    <p class="cv-guide${doc.subtitle ? "" : " cv-guide--empty"}" data-edit="subtitle" data-placeholder="Add a subtitle…">${escapeHtml(doc.subtitle)}</p>
+    <div class="cv-titlebox">
+      ${eyebrow}
+      <h1 class="cv-exam" data-edit="title">${escapeHtml(doc.title || "Untitled")}</h1>
+      <p class="cv-guide${doc.subtitle ? "" : " cv-guide--empty"}" data-edit="subtitle" data-placeholder="Add a subtitle…">${escapeHtml(doc.subtitle)}</p>
+    </div>
     ${coverLines.length ? `<ul class="cv-highlights">
       ${coverLines.map((h) => `<li>${escapeHtml(h)}</li>`).join("\n      ")}
     </ul>` : ""}

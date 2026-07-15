@@ -4,7 +4,8 @@ import type { FigureAlign, FigureGap } from "../../markdown/figure";
 import { IconButton, Segmented, inputClass, useToast } from "../../components/ui";
 import { cx } from "../../lib/utils";
 
-const WIDTH_OPTIONS: { value: string; label: string; hint: string }[] = [
+const WIDTH_PRESETS: { value: string; label: string; hint: string }[] = [
+  { value: "18%", label: "XS", hint: "Tiny — 18% width, author-portrait size" },
   { value: "35%", label: "S", hint: "Small — 35% width" },
   { value: "65%", label: "M", hint: "Medium — 65% width" },
   { value: "", label: "L", hint: "Large — natural width" },
@@ -62,16 +63,25 @@ export function ImageEditControls({
   onRemove,
 }: {
   info: ImageLineInfo;
-  onPatch: (patch: ImageLinePatch) => void;
+  onPatch: (patch: ImageLinePatch, opts?: { focus?: boolean }) => void;
   onReplace: (file: File) => Promise<void>;
   onRemove: () => void;
 }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [caption, setCaption] = useState(info.title);
-  const width = WIDTH_OPTIONS.some((o) => o.value === info.width) ? info.width : "";
   const gap: FigureGap = info.gap || "md";
   const isFull = info.align === "full";
+  const isWrap = info.align === "left" || info.align === "right";
+  // Wrapped images are capped at 60% of the column (print CSS) so they can
+  // never swallow the text beside them; block images may go full width.
+  const sliderMax = isWrap ? 60 : 100;
+  const widthPct = /^(\d+)%$/.exec(info.width)?.[1];
+  const sliderValue = widthPct
+    ? Math.min(sliderMax, Math.max(10, Number(widthPct)))
+    : isWrap
+      ? 42
+      : 100;
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -81,7 +91,31 @@ export function ImageEditControls({
 
       {!isFull && (
         <Group label="Size">
-          <Segmented size="sm" value={width} onChange={(w) => onPatch({ width: w })} options={WIDTH_OPTIONS} />
+          {WIDTH_PRESETS.map((o) => (
+            <StyleChip
+              key={o.label}
+              active={info.width === o.value}
+              label={o.label}
+              hint={o.hint}
+              onClick={() => onPatch({ width: o.value })}
+            />
+          ))}
+          <input
+            type="range"
+            min={10}
+            max={sliderMax}
+            step={1}
+            value={sliderValue}
+            aria-label="Image width (% of the text column)"
+            title="Drag for any width"
+            // focus:false — patching live while dragging must not move
+            // focus to the editor, which would end the drag mid-gesture.
+            onChange={(e) => onPatch({ width: `${e.target.value}%` }, { focus: false })}
+            className="w-24 accent-accent"
+          />
+          <span className="w-9 text-right text-[11px] font-semibold tabular-nums text-ink-2">
+            {widthPct ? `${widthPct}%` : info.width || "Auto"}
+          </span>
         </Group>
       )}
 

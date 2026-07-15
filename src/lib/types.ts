@@ -4,7 +4,23 @@ export type TemplateId = "notes" | "revision" | "mcq" | "pyq" | "flashcards";
 
 export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse" | "custom";
 
-export type CoverPattern = "none" | "grid" | "dots" | "lines" | "rings" | "weave" | "abstract";
+export type CoverPattern =
+  | "none"
+  | "grid"
+  | "dots"
+  | "lines"
+  | "rings"
+  | "weave"
+  | "abstract"
+  | "waves"
+  | "mesh"
+  | "geometry";
+
+/** Hairline frame inset from the page edge (Cover Designer → Structure). */
+export type CoverHairline = "none" | "single" | "double" | "accent";
+
+/** Optional box treatment behind the title block (Cover Designer). */
+export type CoverTitleBox = "none" | "outline" | "filled" | "premium";
 
 /** The "custom" cover style: a complete design authored in the Cover
     Designer (Details → Cover style → Custom). Every field always has a
@@ -32,8 +48,15 @@ export interface CoverDesign {
   /** Multiplies the 44 pt base title size (0.8 – 1.3). */
   titleScale: number;
   align: "left" | "center";
-  /** Hairline frame inset from the page edge. */
+  /** Hairline frame inset from the page edge. Kept for backward
+      compatibility — `frameStyle` supersedes it (legacy true = "single"). */
   frame: boolean;
+  /** Frame variant: none · single · double · accent-colored. Optional so
+      older stored designs derive it from the legacy `frame` boolean. */
+  frameStyle?: CoverHairline;
+  /** Box treatment behind the title block — outline, filled or the
+      premium ruled band. Optional, defaults to "none". */
+  titleBox?: CoverTitleBox;
   /** Optional premium header band: a thin top rule and a hairline divider
       under the publisher lockup. Optional so older designs default off. */
   headerRule?: boolean;

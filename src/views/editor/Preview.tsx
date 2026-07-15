@@ -296,9 +296,9 @@ export function Preview({
             <ImageEditControls
               key={selectedImage.line}
               info={selectedImage}
-              onPatch={(patch) => {
+              onPatch={(patch, opts) => {
                 const v = getView?.();
-                if (v) patchImageLine(v, selectedImage.line, patch);
+                if (v) patchImageLine(v, selectedImage.line, patch, opts);
               }}
               onReplace={async (file) => {
                 const v = getView?.();

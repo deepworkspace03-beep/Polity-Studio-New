@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { CoverColors, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
-import { useApp } from "../../lib/store";
-import { DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
+import type { BrandConfig, CoverColors, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
+import { saveBrand, saveSettings, useApp } from "../../lib/store";
+import { DEFAULT_BRAND, DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
 import { canSavePreset, deletePreset, duplicatePreset, MAX_PRESETS, renamePreset, savePreset, usePresets } from "../../lib/presets";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
@@ -32,7 +32,10 @@ const PATTERN_OPTIONS: { value: CoverPattern; label: string }[] = [
   { value: "none", label: "None" },
   { value: "grid", label: "Fine Grid" },
   { value: "dots", label: "Dots" },
-  { value: "lines", label: "Minimal Lines" },
+  { value: "lines", label: "Lines" },
+  { value: "waves", label: "Waves" },
+  { value: "mesh", label: "Mesh" },
+  { value: "geometry", label: "Geometry" },
   { value: "rings", label: "Rings" },
   { value: "weave", label: "Weave" },
   { value: "abstract", label: "Abstract" },
@@ -260,9 +263,37 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         </Field>
       </FieldGroup>
 
-      <FieldGroup label="Header & emblem">
+      <FieldGroup label="Structure">
+        <Field label="Hairline frame">
+          <Segmented
+            size="sm"
+            value={design.frameStyle ?? (design.frame ? "single" : "none")}
+            onChange={(frameStyle) => set({ frameStyle, frame: frameStyle !== "none" })}
+            options={[
+              { value: "none", label: "None" },
+              { value: "single", label: "Single" },
+              { value: "double", label: "Double" },
+              { value: "accent", label: "Accent" },
+            ]}
+          />
+        </Field>
+        <Field label="Title box">
+          <Segmented
+            size="sm"
+            value={design.titleBox ?? "none"}
+            onChange={(titleBox) => set({ titleBox })}
+            options={[
+              { value: "none", label: "None" },
+              { value: "outline", label: "Outline" },
+              { value: "filled", label: "Filled" },
+              { value: "premium", label: "Premium" },
+            ]}
+          />
+        </Field>
         <Toggle label="Premium header rule" checked={!!design.headerRule} onChange={(headerRule) => set({ headerRule })} />
-        <Toggle label="Hairline frame" checked={design.frame} onChange={(frame) => set({ frame })} />
+      </FieldGroup>
+
+      <FieldGroup label="Branding">
         <Toggle label="Temple emblem" checked={design.emblem} onChange={(emblem) => set({ emblem })} />
         <div className="flex flex-wrap items-center gap-2">
           {design.logo && <img src={design.logo} alt="Logo" className="h-8 w-8 rounded border border-edge object-contain" />}
@@ -474,10 +505,25 @@ function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layou
   );
 }
 
+const BRAND_COLOR_LABELS: Record<keyof BrandConfig["colors"], string> = {
+  primary: "Headings",
+  primarySoft: "Headings (soft)",
+  accent: "Accent",
+  accentSoft: "Accent tint",
+  gold: "Highlight",
+};
+
 /** The settings form itself — shared verbatim by the mobile modal and the
-    desktop pane so the two stay in lockstep with zero duplicated markup. */
+    desktop pane so the two stay in lockstep with zero duplicated markup.
+
+    Organized for scanning, not scrolling: Publication and Cover (the two
+    everyday groups) open by default; Typography, Layout & PDF, Branding,
+    Theme, Presets and Advanced fold away until needed. Every cover-related
+    control — style, colors, edition badge, highlights, language badge —
+    lives under Cover. */
 function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
-  const { brand } = useApp();
+  const { brand, settings } = useApp();
+  const toast = useToast();
   const template = TEMPLATE_META[doc.template];
   const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
 
@@ -505,29 +551,76 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           <Field label="Paper / Unit">
             <input className={inputClass} value={doc.paper} onChange={(e) => onChange({ paper: e.target.value })} placeholder="Paper 2 · Unit 1" />
           </Field>
-          <Field label="Edition / Session" hint="Shown as a badge on the cover.">
-            <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="2026" />
+          <Field label="Author">
+            <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
           </Field>
         </div>
-        <Field label="Author">
-          <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
-        </Field>
-        <Field label="Institute (cover)" hint="Name shown in the cover lockup. Leave blank to use the global brand name.">
-          <input className={inputClass} value={doc.institute ?? ""} onChange={(e) => onChange({ institute: e.target.value || undefined })} placeholder={brand.name} />
-        </Field>
-        <Field label="Cover highlights" hint="One line per highlight on the cover. Leave empty to use the template's defaults.">
-          <textarea
-            className={inputClass + " resize-none"}
-            rows={2}
-            value={(doc.coverLines ?? []).join("\n")}
-            onChange={(e) => {
-              const raw = e.target.value;
-              onChange({ coverLines: raw.trim() === "" ? undefined : raw.split("\n") });
-            }}
-            placeholder={"Premium Study Notes\nExam-Ready Coverage"}
-          />
-        </Field>
-        <Field label="Language" hint="Hindi prints a हिन्दी badge on the cover and sets the PDF/HTML language for screen readers; English shows no badge. It doesn't translate your content.">
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title="Cover" storageKey="ps2:details:cover" defaultOpen>
+        <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
+        {doc.layout.cover && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {COVER_STYLES.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => layout({ coverStyle: s.id })}
+                  className={cx(
+                    "flex flex-col items-center gap-1.5 rounded-lg border p-1.5 text-[11px] font-semibold",
+                    doc.layout.coverStyle === s.id ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
+                  )}
+                >
+                  <span className="h-10 w-full rounded-md border border-black/10" style={{ background: s.swatch }} />
+                  {s.label}
+                </button>
+              ))}
+              <button
+                onClick={() =>
+                  layout({
+                    coverStyle: "custom",
+                    // First visit seeds the designer from the preset the author
+                    // was on; afterwards their design is kept as-is.
+                    coverDesign: doc.layout.coverDesign ?? seedCoverDesign(doc.layout.coverStyle),
+                  })
+                }
+                className={cx(
+                  "col-span-2 flex items-center justify-center gap-2 rounded-lg border p-1.5 text-[11px] font-semibold",
+                  doc.layout.coverStyle === "custom" ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
+                )}
+              >
+                <span
+                  className="h-5 w-10 rounded-md border border-black/10"
+                  style={{ background: "conic-gradient(from 210deg,#0d1930,#123c93,#0a9f80,#c9bc9e,#0d1930)" }}
+                />
+                Custom — design your own
+              </button>
+            </div>
+            {doc.layout.coverStyle === "custom" && <CoverDesigner doc={doc} onChange={onChange} />}
+            {doc.layout.coverStyle !== "custom" && (
+              <div>
+                <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">Cover colors (optional)</span>
+                <CoverColorPicker doc={doc} onChange={onChange} />
+              </div>
+            )}
+            <Field label="Edition badge" hint="The badge in the cover's top-right corner — a year or session works best.">
+              <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="2026" />
+            </Field>
+            <Field label="Cover highlights" hint="One line per highlight. Leave empty to use the template's defaults.">
+              <textarea
+                className={inputClass + " resize-none"}
+                rows={2}
+                value={(doc.coverLines ?? []).join("\n")}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  onChange({ coverLines: raw.trim() === "" ? undefined : raw.split("\n") });
+                }}
+                placeholder={"Premium Study Notes\nExam-Ready Coverage"}
+              />
+            </Field>
+          </>
+        )}
+        <Field label="Cover language badge" hint="Cover page only — Hindi shows a हिन्दी badge and sets the PDF language for screen readers. Your document content is never translated or changed.">
           <Segmented
             value={doc.lang}
             onChange={(lang) => onChange({ lang })}
@@ -539,56 +632,32 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         </Field>
       </CollapsibleGroup>
 
-      <CollapsibleGroup title="Cover" storageKey="ps2:details:cover" defaultOpen>
-        <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
-        {doc.layout.cover && (
-          <div className="grid grid-cols-2 gap-2">
-            {COVER_STYLES.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => layout({ coverStyle: s.id })}
-                className={cx(
-                  "flex flex-col items-center gap-1.5 rounded-lg border p-1.5 text-[11px] font-semibold",
-                  doc.layout.coverStyle === s.id ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
-                )}
-              >
-                <span className="h-10 w-full rounded-md border border-black/10" style={{ background: s.swatch }} />
-                {s.label}
-              </button>
-            ))}
-            <button
-              onClick={() =>
-                layout({
-                  coverStyle: "custom",
-                  // First visit seeds the designer from the preset the author
-                  // was on; afterwards their design is kept as-is.
-                  coverDesign: doc.layout.coverDesign ?? seedCoverDesign(doc.layout.coverStyle),
-                })
-              }
-              className={cx(
-                "col-span-2 flex items-center justify-center gap-2 rounded-lg border p-1.5 text-[11px] font-semibold",
-                doc.layout.coverStyle === "custom" ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
-              )}
-            >
-              <span
-                className="h-5 w-10 rounded-md border border-black/10"
-                style={{ background: "conic-gradient(from 210deg,#0d1930,#123c93,#0a9f80,#c9bc9e,#0d1930)" }}
-              />
-              Custom — design your own
-            </button>
-          </div>
-        )}
-        {doc.layout.cover && doc.layout.coverStyle === "custom" && <CoverDesigner doc={doc} onChange={onChange} />}
-        {doc.layout.cover && doc.layout.coverStyle !== "custom" && (
-          <div>
-            <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">Cover colors (optional)</span>
-            <CoverColorPicker doc={doc} onChange={onChange} />
-          </div>
-        )}
+      <CollapsibleGroup title="Typography" storageKey="ps2:details:typography" defaultOpen={false}>
+        <Field label="Text density" hint="Body size and line spacing for the whole document.">
+          <Segmented
+            value={doc.layout.density}
+            onChange={(density) => layout({ density })}
+            options={[
+              { value: "compact", label: "Compact" },
+              { value: "comfort", label: "Comfort" },
+              { value: "relaxed", label: "Relaxed" },
+            ]}
+          />
+        </Field>
       </CollapsibleGroup>
 
       <CollapsibleGroup title="Layout & PDF" storageKey="ps2:details:layout" defaultOpen={false}>
-        <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
+        <Field label="Page size">
+          <Segmented
+            value={doc.layout.pageSize}
+            onChange={(pageSize) => layout({ pageSize })}
+            options={[
+              { value: "a4", label: "A4" },
+              { value: "a5", label: "A5" },
+              { value: "letter", label: "Letter" },
+            ]}
+          />
+        </Field>
         {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
         <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
         {template.hasAnswers && (
@@ -604,27 +673,64 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             />
           </Field>
         )}
-        <Field label="Page size">
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title="Branding" storageKey="ps2:details:branding" defaultOpen={false}>
+        <Field label="Institute (cover)" hint="Name shown in the cover lockup. Leave blank to use the studio-wide brand name.">
+          <input className={inputClass} value={doc.institute ?? ""} onChange={(e) => onChange({ institute: e.target.value || undefined })} placeholder={brand.name} />
+        </Field>
+        <div>
+          <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">PDF colors — all documents</span>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(BRAND_COLOR_LABELS) as (keyof BrandConfig["colors"])[]).map((key) => (
+              <label key={key} className="flex items-center gap-2 rounded-lg border border-edge px-2 py-1.5">
+                <input
+                  type="color"
+                  value={brand.colors[key]}
+                  onChange={(e) => saveBrand({ colors: { ...brand.colors, [key]: e.target.value } })}
+                  className="h-6 w-7 flex-none cursor-pointer rounded border-0 bg-transparent p-0"
+                />
+                <span className="text-[11px] text-ink-2">{BRAND_COLOR_LABELS[key]}</span>
+              </label>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                saveBrand({ colors: { ...DEFAULT_BRAND.colors } });
+                toast("PDF colors reset to defaults", "ok");
+              }}
+              className="rounded-lg border border-edge px-2 py-1.5 text-[11px] font-semibold text-ink-2 hover:border-faint"
+            >
+              Reset to defaults
+            </button>
+          </div>
+          <p className="mt-1.5 text-[10.5px] leading-relaxed text-faint">
+            Headings, accents and highlights in every PDF. Names, links and the watermark live in{" "}
+            <a href="#/settings" className="underline decoration-dotted">Studio Settings</a>.
+          </p>
+        </div>
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title="Theme" storageKey="ps2:details:theme" defaultOpen={false}>
+        <Field label="Document reading theme" hint="Dark renders the document itself — previews, PDF and HTML exports — on an eye-friendly dark palette. Covers keep their own design. Applies to all documents.">
           <Segmented
-            value={doc.layout.pageSize}
-            onChange={(pageSize) => layout({ pageSize })}
+            value={settings.docTheme}
+            onChange={(docTheme) => saveSettings({ docTheme })}
             options={[
-              { value: "a4", label: "A4" },
-              { value: "a5", label: "A5" },
-              { value: "letter", label: "Letter" },
+              { value: "light", label: "Light", icon: "sun" },
+              { value: "dark", label: "Dark", icon: "moon" },
             ]}
           />
         </Field>
-        <Field label="Text density">
-          <Segmented
-            value={doc.layout.density}
-            onChange={(density) => layout({ density })}
-            options={[
-              { value: "compact", label: "Compact" },
-              { value: "comfort", label: "Comfort" },
-              { value: "relaxed", label: "Relaxed" },
-            ]}
-          />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title="Presets" storageKey="ps2:details:presets" defaultOpen={false}>
+        <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title="Advanced" storageKey="ps2:details:advanced" defaultOpen={false}>
+        <Field label="PDF filename pattern" hint="Used for every export — {title}, {brand} and {date} are replaced automatically.">
+          <input className={inputClass} value={settings.fileNamePattern} onChange={(e) => saveSettings({ fileNamePattern: e.target.value })} />
         </Field>
       </CollapsibleGroup>
 

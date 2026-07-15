@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "3.2";
+const STUDIO_VERSION = "3.3";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -222,9 +222,10 @@ const IMAGE_EXAMPLE = `![Separation of powers](diagram.png "Fig 1 — the three 
 
 ![Map](india.png){width=60% align=center border}
 
-![Portrait](ambedkar.png){align=left width=35% round shadow}
+![Portrait](ambedkar.png){align=left width=22% round shadow}
 Text after a left- or right-aligned image wraps naturally
-beside it, book-style, until the next heading.`;
+beside it, book-style; the next heading, table, callout or
+list always starts clear below the image.`;
 
 const STRUCTURE_EXAMPLE = `# Chapter Title        ← starts the TOC
 Intro paragraph…
@@ -283,15 +284,20 @@ via an optional \`{…}\` block:
 
 - **Layout** — \`align=center\` (default), \`align=left\` / \`align=right\`
   (text wraps beside it, book-style), \`align=full\` (full column width).
-- **Size** — \`width=35%\` (S), \`width=65%\` (M), or omit for natural (L);
-  any CSS length works too (\`width=220px\`).
+  Wrapped text stops cleanly: headings, tables, callouts and lists always
+  start below the image, never beside or under it.
+- **Size** — any percentage of the text column, e.g. \`width=22%\` for a
+  small author portrait (10–60% for wrapped images, up to 100% centered);
+  \`width=18%\`/\`35%\`/\`65%\` are the XS/S/M shortcuts, omit for natural
+  size (L). Any CSS length works too (\`width=220px\`).
 - **Spacing** — \`gap=sm|md|lg\` controls the margin around the image (and
   the gap to wrapped text).
 - **Styling** — \`border\`, \`round\` (rounded corners), \`shadow\` (a light
   lift; preview/HTML only — the PDF stays crisp), \`fit=cover\`.
 
-Every option is also on the image toolbar, so you rarely type this by hand.
-Older \`{width=… align=…}\` images keep working unchanged.
+Every option is also on the image toolbar (with a width slider), so you
+rarely type this by hand. Older \`{width=… align=…}\` images keep working
+unchanged.
 
 ## Callouts
 
@@ -392,22 +398,23 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Search & Image Layout)`} intro="Two focused upgrades: a real in-document search navigator and professional, book-style image layouts.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Covers, Images & the Settings pane)`} intro="A polish pass across the whole publishing surface: finer image control, a richer Cover Designer, a reorganised settings pane and a premium dark PDF.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Search Navigator</b> — Ctrl/Cmd+F now opens a find/replace whose results are grouped by heading and estimated page; click a result to jump straight to it, highlighted in place. It searches only the open document and stays fast on long notes.</li>
-            <li><b>Professional image layout</b> — left/right wrap (text flows beside the picture, book-style), centered or full-width, plus size, spacing, border, rounded corners, a light shadow and a caption — all from the image toolbar, editable live from the Flow preview.</li>
-            <li><b>Balanced pages</b> — the exported PDF now leaves matching breathing room above and below the text column for a more symmetric, premium feel.</li>
+            <li><b>Any image size</b> — the image toolbar now has a width slider (down to 10% of the column, perfect for small author portraits) alongside the XS/S/M/L shortcuts. Wrapped text also stops cleanly now: headings, tables, callouts and lists always start clear of a floated image instead of colliding with it.</li>
+            <li><b>Cover Designer 2.0</b> — hairline frames (Single, Double or Accent), a title box (Outline, Filled or the Premium ruled band), and three new patterns (Waves, Mesh, Geometry), all with the existing opacity, density and size controls.</li>
+            <li><b>One settings pane</b> — the editor's Settings pane is reorganised into Publication · Cover · Typography · Layout &amp; PDF · Branding · Theme · Presets · Advanced. Everything cover-related (edition badge, highlights, language badge) now lives under Cover, and the PDF colors, reading theme and filename pattern are editable right there — no trip to the Settings page.</li>
+            <li><b>Premium dark PDF</b> — the dark reading theme now typesets tables, callouts, blockquotes and highlights like a professionally printed dark publication: no glare bands, accent-tinted hairlines, calmer contrast.</li>
           </ul>
         </Section>
 
-        <Section title="Previously — version 3.1 (Workspace & Navigation)" intro="Still current: the editing workspace, navigation and cover design from the last update.">
+        <Section title="Previously — versions 3.1–3.2" intro="Still current: search, image layouts, workspace and navigation from the last updates.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Find in document</b> — the editor header's search icon (and Ctrl/Cmd+F) now searches inside the Markdown editor, with match highlighting and next/previous.</li>
+            <li><b>Search Navigator</b> — Ctrl/Cmd+F opens a find/replace whose results are grouped by heading and estimated page; click a result to jump straight to it, highlighted in place.</li>
+            <li><b>Professional image layout</b> — left/right wrap (text flows beside the picture, book-style), centered or full-width, plus size, spacing, border, rounded corners, a light shadow and a caption — all from the image toolbar, editable live from the Flow preview.</li>
             <li><b>Position readouts</b> — the editor scrollbar and both previews show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
             <li><b>Contents navigation</b> — clicking a chapter in a document's table of contents jumps straight to it inside the same preview.</li>
             <li><b>Arrow shortcuts</b> — <code className="font-mono text-xs">-&gt;</code>, <code className="font-mono text-xs">&lt;-</code>, <code className="font-mono text-xs">&lt;-&gt;</code>, <code className="font-mono text-xs">=&gt;</code> render as → ← ↔ ⇒.</li>
-            <li><b>Cover Designer</b> — new patterns (Fine Grid, Dots, Minimal Lines, Rings, Weave, Abstract) with opacity, density and size controls, plus an optional premium header rule.</li>
-            <li><b>Presets & settings</b> — Default and Preset 1–3 layout slots you can save, load, rename and reset; the Settings page is now organised into collapsible groups.</li>
+            <li><b>Presets & settings</b> — named layout presets you can save, load, rename and reset.</li>
           </ul>
         </Section>
 
@@ -463,17 +470,23 @@ export function Help() {
             A standalone image becomes a figure. Add a caption in quotes, then control its <b>layout</b> with an optional{" "}
             <code className="font-mono">{"{…}"}</code>: <code className="font-mono">align=center</code> (default),{" "}
             <code className="font-mono">align=left</code>/<code className="font-mono">right</code> to wrap text beside it book-style, or{" "}
-            <code className="font-mono">align=full</code> for the full column. Add <code className="font-mono">width=35%</code>{" "}
-            (or <code className="font-mono">65%</code>, or a length like <code className="font-mono">220px</code>),{" "}
-            <code className="font-mono">gap=sm|md|lg</code> for spacing, and any of <code className="font-mono">border</code>,{" "}
-            <code className="font-mono">round</code>, <code className="font-mono">shadow</code>, <code className="font-mono">fit=cover</code>.
-            Older <code className="font-mono">{"{width=… align=…}"}</code> images keep working unchanged. Images are downscaled and
-            saved as data URIs, so they travel with the document and render identically in the preview and the exported PDF.
+            <code className="font-mono">align=full</code> for the full column. Set any width — down to a small{" "}
+            <code className="font-mono">width=15%</code> author portrait (10–60% wrapped, up to 100% centered; a length like{" "}
+            <code className="font-mono">220px</code> works too), <code className="font-mono">gap=sm|md|lg</code> for spacing, and any of{" "}
+            <code className="font-mono">border</code>, <code className="font-mono">round</code>, <code className="font-mono">shadow</code>,{" "}
+            <code className="font-mono">fit=cover</code>. Older <code className="font-mono">{"{width=… align=…}"}</code> images keep
+            working unchanged. Images are downscaled and saved as data URIs, so they travel with the document and render identically
+            in the preview and the exported PDF.
+          </p>
+          <p className="text-xs text-faint">
+            Wrapped text can never spill into what follows: the next heading, table, callout or list always starts clear below
+            the image, so a floated portrait beside its introductory paragraph stays a clean, textbook-style unit.
           </p>
           <p className="text-xs text-faint">
             You rarely type any of that: put the cursor on an image line (or tap the picture in the <b>Flow</b> preview) and a
-            toolbar gives you the layout, size, spacing, style toggles, caption, replace and remove — writing the attributes for
-            you and updating the document live. The shadow is a preview/HTML nicety; the vector PDF keeps every image crisp.
+            toolbar gives you the layout, XS/S/M/L sizes plus a fine width slider, spacing, style toggles, caption, replace and
+            remove — writing the attributes for you and updating the document live. The shadow is a preview/HTML nicety; the
+            vector PDF keeps every image crisp.
           </p>
         </Section>
 
@@ -596,14 +609,15 @@ export function Help() {
           </ul>
         </Section>
 
-        <Section title="Branding, covers & the dark reading theme" intro="Settings → Branding drives every export; Details drives one document.">
+        <Section title="The Settings pane, covers & the dark reading theme" intro="The editor's Settings pane (the sliders icon) is organised into Publication · Cover · Typography · Layout & PDF · Branding · Theme · Presets · Advanced.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li>Cover style, table of contents, watermark, page size and text density are all per-document, in the settings pane (the sliders icon).</li>
-            <li>Each cover style also accepts optional background, heading and accent color overrides, right below the style picker — leave any of them unset to keep the style's own palette.</li>
-            <li><b>Custom — design your own</b> opens the Cover Designer: background gradient (two colors + angle), text and accent colors, a vector pattern (None, Fine Grid, Dots, Minimal Lines, Rings, Weave or Abstract) with opacity, density and size controls, title font and size, left or centered layout, an optional premium header rule, a hairline frame, the temple emblem, and your own uploaded logo. It starts from the preset you were using and previews live on the cover.</li>
-            <li><b>Layout presets</b> (in the settings pane, under Layout &amp; PDF) save a whole look — cover, TOC, watermark, page size, density — under a name. Default and Preset 1–3 come ready-made; save the current document's layout, apply a preset to any document, rename, duplicate or reset to the Studio defaults.</li>
-            <li>Settings → Appearance has two separate themes: the <b>app theme</b> (this UI) and the <b>document reading theme</b> (how previews, PDFs and HTML exports render) — the preview toolbar's sun/moon icon toggles the latter without leaving the editor.</li>
-            <li>Institute name, links, watermark text and the PDF color palette live in Settings → Branding and apply to every document.</li>
+            <li><b>Publication</b> holds the document's identity (subtitle, exam, paper, author); <b>Cover</b> holds everything on the cover page — style, colors, the edition badge (top-right), highlight lines and the language badge. The language control affects the <em>cover badge and PDF metadata only</em>; it never changes your content.</li>
+            <li>Each cover style accepts optional background, heading and accent color overrides, right below the style picker — leave any of them unset to keep the style's own palette.</li>
+            <li><b>Custom — design your own</b> opens the Cover Designer: background gradient (two colors + angle), text and accent colors, a vector pattern (Fine Grid, Dots, Lines, Waves, Mesh, Geometry, Rings, Weave or Abstract) with opacity, density and size controls, title font and size, left or centered layout, a hairline frame (Single, Double or Accent), a title box (Outline, Filled or Premium), an optional premium header rule, the temple emblem, and your own uploaded logo. It starts from the preset you were using and previews live on the cover.</li>
+            <li><b>Typography</b> sets the text density; <b>Layout &amp; PDF</b> covers page size, table of contents, watermark and (for question booklets) the answers position.</li>
+            <li><b>Branding</b> edits the per-document institute name plus the studio-wide PDF colors; <b>Theme</b> switches the document reading theme; <b>Advanced</b> holds the PDF filename pattern. The full Branding page (names, links, watermark text) stays in Studio Settings.</li>
+            <li><b>Presets</b> save a whole layout — cover, TOC, watermark, page size, density — under a name; apply, rename, duplicate or reset to the Studio defaults.</li>
+            <li>The <b>document reading theme</b> (light/dark) renders previews, PDFs and HTML exports on an eye-friendly dark palette that now typesets like a professional dark publication — the preview toolbar's sun/moon icon toggles it without leaving the editor. Covers keep their own design.</li>
           </ul>
         </Section>
 
