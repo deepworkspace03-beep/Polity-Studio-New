@@ -1,16 +1,10 @@
-import type { DocLayout, TemplateId } from "../lib/types";
+import type { TemplateId } from "../lib/types";
 import { STARTERS } from "./starters";
 
 /**
  * Template metadata — everything the UI needs to list, create and
  * configure documents. Kept separate from the body builders so the
  * library view doesn't pull the markdown engine into the initial load.
- *
- * The document model is deliberately small (v3.1): Notes for prose,
- * Question Bank for MCQs and PYQs alike (solved vs. practice is the
- * per-document "answers" layout choice, not a separate type), Revision
- * for compact sheets and flash-card decks (the "deck" layout toggle),
- * and Universal for brand-neutral general-purpose documents.
  */
 
 export interface TemplateMeta {
@@ -23,61 +17,62 @@ export interface TemplateMeta {
   starter: string;
   /** Whether the TOC option applies to this template. */
   hasToc: boolean;
-  /** Whether the answers-placement option applies (Question Bank). */
+  /** Whether the answers-placement option applies (MCQ). */
   hasAnswers: boolean;
-  /** Whether the flash-card deck layout toggle applies (Revision). */
-  hasDeck?: boolean;
-  /** Brand-neutral chrome: no institute lockup fallback, no branded
-      footer, no watermark by default (Universal). */
-  plainChrome?: boolean;
-  /** Layout fields a fresh document of this type overrides on top of
-      the studio-wide new-document defaults. */
-  layoutDefaults?: Partial<DocLayout>;
 }
 
 export const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
   notes: {
     id: "notes",
-    name: "Notes",
-    description: "Long-form study material — chapters, articles and explanations with cover, contents and callouts.",
+    name: "Theory Notes",
+    description: "Long-form chapters with cover, contents and callouts.",
     icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
     starterTitle: STARTERS.notes.title,
     starter: STARTERS.notes.body,
     hasToc: true,
     hasAnswers: false,
   },
-  qbank: {
-    id: "qbank",
-    name: "Question Bank",
-    description: "MCQs and previous-year questions — solved inline or with a back-of-book answer key.",
-    icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
-    starterTitle: STARTERS.qbank.title,
-    starter: STARTERS.qbank.body,
-    hasToc: false,
-    hasAnswers: true,
-  },
   revision: {
     id: "revision",
-    name: "Revision",
-    description: "Compact bullet sheets for last-minute review — or a cut-out flash-card deck.",
+    name: "Quick Revision",
+    description: "Compact bullet points for last-minute review.",
     icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     starterTitle: STARTERS.revision.title,
     starter: STARTERS.revision.body,
     hasToc: true,
     hasAnswers: false,
-    hasDeck: true,
   },
-  universal: {
-    id: "universal",
-    name: "Universal",
-    description: "A clean, brand-neutral document for any purpose — reports, manuals, articles, personal writing.",
-    icon: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
-    starterTitle: STARTERS.universal.title,
-    starter: STARTERS.universal.body,
-    hasToc: true,
+  mcq: {
+    id: "mcq",
+    name: "MCQ Booklet",
+    description: "Practice questions with answer key and explanations.",
+    icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+    starterTitle: STARTERS.mcq.title,
+    starter: STARTERS.mcq.body,
+    hasToc: false,
+    hasAnswers: true,
+  },
+  pyq: {
+    id: "pyq",
+    name: "PYQ Collection",
+    description: "Previous-year questions with inline answers and worked solutions.",
+    icon: '<path d="M9 11H3v10h6z"/><path d="M15 3H9v18h6z"/><path d="M21 7h-6v14h6z"/>',
+    starterTitle: STARTERS.pyq.title,
+    starter: STARTERS.pyq.body,
+    hasToc: false,
+    // No answers toggle: a PYQ collection always shows the answer and
+    // solution inline under each question — that IS the product.
     hasAnswers: false,
-    plainChrome: true,
-    layoutDefaults: { watermark: false, coverStyle: "heritage" },
+  },
+  flashcards: {
+    id: "flashcards",
+    name: "Flash Cards",
+    description: "Term-and-definition decks for active recall.",
+    icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M6 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/>',
+    starterTitle: STARTERS.flashcards.title,
+    starter: STARTERS.flashcards.body,
+    hasToc: false,
+    hasAnswers: false,
   },
 };
 

@@ -1,6 +1,6 @@
 /* ── Domain model ─────────────────────────────────────────────────── */
 
-export type TemplateId = "notes" | "qbank" | "revision" | "universal";
+export type TemplateId = "notes" | "revision" | "mcq" | "pyq" | "flashcards";
 
 export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse" | "custom";
 
@@ -36,11 +36,8 @@ export interface CoverDesign {
   logo?: string;
 }
 export type PageSize = "a4" | "a5" | "letter";
-export type Density = "ultra" | "compact" | "comfort" | "relaxed";
+export type Density = "compact" | "comfort" | "relaxed";
 export type AnswersMode = "inline" | "end" | "none";
-/** Cover language label: show Hindi, English, both, or no label at all.
-    Also sets the exported document's `lang` attribute (hi ⇢ hi, else en). */
-export type DocLang = "en" | "hi" | "both" | "none";
 
 /** Per-document layout & PDF options — everything the user can tune
     about the exported document without touching code. */
@@ -63,13 +60,8 @@ export interface DocLayout {
   watermark: boolean;
   pageSize: PageSize;
   density: Density;
-  /** Question Bank only: where answers & solutions appear — "inline"
-      renders solved cards (answer + worked solution under each question),
-      "end" collects a key + explanations at the back, "none" hides both. */
+  /** MCQ booklets only: where answers & explanations appear. */
   answers: AnswersMode;
-  /** Revision only: render `##` blocks as a cut-out flash-card grid
-      instead of continuous compact notes. */
-  deck?: boolean;
 }
 
 export interface Doc {
@@ -81,11 +73,8 @@ export interface Doc {
   exam: string;
   paper: string;
   session: string;
-  /** Optional edition badge on the cover ("2nd Edition"). Kept separate
-      from `session` so both can appear, each with its own treatment. */
-  edition?: string;
   author: string;
-  lang: DocLang;
+  lang: "en" | "hi";
   /** Per-document publisher/institute name shown on the cover. Absent =
       use the global brand name (Settings → Branding). */
   institute?: string;
