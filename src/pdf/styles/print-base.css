@@ -13,7 +13,7 @@ html, body {
 }
 
 body {
-  font-family: var(--font-body, "Literata", "Noto Serif Devanagari", Georgia, serif);
+  font-family: "Literata", "Noto Serif Devanagari", Georgia, serif;
   font-size: var(--body-size);
   line-height: var(--body-leading);
   color: var(--c-text);
@@ -78,39 +78,18 @@ body.mode-flow .run-foot-site { display: none; }
   print-color-adjust: exact;
 }
 
-/* Breathing room between the running header/footer and the body — equal
-   top and bottom so pages read symmetrically. (PAGE_GEOMETRY in
-   document.ts shrinks the @page bottom margin by the same amount this
-   padding adds, so the footer keeps exactly the room it always had; only
-   the split between "gap" and "margin box" changes.) */
+/* Breathing room between the running header and the body. */
 .pagedjs_page:not(.pagedjs_cover_page) .pagedjs_page_content {
   padding-top: 6mm;
-  padding-bottom: 6mm;
 }
 
-/* Divider "rules" under the header and above the footer — a hairline that
-   fades at both ends reads as a soft, professionally-typeset transition
-   rather than a hard ruled line. Built as a pseudo-element with its own
-   plain linear-gradient fill (the same technique as h1::before/
-   .toc__title::after above) rather than a positioned background-image, so
-   the vector PDF engine's pseudo-element materializer transcribes it
-   identically to the HTML preview. */
-.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-top,
+/* Divider rules under the header and above the footer. */
+.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-top {
+  border-bottom: 0.6pt solid var(--c-edge);
+}
 .pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-bottom {
-  border: none;
-  position: relative;
+  border-top: 0.6pt solid var(--c-edge);
 }
-.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-top::after,
-.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-bottom::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 0.6pt;
-  background: linear-gradient(90deg, transparent, var(--c-edge) 12%, var(--c-edge) 88%, transparent);
-}
-.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-top::after { bottom: 0; }
-.pagedjs_page:not(.pagedjs_cover_page) .pagedjs_margin-bottom::before { top: 0; }
 
 /* Running header — book/exam (left) · current topic (center, set per
    page by the print harness as pages are laid out). */
@@ -290,7 +269,7 @@ h4 {
 
 /* ── Body copy ───────────────────────────────────────────────────── */
 
-p { margin: 0 0 var(--para-gap, 0.85em); orphans: 3; widows: 3; }
+p { margin: 0 0 0.85em; orphans: 3; widows: 3; }
 
 a {
   color: var(--c-accent);
@@ -337,7 +316,7 @@ sub, sup { font-size: 0.68em; line-height: 0; }
 
 /* List markers are real .li-mark spans emitted by the renderer (not
    ::marker pseudo-boxes) so the PDF engine transcribes them exactly. */
-ul, ol { margin: 0 0 calc(var(--para-gap, 0.85em) + 0.05em); padding-left: 1.45em; list-style: none; }
+ul, ol { margin: 0 0 0.9em; padding-left: 1.45em; list-style: none; }
 li { margin-bottom: 0.3em; position: relative; }
 li > ul, li > ol { margin: 0.3em 0 0.35em; }
 .li-mark { position: absolute; right: calc(100% + 0.45em); white-space: nowrap; color: var(--c-accent); }

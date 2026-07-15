@@ -5,8 +5,7 @@
 A premium desktop-publishing workspace for educators. Paste Markdown
 (from any tool — including external AI assistants) → refine it →
 review the real pages → **download a print-quality branded PDF** —
-theory notes, a unified question bank (MCQs and PYQs), revision
-sheets or flash cards, or a brand-neutral document for anything else.
+theory notes, quick-revision sheets, MCQ booklets and flash-card decks.
 
 > Paste Markdown → Preview → **Publish PDF**. That's the whole workflow.
 
@@ -21,13 +20,9 @@ engine, so files are small, open instantly and keep selectable text.
 
 ## Highlights
 
-- **Four templates** — **Notes** (theory/chapters), **Question Bank**
-  (MCQs and previous-year questions in one unified template — parsed
-  questions, unit/topic/source metadata, inline ✓ answer marking and
-  explanations), **Revision** (summary notes or flash cards), and
-  **Universal** (brand-neutral — no fixed institute/branding, for any
-  Markdown document). Library → **Examples** opens a rich showcase of
-  each.
+- **Four templates** — Theory Notes, Quick Revision, MCQ Booklet (parsed
+  questions, topic/source chips, answer key and explanations)
+  and Flash Cards. Library → **Examples** opens a rich showcase of each.
 - **A serious editor** — grouped formatting toolbar (headings, bold,
   italic, underline, highlight, strikethrough, super/subscript, lists,
   checklists, quotes, tables, callouts, links, code, dividers, page
@@ -49,13 +44,8 @@ engine, so files are small, open instantly and keep selectable text.
 - **Everything configurable in-app** — branding (names, links, colors,
   exams, watermark), per-document layout (cover style, TOC, watermark,
   A4/A5/Letter, text density), export filename pattern.
-- **Installable and offline-first** — add it to your home screen from
-  the browser menu; after one online visit, the whole app — editing,
-  preview, PDF/HTML/Markdown export — keeps working with no internet
-  connection. A small banner offers a reload when an update has
-  finished installing in the background, never mid-edit.
-- **Made for tablets** — responsive, touch-friendly, with an image
-  layout popover (align, width presets) for pictures dropped into notes.
+- **Made for tablets** — responsive, touch-friendly, installable from
+  the browser menu (Add to Home screen).
 
 ## Markdown support
 
@@ -65,12 +55,7 @@ subscript, callout boxes (`::: definition` … `:::` — eight types),
 `\pagebreak`, and autolinked URLs. YAML front matter from external
 tools is stripped automatically.
 
-## Question Bank format
-
-One template for both plain-practice MCQs and previous-year questions —
-add `Source:`/`Exam:`/`Year:` and a question reads as a PYQ; leave them
-off for a plain MCQ. The correct option gets a small ✓ on the option
-itself (no separate "Correct answer" line).
+## MCQ format
 
 ```
 ## Section A — Political Theory
@@ -104,7 +89,6 @@ npm run dev       # Vite dev server
 npm run build     # production build → dist/
 npm start         # serve dist/ (honors $PORT)
 npm run typecheck
-npm test          # vitest run
 ```
 
 ## Deploying

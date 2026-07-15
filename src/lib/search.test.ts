@@ -10,8 +10,6 @@ const LAYOUT: DocLayout = {
   pageSize: "a4",
   density: "comfort",
   answers: "end",
-  revisionStyle: "notes",
-  typography: "serif",
 };
 
 function doc(partial: Partial<Doc> & { id: string }): Doc {

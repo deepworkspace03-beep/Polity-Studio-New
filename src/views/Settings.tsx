@@ -40,61 +40,19 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-interface StorageBreakdown {
-  /** Documents + settings + branding — the exact bytes a JSON backup would hold. */
-  docs: number;
-  /** Offline app cache (service worker's precached shell + assets). */
-  cache: number | null;
-  /** The browser's total estimate for this site, when available. */
-  total: number | null;
-}
-
-/** Measured directly rather than via the non-standard
-    `estimate().usageDetails` so the numbers are the same on every
-    browser: document bytes from the same serialization a backup uses,
-    cache bytes by summing the service worker cache's actual entries. */
-async function measureStorage(): Promise<StorageBreakdown> {
-  const docs = new Blob([exportBackup()]).size;
-  let cache: number | null = null;
-  try {
-    if ("caches" in window) {
-      cache = 0;
-      for (const name of await caches.keys()) {
-        const c = await caches.open(name);
-        for (const req of await c.keys()) {
-          const res = await c.match(req);
-          if (res) cache += (await res.clone().arrayBuffer()).byteLength;
-        }
-      }
-    }
-  } catch {
-    cache = null;
-  }
-  let total: number | null = null;
-  try {
-    total = (await navigator.storage?.estimate?.())?.usage ?? null;
-  } catch {
-    /* older browser */
-  }
-  return { docs, cache, total };
-}
-
 export function Settings() {
   const { settings, brand, docs } = useApp();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [usage, setUsage] = useState<StorageBreakdown | null>(null);
+  const [usage, setUsage] = useState<number | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    measureStorage().then((u) => {
-      if (!cancelled) setUsage(u);
-    });
-    return () => {
-      cancelled = true;
-    };
+    navigator.storage
+      ?.estimate?.()
+      .then((e) => setUsage(e.usage ?? null))
+      .catch(() => setUsage(null));
   }, [docs.length]);
 
   return (
@@ -230,20 +188,9 @@ export function Settings() {
                 value={settings.newDocLayout.density}
                 onChange={(density) => saveSettings({ newDocLayout: { ...settings.newDocLayout, density } })}
                 options={[
-                  { value: "ultra", label: "Ultra" },
                   { value: "compact", label: "Compact" },
                   { value: "comfort", label: "Comfort" },
                   { value: "relaxed", label: "Relaxed" },
-                ]}
-              />
-            </Field>
-            <Field label="Typography">
-              <Segmented
-                value={settings.newDocLayout.typography}
-                onChange={(typography) => saveSettings({ newDocLayout: { ...settings.newDocLayout, typography } })}
-                options={[
-                  { value: "serif", label: "Serif body" },
-                  { value: "sans", label: "Sans body" },
                 ]}
               />
             </Field>
@@ -254,27 +201,10 @@ export function Settings() {
           title="Your data"
           description="Documents and settings live in this browser's local database (IndexedDB) — nothing is uploaded anywhere. Exported PDFs are saved by your browser to your device and are never stored by the app."
         >
-          <div className="space-y-1 text-sm text-ink-2">
-            <p>
-              {docs.length} document{docs.length === 1 ? "" : "s"}
-            </p>
-            {usage && (
-              <dl className="grid max-w-md grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 text-xs">
-                <dt className="text-faint">Documents & settings</dt>
-                <dd className="text-right font-semibold tabular-nums">{formatBytes(usage.docs)}</dd>
-                <dt className="text-faint">Offline app cache</dt>
-                <dd className="text-right font-semibold tabular-nums">{usage.cache === null ? "—" : formatBytes(usage.cache)}</dd>
-                <dt className="text-faint">Generated PDFs</dt>
-                <dd className="text-right text-faint">not stored — downloads go straight to your device</dd>
-                {usage.total !== null && (
-                  <>
-                    <dt className="text-faint">Browser's total estimate for this site</dt>
-                    <dd className="text-right font-semibold tabular-nums">~{formatBytes(usage.total)}</dd>
-                  </>
-                )}
-              </dl>
-            )}
-          </div>
+          <p className="text-sm text-ink-2">
+            {docs.length} document{docs.length === 1 ? "" : "s"}
+            {usage !== null && <span className="text-faint"> · ~{formatBytes(usage)} of browser storage in use</span>}
+          </p>
           <div className="flex flex-wrap gap-2">
             <Button
               icon="download"

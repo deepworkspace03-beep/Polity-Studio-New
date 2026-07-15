@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseMcq, topicRevealsAnswer, validateMcq } from "./mcq";
+import { parseMcq, validateMcq } from "./mcq";
 
 describe("parseMcq", () => {
   it("parses a basic question with a starred correct option", () => {
@@ -101,33 +101,5 @@ describe("validateMcq", () => {
   it("passes a well-formed question with no issues", () => {
     const doc = parseMcq(["Q. Test?", "A) a", "B) b *", "C) c", "D) d"].join("\n"));
     expect(validateMcq(doc)).toHaveLength(0);
-  });
-});
-
-describe("topicRevealsAnswer", () => {
-  it("flags a topic that names the correct option outright", () => {
-    const doc = parseMcq(
-      ["Q. Which thinker considered Ideas to be eternal?", "A) Aristotle", "B) Plato *", "C) Locke", "D) Hobbes", "Topic: Plato"].join("\n"),
-    );
-    expect(topicRevealsAnswer(doc.sections[0].questions[0])).toBe(true);
-  });
-
-  it("flags a topic that is a superset phrase containing the answer", () => {
-    const doc = parseMcq(
-      ["Q. Test?", "A) Aristotle", "B) Plato *", "C) Locke", "D) Hobbes", "Topic: Theory of Forms (Plato)"].join("\n"),
-    );
-    expect(topicRevealsAnswer(doc.sections[0].questions[0])).toBe(true);
-  });
-
-  it("does not flag a topic that merely shares the subject area", () => {
-    const doc = parseMcq(
-      ["Q. Test?", "A) Aristotle", "B) Plato *", "C) Locke", "D) Hobbes", "Topic: Greek Political Thought"].join("\n"),
-    );
-    expect(topicRevealsAnswer(doc.sections[0].questions[0])).toBe(false);
-  });
-
-  it("returns false when there is no topic or no resolved answer", () => {
-    const doc = parseMcq(["Q. Test?", "A) a", "B) b *", "C) c", "D) d"].join("\n"));
-    expect(topicRevealsAnswer(doc.sections[0].questions[0])).toBe(false);
   });
 });

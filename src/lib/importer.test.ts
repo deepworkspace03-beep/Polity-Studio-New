@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanPlainText, htmlToMarkdown, smartFormatDocument, smartPaste } from "./importer";
+import { cleanPlainText, htmlToMarkdown, smartPaste } from "./importer";
 
 describe("htmlToMarkdown", () => {
   it("converts headings, bold and lists", () => {
@@ -120,39 +120,5 @@ describe("smartPaste", () => {
 
   it("returns null for plain text needing no fixes", () => {
     expect(smartPaste("", "Just ordinary prose with nothing to fix.")).toBeNull();
-  });
-});
-
-describe("smartFormatDocument", () => {
-  it("restructures a raw exam paper already in the editor", () => {
-    // Bracket-numbered questions are outside mcq.ts's own grammar (see the
-    // routing test above), so this is genuinely unstructured input.
-    const raw = ["[1/2] Who wrote the Constitution?", "(1) A", "(2) B", "(3) C", "(4) D", "Answer: (1)", "[2/2] Second?", "(1) A", "(2) B", "(3) C", "(4) D", "Answer: (2)"].join("\n");
-    const result = smartFormatDocument(raw);
-    expect(result?.markdown).toContain("Q. Who wrote the Constitution?");
-    expect(result?.summary).toContain("question");
-  });
-
-  it("fixes missing space after a heading marker and adds breathing room", () => {
-    const raw = "Some text.\n##Heading\nMore text.";
-    const result = smartFormatDocument(raw);
-    expect(result?.markdown).toContain("## Heading");
-    expect(result?.summary).toContain("heading");
-  });
-
-  it("returns null for an already-clean document (nothing to change)", () => {
-    expect(smartFormatDocument("# Title\n\nOrdinary clean prose with nothing to fix.")).toBeNull();
-  });
-
-  it("returns null for an empty document", () => {
-    expect(smartFormatDocument("   ")).toBeNull();
-  });
-
-  it("never discards content — every non-whitespace character survives (only spacing/order changes)", () => {
-    const raw = "##Sloppy Heading\nSome text here.\n\n\n\nToo many blank lines above.";
-    const result = smartFormatDocument(raw);
-    expect(result).not.toBeNull();
-    const chars = (s: string) => [...s.replace(/\s+/g, "")].sort().join("");
-    expect(chars(result!.markdown)).toEqual(chars(raw));
   });
 });

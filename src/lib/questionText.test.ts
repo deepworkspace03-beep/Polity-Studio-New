@@ -94,23 +94,6 @@ describe("normalizeQuestionText", () => {
     expect(markdown).toContain("Federalism divides power");
   });
 
-  it("drops a restated answer line inside the worked solution instead of duplicating it", () => {
-    const raw = [
-      "Q1. What is federalism?",
-      "(1) A (2) B (3) C (4) D",
-      "Answer: (3)",
-      "Detailed Solution: Federalism divides power between center and states.",
-      "Hence the correct option is (3).",
-      "Ans. (3)",
-    ].join("\n");
-    const { markdown } = normalizeQuestionText(raw);
-    // The canonical answer line is emitted exactly once (emitQuestion),
-    // and the restated "Ans. (3)" inside the solution body is dropped.
-    expect(markdown.match(/^Answer:/gm)).toHaveLength(1);
-    expect(markdown).not.toContain("Ans. (3)");
-    expect(markdown).toContain("Hence the correct option is (3).");
-  });
-
   it("preserves non-question preamble text and section headers", () => {
     const raw = ["Unit 1: Political Theory", "", "Q1. First question?", "(1) A (2) B (3) C (4) D", "Answer: (1)"].join(
       "\n",

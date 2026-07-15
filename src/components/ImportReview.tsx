@@ -56,7 +56,7 @@ export async function stageAndReview(files: File[], toast: Toast, onOpen: (doc: 
   const staged = promoteLeadingTitle(await stageImportFiles(files, toast));
   if (!staged.length) return;
   openImportReview(staged, "create", (finalItems) => {
-    const created = finalItems.map((d) => createDoc({ template: d.template, title: d.title || "Untitled", body: d.body, layout: d.layout }));
+    const created = finalItems.map((d) => createDoc({ template: d.template, title: d.title || "Untitled", body: d.body }));
     toast(`Imported ${created.length === 1 ? `“${created[0].title}”` : `${created.length} documents`}`, "ok");
     if (created.length === 1) onOpen(created[0]);
   });

@@ -1,0 +1,85 @@
+/* ═══════════════════════════════════════════════════════════════════
+   PYQ COLLECTION — layered on top of mcq.css.
+   A previous-year card headlines the exam/year and keeps the answer +
+   worked solution visible under every question (no back-of-book key).
+   Only the deltas from the MCQ card live here.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.pyq {
+  padding: 0.85em 1em 0.9em;
+  border-left: 2.5pt solid var(--c-primary);
+}
+
+.pyq__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8em;
+  margin-bottom: 0.5em;
+}
+
+/* Exam/year badge — the headline of a PYQ card. */
+.pyq__exam {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 7.4pt;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-primary);
+  background: color-mix(in srgb, var(--c-gold) 22%, var(--c-mix, white));
+  border: 0.6pt solid color-mix(in srgb, var(--c-gold) 55%, var(--c-mix, white));
+  border-radius: 99pt;
+  padding: 1.4pt 8pt;
+  white-space: nowrap;
+}
+
+.pyq .q__chips { justify-content: flex-start; margin-bottom: 0.45em; }
+
+/* Correct answer — a compact, always-on line between options and solution. */
+.pyq__answer {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.6em;
+}
+.pyq__answer-label {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 0.72em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+.pyq__answer-key {
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  font-size: 0.86em;
+  color: white;
+  background: var(--c-good);
+  border-radius: 4pt;
+  padding: 0.6pt 7pt 1pt;
+  letter-spacing: 0.02em;
+}
+
+/* Worked solution — always visible; tables/bullets inherit print-base. */
+.pyq__sol {
+  margin-top: 0.7em;
+  border-top: 0.7pt solid var(--c-edge);
+  padding-top: 0.6em;
+  font-size: 0.94em;
+}
+.pyq__sol-label {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 0.74em;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  margin-bottom: 0.4em;
+}
+.pyq__sol-body > :first-child { margin-top: 0; }
+.pyq__sol-body > :last-child { margin-bottom: 0; }
+/* Solution tables run edge-to-edge and read tighter than body tables. */
+.pyq__sol-body table { font-size: 0.86em; margin: 0.7em 0; }
+.pyq__sol-body th { padding: 4pt 6pt; }
+.pyq__sol-body td { padding: 3.5pt 6pt; }

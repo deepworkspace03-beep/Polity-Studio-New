@@ -34,38 +34,25 @@ export interface BuildOptions {
   theme?: "light" | "dark";
 }
 
-// Bottom margins are 6mm smaller than before, with the difference moved to
-// print-base.css's .pagedjs_page_content padding-bottom — the footer's own
-// real estate is unchanged, but content now gets the same breathing room
-// above the bottom divider that it already had below the top divider (see
-// print-base.css § page balance).
 const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; margin: string }> = {
-  a4: { w: 210, h: 297, size: "210mm 297mm", margin: "21mm 15mm 17mm 15mm" },
-  a5: { w: 148, h: 210, size: "148mm 210mm", margin: "16mm 12mm 12mm 12mm" },
-  letter: { w: 216, h: 279, size: "216mm 279mm", margin: "21mm 16mm 17mm 16mm" },
+  a4: { w: 210, h: 297, size: "210mm 297mm", margin: "21mm 15mm 23mm 15mm" },
+  a5: { w: 148, h: 210, size: "148mm 210mm", margin: "16mm 12mm 18mm 12mm" },
+  letter: { w: 216, h: 279, size: "216mm 279mm", margin: "21mm 16mm 23mm 16mm" },
 };
 
 /** Vector pattern layer per cover style (SVG so print stays vector).
     "custom" is absent — its pattern comes from the CoverDesign. */
 const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { kind: "grid" | "rings" | "weave" | "lines"; color: string }> = {
-  regal: { kind: "grid", color: "rgba(245,242,234,0.035)" },
-  aurora: { kind: "rings", color: "rgba(255,255,255,0.07)" },
-  heritage: { kind: "lines", color: "rgba(26,39,64,0.055)" },
-  eclipse: { kind: "rings", color: "rgba(211,166,98,0.065)" },
+  regal: { kind: "grid", color: "rgba(245,242,234,0.045)" },
+  aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
+  heritage: { kind: "lines", color: "rgba(26,39,64,0.07)" },
+  eclipse: { kind: "rings", color: "rgba(211,166,98,0.08)" },
 };
 
-/** Per-density sizing. compact/comfort/relaxed keep their exact historical
-    values for qGap/qPad/paraGap/secGap/optGap (only size/leading differ
-    between them, as before) — ultra is the only tier that also tightens
-    spacing, so it reads denser without shrinking type aggressively. */
-const DENSITY: Record<
-  Doc["layout"]["density"],
-  { size: string; leading: string; qGap: string; qPad: string; paraGap: string; secGap: string; optGap: string }
-> = {
-  ultra: { size: "10.8pt", leading: "1.4", qGap: "0.5em", qPad: "0.55em 0.75em 0.6em", paraGap: "0.55em", secGap: "1.05em 0 0.6em", optGap: "1.5pt 8pt" },
-  compact: { size: "11.6pt", leading: "1.52", qGap: "0.85em", qPad: "0.75em 0.95em 0.8em", paraGap: "0.85em", secGap: "1.6em 0 1em", optGap: "2.5pt 10pt" },
-  comfort: { size: "12.6pt", leading: "1.62", qGap: "0.85em", qPad: "0.75em 0.95em 0.8em", paraGap: "0.85em", secGap: "1.6em 0 1em", optGap: "2.5pt 10pt" },
-  relaxed: { size: "13.6pt", leading: "1.72", qGap: "0.85em", qPad: "0.75em 0.95em 0.8em", paraGap: "0.85em", secGap: "1.6em 0 1em", optGap: "2.5pt 10pt" },
+const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string }> = {
+  compact: { size: "11.6pt", leading: "1.52" },
+  comfort: { size: "12.6pt", leading: "1.62" },
+  relaxed: { size: "13.6pt", leading: "1.72" },
 };
 
 function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
@@ -84,17 +71,17 @@ function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   --c-primary: color-mix(in srgb, ${c.primary} 26%, #D7E4F6);
   --c-primarySoft: color-mix(in srgb, ${c.primarySoft} 34%, #C4D6EE);
   --c-accent: color-mix(in srgb, ${c.accent} 68%, #C9EEEA);
-  --c-accentSoft: color-mix(in srgb, ${c.accent} 22%, #19212C);
+  --c-accentSoft: color-mix(in srgb, ${c.accent} 16%, #0F141B);
   --c-gold: color-mix(in srgb, ${c.gold} 68%, #F2DFAF);
   --c-text: #DDE4EE;
   --c-muted: #8B99AB;
   --c-paper: #0F141B;
   --c-band: #19212C;
-  --c-edge: #313D4C;
+  --c-edge: #2A3441;
   --c-danger: #E88C81;
   --c-warn: #E0B267;
   --c-good: #62C892;
-  --c-mix: #19212C;
+  --c-mix: #0F141B;
   --c-th-ink: #0F141B;`;
   }
   return `
@@ -118,7 +105,7 @@ function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
 /* ── Cover ─────────────────────────────────────────────────────────── */
 
 /** Relative luminance of a #rrggbb color, used to pick a legible ink
-    color for the accent-colored session badge when the author picks a
+    color for the accent-colored edition badge when the author picks a
     custom accent (the four preset styles already choose this by hand). */
 function pickBadgeInk(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
@@ -137,7 +124,7 @@ function coverColorVars(colors: CoverColors | undefined): string {
   const vars: string[] = [];
   if (colors.bg) vars.push(`--cv-bg:${colors.bg}`);
   if (colors.ink) vars.push(`--cv-ink:${colors.ink}`, `--cv-line:color-mix(in srgb, ${colors.ink} 32%, transparent)`);
-  if (colors.accent) vars.push(`--cv-accent:${colors.accent}`, `--cv-session-tx:${pickBadgeInk(colors.accent)}`);
+  if (colors.accent) vars.push(`--cv-accent:${colors.accent}`, `--cv-edition-tx:${pickBadgeInk(colors.accent)}`);
   return vars.length ? ` style="${vars.join(";")}"` : "";
 }
 
@@ -186,7 +173,7 @@ function customCoverVars(d: CoverDesign): string {
     `--cv-soft:color-mix(in srgb, ${d.ink} 78%, transparent)`,
     `--cv-accent:${d.accent}`,
     `--cv-line:color-mix(in srgb, ${d.ink} 30%, transparent)`,
-    `--cv-session-tx:${pickBadgeInk(d.accent)}`,
+    `--cv-edition-tx:${pickBadgeInk(d.accent)}`,
     `--cv-title-font:${font.replace(/"/g, "&quot;")}`,
     `--cv-title-scale:${d.titleScale}`,
   ].join(";")}"`;
@@ -194,26 +181,12 @@ function customCoverVars(d: CoverDesign): string {
 
 function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): string {
   if (!doc.layout.cover) return "";
-  // Universal carries no fixed branding — the publisher lockup, temple
-  // emblem and footer website link only render for the other templates;
-  // the author's own institute (if set) is the only identity shown.
-  const isUniversal = doc.template === "universal";
   const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
-  const author = doc.author || (isUniversal ? "" : brand.author);
-  const institute = doc.institute?.trim() || (isUniversal ? "" : brand.name);
-  // Language badge — secondary metadata, rendered in the footer (not the
-  // top-right corner) so it never competes with the title. "both" shows
-  // both labels, "none" shows neither.
-  const langLabel =
-    doc.lang === "both"
-      ? `<span class="cv-lang-badge">हिन्दी</span><span class="cv-lang-badge">English</span>`
-      : doc.lang === "hi"
-        ? `<span class="cv-lang-badge">हिन्दी</span>`
-        : doc.lang === "en"
-          ? `<span class="cv-lang-badge">English</span>`
-          : "";
-  const editionBadge = doc.edition?.trim() ? `<span class="cv-edition-badge">${escapeHtml(doc.edition.trim())}</span>` : "";
+  const author = doc.author || brand.author;
+  const institute = doc.institute?.trim() || brand.name;
+  // Language label — Hindi shows हिन्दी; English intentionally shows nothing.
+  const langLabel = doc.lang === "hi" ? `<span class="cv-lang">हिन्दी</span>` : "";
   // Author-authored highlight lines override the template's defaults; an
   // explicit empty array hides them entirely.
   const coverLines = (doc.coverLines ?? defaultCoverLines).map((l) => l.trim()).filter(Boolean);
@@ -233,36 +206,27 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
     design?.frame ? "cover--framed" : "",
   ].filter(Boolean).join(" ");
   const styleAttr = design ? customCoverVars(design) : coverColorVars(doc.layout.coverColors);
-  const emblem = isUniversal || (design && !design.emblem) ? "" : templeEmblemSvg("cv-emblem");
-  const mark = isUniversal
-    ? ""
-    : design?.logo
-      ? `<img class="cv-logo" src="${escapeHtml(design.logo)}" alt="">`
-      : templeMarkSvg("13mm", "cv-mark");
-  const pub =
-    mark || institute
-      ? `<div class="cv-pub">
-      ${mark}
-      <div class="cv-pub__words">
-        ${institute ? `<b>${escapeHtml(institute.toUpperCase())}</b>` : ""}
-        ${isUniversal ? "" : `<span>${escapeHtml(brand.initiative)}</span>`}
-      </div>
-    </div>`
-      : "<div></div>";
-  const site = isUniversal
-    ? ""
-    : `<a class="cv-foot__site" href="${escapeHtml(brand.website)}">${escapeHtml(brand.website.replace(/^https?:\/\//, ""))}</a>`;
+  const emblem = design && !design.emblem ? "" : templeEmblemSvg("cv-emblem");
+  const mark = design?.logo
+    ? `<img class="cv-logo" src="${escapeHtml(design.logo)}" alt="">`
+    : templeMarkSvg("13mm", "cv-mark");
 
   return `
 <section class="cover ${classes}"${styleAttr}>
   ${pattern ? coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color) : ""}
   <div class="cv-shade" aria-hidden="true"></div>
   ${emblem}
-  ${editionBadge}
   <header class="cv-top">
-    ${pub}
+    <div class="cv-pub">
+      ${mark}
+      <div class="cv-pub__words">
+        <b>${escapeHtml(institute.toUpperCase())}</b>
+        <span>${escapeHtml(brand.initiative)}</span>
+      </div>
+    </div>
     <div class="cv-top__meta">
-      <span class="cv-session">${escapeHtml(doc.session || String(new Date().getFullYear()))}</span>
+      ${langLabel}
+      <span class="cv-edition">${escapeHtml(doc.session || String(new Date().getFullYear()))}</span>
     </div>
   </header>
   <div class="cv-body">
@@ -274,9 +238,8 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
     </ul>` : ""}
   </div>
   <div class="cv-foot">
-    ${site || "<span></span>"}
-    ${langLabel ? `<div class="cv-foot__lang">${langLabel}</div>` : ""}
-    ${author ? `<div class="cv-foot__jrf"><span>${escapeHtml(author)}</span></div>` : "<span></span>"}
+    <a class="cv-foot__site" href="${escapeHtml(brand.website)}">${escapeHtml(brand.website.replace(/^https?:\/\//, ""))}</a>
+    <div class="cv-foot__jrf"><span>${escapeHtml(author)}</span></div>
   </div>
 </section>`;
 }
@@ -284,11 +247,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
 /* ── Table of contents ─────────────────────────────────────────────── */
 
 function tocHtml(doc: Doc): string {
-  // Flashcard-style Revision has no meaningful TOC — every "##" is a card
-  // front, not a section — so it never had one even before templates
-  // were consolidated; keep that behavior regardless of layout.toc.
-  const isFlashcards = doc.template === "revision" && doc.layout.revisionStyle === "cards";
-  if (!TEMPLATE_META[doc.template].hasToc || isFlashcards || !doc.layout.toc) return "";
+  if (!TEMPLATE_META[doc.template].hasToc || !doc.layout.toc) return "";
   const toc = extractToc(doc.body);
   if (toc.length === 0) return "";
   return `
@@ -309,20 +268,6 @@ function tocHtml(doc: Doc): string {
 /* ── Page chrome (running header/footer sources) ───────────────────── */
 
 function runnersHtml(doc: Doc, brand: BrandConfig): string {
-  // Universal keeps the running header (the document's own subject, not
-  // the brand name) but drops the branded footer lockup/site/social
-  // icons entirely — only the page-number margin box (print-base.css,
-  // not sourced from here) remains.
-  const isUniversal = doc.template === "universal";
-  const headBook = doc.exam || (isUniversal ? doc.title : brand.name);
-  if (isUniversal) {
-    return `
-<div class="run-head-book">${escapeHtml(headBook || "")}</div>
-<div class="run-head-topic"></div>
-<div class="run-foot-brand"></div>
-<div class="run-foot-site"></div>
-<div class="run-foot-social"></div>`;
-  }
   const site = brand.website.replace(/^https?:\/\//, "");
   const social = [
     brand.telegram.url
@@ -335,7 +280,7 @@ function runnersHtml(doc: Doc, brand: BrandConfig): string {
     .filter(Boolean)
     .join("\n  ");
   return `
-<div class="run-head-book">${escapeHtml(headBook)}</div>
+<div class="run-head-book">${escapeHtml(doc.exam || brand.name)}</div>
 <div class="run-head-topic"></div>
 <div class="run-foot-brand">
   ${templeMarkSvg("15pt", "run-foot-brand__mark")}
@@ -367,65 +312,6 @@ body.purpose-preview .pagedjs_page {
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
   flex: none;
 }
-/* Always-visible, draggable scrollbar — Android Chrome's overlay
-   scrollbar is invisible at rest and ungrabbable on touch. */
-body.purpose-preview::-webkit-scrollbar { width: 12px; background: rgba(255,255,255,0.04); }
-body.purpose-preview::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.28);
-  border-radius: 8px;
-  border: 3px solid transparent;
-  background-clip: padding-box;
-  min-height: 44px;
-}
-/* Page navigator rail (built by the harness after layout): a scrub bar
-   with page labels for jumping straight to a page in long documents. */
-#x-nav-rail {
-  position: fixed;
-  top: 10px;
-  bottom: 10px;
-  right: 14px;
-  width: 30px;
-  z-index: 6;
-  border-radius: 15px;
-  background: rgba(13, 17, 23, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  touch-action: none;
-  user-select: none;
-  cursor: pointer;
-}
-#x-nav-rail .x-nav-tick {
-  position: absolute;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font: 600 9px/1 system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.78);
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-#x-nav-rail .x-nav-thumb {
-  position: absolute;
-  left: 3px;
-  right: 3px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.22);
-  pointer-events: none;
-}
-#x-nav-bubble {
-  position: fixed;
-  right: 52px;
-  z-index: 7;
-  transform: translateY(-50%);
-  background: rgba(13, 17, 23, 0.92);
-  color: #e6edf6;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  padding: 5px 9px;
-  font: 700 12px/1 system-ui, sans-serif;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
 /* NOTE: Paged.js is a print polyfill — it applies @media print rules to
    the paginated screen document too, so an !important zoom reset here
    would permanently disable the preview's zoom controls. The harness
@@ -434,7 +320,6 @@ body.purpose-preview::-webkit-scrollbar-thumb {
   body.purpose-preview { background: none; }
   body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; }
   body.purpose-preview .pagedjs_page { box-shadow: none; }
-  #x-nav-rail, #x-nav-bubble { display: none; }
 }`;
 
 /** Cursor-follow highlight + inline-editing affordances (flow only). */
@@ -458,16 +343,7 @@ const FLOW_PREVIEW_CSS = `
   opacity: 0.55;
   font-style: italic;
 }
-.cv-guide--empty { display: block !important; }
-/* Always-visible, draggable scrollbar (see PAGED_PREVIEW_CSS note). */
-body::-webkit-scrollbar { width: 12px; background: transparent; }
-body::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--c-muted) 55%, transparent);
-  border-radius: 8px;
-  border: 3px solid transparent;
-  background-clip: padding-box;
-  min-height: 44px;
-}`;
+.cv-guide--empty { display: block !important; }`;
 
 /** Content pasted from other tools often carries YAML front matter —
     it is metadata, never body text, so drop it before rendering. */
@@ -492,7 +368,6 @@ export function buildShellKey(doc: Doc, brand: BrandConfig, theme: "light" | "da
     doc.template,
     doc.layout.pageSize,
     doc.layout.density,
-    doc.layout.typography,
     doc.lang,
     theme,
     Object.values(brand.colors).join(","),
@@ -508,21 +383,10 @@ export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOp
   const density = DENSITY[doc.layout.density];
   const paged = mode === "paged";
 
-  const bodyFont =
-    doc.layout.typography === "sans"
-      ? `"Manrope", "Noto Sans Devanagari", sans-serif`
-      : `"Literata", "Noto Serif Devanagari", Georgia, serif`;
-
   const css = `
 :root { ${themeVars(brand, theme)}
   --body-size: ${density.size};
   --body-leading: ${density.leading};
-  --q-gap: ${density.qGap};
-  --q-pad: ${density.qPad};
-  --para-gap: ${density.paraGap};
-  --sec-gap: ${density.secGap};
-  --opt-gap: ${density.optGap};
-  --font-body: ${bodyFont};
 }
 @page { size: ${geometry.size}; margin: ${geometry.margin}; }
 ${printBaseCss}
@@ -549,7 +413,7 @@ ${body.html}`;
   const title = options.fileTitle || doc.title || "Untitled";
 
   return `<!DOCTYPE html>
-<html lang="${doc.lang === "hi" || doc.lang === "both" ? "hi" : "en"}">
+<html lang="${doc.lang === "hi" ? "hi" : "en"}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -558,7 +422,7 @@ ${body.html}`;
 <style>${css}</style>
 ${watermarkTemplate}
 </head>
-<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark && TEMPLATE_META[doc.template].hasWatermark ? "1" : "0"}" data-purpose="${purpose}">
+<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
 ${paged ? content : `<div id="doc-root">${content}</div>`}
 ${scripts}
 </body>

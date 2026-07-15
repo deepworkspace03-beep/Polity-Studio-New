@@ -164,45 +164,6 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-/** Collapsible section for the settings pane — advanced/infrequent
-    controls (Cover Designer, PDF Design) start collapsed so the pane
-    reads as a short list of quick choices, not a wall of fields. */
-export function Disclosure({
-  title,
-  subtitle,
-  icon,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  icon?: IconName;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="rounded-xl border border-edge">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          {icon && <Icon name={icon} size={15} className="flex-none text-ink-2" />}
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-ink">{title}</span>
-            {subtitle && <span className="block truncate text-xs text-faint">{subtitle}</span>}
-          </span>
-        </span>
-        <Icon name="chevronDown" size={14} className={cx("flex-none text-faint transition-transform", open && "rotate-180")} />
-      </button>
-      {open && <div className="space-y-3 border-t border-edge px-3 py-3">{children}</div>}
-    </div>
-  );
-}
-
 export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button

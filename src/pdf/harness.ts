@@ -43,15 +43,6 @@ export const HARNESS_JS = String.raw`(function () {
     return;
   }
 
-  // A hidden iframe (display:none host pane) measures every element at
-  // zero, so Paged.js would "succeed" with a garbage 1-page layout that
-  // then sticks. The host suspends hidden previews so this should never
-  // fire — but if a future change reintroduces one, fail loudly instead.
-  if (!document.documentElement.clientWidth) {
-    report(0, "preview is hidden — layout has no dimensions");
-    return;
-  }
-
   /* ── Zoom (preview only) ─────────────────────────────────────────
      "fit-width" | "fit-page" | number. CSS zoom keeps real geometry so
      scrolling, page navigation and the export transcriber all stay
@@ -207,100 +198,6 @@ export const HARNESS_JS = String.raw`(function () {
     try { parent.postMessage({ type: "preview-click", line: line, editable: false }, "*"); } catch (err) {}
   });
 
-  /* ── Page navigator rail (preview only) ─────────────────────────────
-     A fixed scrub bar on the right edge: page-number ticks at readable
-     intervals, a viewport thumb, and drag-to-jump — so long documents
-     are navigable in one gesture on a tablet instead of minutes of
-     flick-scrolling. Built once after layout settles (page geometry is
-     final by then); tick fractions are zoom-invariant because CSS zoom
-     scales the whole scroll geometry proportionally. */
-  function buildNavRail(pageCount) {
-    if (!isPreview || pageCount < 2 || document.getElementById("x-nav-rail")) return;
-    var pages = pageEls();
-    var docH = document.documentElement.scrollHeight;
-    if (!docH) return;
-
-    var rail = document.createElement("div");
-    rail.id = "x-nav-rail";
-    var bubble = document.createElement("div");
-    bubble.id = "x-nav-bubble";
-
-    var step = pageCount <= 8 ? 1 : pageCount <= 40 ? 5 : pageCount <= 120 ? 10 : 25;
-    for (var i = 0; i < pageCount; i++) {
-      var n = i + 1;
-      if (n !== 1 && n % step !== 0) continue;
-      var r = pages[i].getBoundingClientRect();
-      var frac = (r.top + window.scrollY) / docH;
-      var tick = document.createElement("span");
-      tick.className = "x-nav-tick";
-      tick.textContent = String(n);
-      tick.style.top = (frac * 100).toFixed(2) + "%";
-      rail.appendChild(tick);
-    }
-    var thumb = document.createElement("div");
-    thumb.className = "x-nav-thumb";
-    rail.appendChild(thumb);
-    document.body.appendChild(rail);
-    document.body.appendChild(bubble);
-
-    var bubbleTimer = null;
-    function currentPage() {
-      var els = pageEls();
-      var mid = window.innerHeight / 2;
-      for (var i = 0; i < els.length; i++) {
-        var r = els[i].getBoundingClientRect();
-        if (r.bottom >= mid) return i + 1;
-      }
-      return els.length;
-    }
-    function syncThumb(showBubble) {
-      var h = document.documentElement.scrollHeight;
-      var vh = window.innerHeight;
-      var railH = rail.clientHeight;
-      var top = (window.scrollY / h) * railH;
-      var size = Math.max(24, (vh / h) * railH);
-      thumb.style.top = top + "px";
-      thumb.style.height = size + "px";
-      if (showBubble) {
-        bubble.textContent = currentPage() + " / " + pageCount;
-        bubble.style.top = rail.offsetTop + top + size / 2 + "px";
-        bubble.style.opacity = "1";
-        if (bubbleTimer) clearTimeout(bubbleTimer);
-        bubbleTimer = setTimeout(function () { bubble.style.opacity = "0"; }, 900);
-      }
-    }
-    var raf = 0;
-    window.addEventListener("scroll", function () {
-      if (raf) return;
-      raf = requestAnimationFrame(function () {
-        raf = 0;
-        syncThumb(true);
-      });
-    }, { passive: true });
-    window.addEventListener("resize", function () { syncThumb(false); });
-
-    var scrubbing = false;
-    function scrubTo(clientY) {
-      var rect = rail.getBoundingClientRect();
-      var frac = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-      var h = document.documentElement.scrollHeight;
-      window.scrollTo(0, frac * (h - window.innerHeight));
-    }
-    rail.addEventListener("pointerdown", function (e) {
-      scrubbing = true;
-      rail.setPointerCapture(e.pointerId);
-      scrubTo(e.clientY);
-      e.preventDefault();
-    });
-    rail.addEventListener("pointermove", function (e) {
-      if (scrubbing) scrubTo(e.clientY);
-    });
-    rail.addEventListener("pointerup", function () { scrubbing = false; });
-    rail.addEventListener("pointercancel", function () { scrubbing = false; });
-
-    syncThumb(false);
-  }
-
   // Running header topic — tracks the chapter (h1) / section (h2) in
   // effect as each page opens. "Plato: The Philosopher" → "Plato".
   var curChap = "";
@@ -309,20 +206,8 @@ export const HARNESS_JS = String.raw`(function () {
     return (s || "").split(/\s*[:—–]\s+|\s+[-]\s+/)[0].trim();
   }
 
-  // Live layout progress — on a large document (or slow tablet) the
-  // full layout takes long enough that a silent spinner reads as a hang;
-  // a moving page count is the difference between "working" and "stuck".
-  var laidOut = 0;
-  var lastProgressAt = 0;
-
   class StudioHandler extends window.Paged.Handler {
     afterPageLayout(pageElement) {
-      laidOut += 1;
-      var now = Date.now();
-      if (now - lastProgressAt > 300) {
-        lastProgressAt = now;
-        try { parent.postMessage({ type: "paged-progress", pages: laidOut }, "*"); } catch (e) {}
-      }
       var topicBox = pageElement.querySelector(".pagedjs_margin-top-center .run-head-topic");
       if (topicBox) topicBox.textContent = shortTopic(curChap || curSect);
       var heads = pageElement.querySelectorAll(".doc h1, .doc h2, .mcq h1, .mcq h2, .deck h1, .deck h2");
@@ -342,7 +227,6 @@ export const HARNESS_JS = String.raw`(function () {
     afterRendered(pages) {
       applyZoom();
       report(pages.length, null);
-      try { buildNavRail(pages.length); } catch (e) { /* nav rail is a convenience, never fatal */ }
     }
   }
 
@@ -357,38 +241,30 @@ export const HARNESS_JS = String.raw`(function () {
   // which forced the whole export onto the print fallback. Instead of
   // failing on a timer, watch the page count and only give up once
   // pagination has genuinely stalled, reporting whatever pages exist.
-  // One stall watcher, always on. It runs from the start with a wide
-  // window (~25s without a single new page) so Paged.js stopping silently
-  // (pathological content, no error event) can never leave the host on
-  // "Typesetting pages…" forever — the old watchdog only armed after an
-  // error event, which made a silent stall a true hang. A recoverable
-  // error/rejection during layout tightens the window to ~3s: at that
-  // point a stall means the error genuinely aborted layout, and a slow
-  // tablet is still safe because any page progress resets the count.
-  var stallTicks = 100;
-  var stallReason = "layout stalled";
+  var watching = false;
   function unblock(ev) {
-    stallTicks = 12;
-    stallReason = (ev && (ev.message || ev.reason)) || "render error";
+    if (watching || window.__PAGED_DONE__) return;
+    watching = true;
+    var reason = (ev && (ev.message || ev.reason)) || "render error";
+    var lastCount = -1;
+    var stalls = 0;
+    (function check() {
+      if (window.__PAGED_DONE__) return; // afterRendered already reported success
+      var count = document.querySelectorAll(".pagedjs_page").length;
+      if (count !== lastCount) { lastCount = count; stalls = 0; } // still making progress
+      else stalls += 1;
+      // ~3s with no new page = genuinely stuck. Pages already laid out are
+      // a real (if partial) render, so keep them rather than discard the
+      // whole export; only a zero-page render is a true failure.
+      if (stalls >= 12) {
+        report(count, count ? null : reason);
+        return;
+      }
+      setTimeout(check, 250);
+    })();
   }
   window.addEventListener("error", unblock);
   window.addEventListener("unhandledrejection", unblock);
-  var lastCount = -1;
-  var stalls = 0;
-  (function check() {
-    if (window.__PAGED_DONE__) return; // afterRendered already reported success
-    var count = document.querySelectorAll(".pagedjs_page").length;
-    if (count !== lastCount) { lastCount = count; stalls = 0; } // still making progress
-    else stalls += 1;
-    // No new page for the whole window = genuinely stuck. Pages already
-    // laid out are a real (if partial) render, so keep them rather than
-    // discard the whole export; only a zero-page render is a true failure.
-    if (stalls >= stallTicks) {
-      report(count, count ? null : stallReason);
-      return;
-    }
-    setTimeout(check, 250);
-  })();
 })();`;
 
 /**

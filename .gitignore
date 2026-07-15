@@ -5,4 +5,3 @@ public/fonts/ttf/
 *.local
 .env
 .DS_Store
-.visual-regression-out/

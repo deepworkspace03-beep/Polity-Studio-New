@@ -72,7 +72,7 @@ export async function transcribePaginated(
   const K = 72 / 96;
 
   try {
-    await materializePseudos(srcDoc);
+    materializePseudos(srcDoc);
 
     for (let p = 0; p < pageEls.length; p++) {
       const box = pageEls[p].querySelector<HTMLElement>(".pagedjs_pagebox") ?? pageEls[p];
@@ -526,7 +526,7 @@ class Transcriber {
     if (rects.length === 0) return;
     this.runStats.total++;
 
-    const drawAt = (str: string, rect: DOMRect, extraSpacing = 0) => {
+    const drawAt = (str: string, rect: DOMRect) => {
       const baseline = rect.top - this.pageOrigin.y + face.ascent * opt.fontSize;
       const x = rect.left - this.pageOrigin.x;
       this.canvas.drawText(
@@ -537,7 +537,7 @@ class Transcriber {
         opt.fontSize,
         opt.color,
         opt.ctx.opacity,
-        opt.letterSpacing + extraSpacing,
+        opt.letterSpacing,
         face.def.italic === false && (opt.cs.fontStyle.includes("italic") || opt.cs.fontStyle.includes("oblique")),
       );
       this.drawDecorations(rect, face, opt);
@@ -548,39 +548,11 @@ class Transcriber {
     // whether failures were widespread enough to abort.
     try {
       if (rects.length === 1 && opt.letterSpacing === 0) {
-        // pdf-lib lays glyphs out with the font's raw, un-kerned advance
-        // widths — it doesn't replay GPOS kerning pairs the way the
-        // browser does — so a word can come out a few px wider than the
-        // browser measured it. Because every word is positioned
-        // absolutely at its own browser rect, an overshooting word eats
-        // the visual gap before its neighbor: at TOC/heading sizes that
-        // read as merged words ("PreventiveDetention"). v3.1.0 only
-        // width-checked short runs because its sole remedy was the
-        // per-character fallback below (expensive in time and file
-        // size); distributing the divergence as PDF character spacing
-        // instead makes every run occupy exactly its browser-measured
-        // width for one extra operator, so the check can afford to run
-        // on everything. Complex scripts (Devanagari) always stay a
-        // single run — splitting them per character would break
-        // conjunct/matra shaping — so any divergence there is spread
-        // uncapped rather than falling through.
-        const delta = rects[0].width - predictedWidth(face, text, opt.fontSize);
-        if (Math.abs(delta) < 0.15) {
-          drawAt(text, rects[0]);
-          return;
-        }
-        const glyphs = [...text].length;
-        const spacing = glyphs > 1 ? delta / glyphs : 0;
-        const complexScript = /[ऀ-ॿ᳐-᳿꣠-ꣿ]/.test(text);
-        if (glyphs > 1 && (complexScript || Math.abs(spacing) <= 0.75)) {
-          drawAt(text, rects[0], spacing);
-          return;
-        }
-        // Gross divergence on a simple script (wrong fallback face,
-        // exotic glyphs) — use exact per-character rects below.
+        drawAt(text, rects[0]);
+        return;
       }
-      // Letter-spaced, kerning-diverged, or fragmented runs: position
-      // character by character with exact browser rects.
+      // Letter-spaced or fragmented runs: position character by character
+      // with exact browser rects.
       let idx = from;
       for (const ch of text) {
         this.range.setStart(node, idx);
@@ -621,28 +593,6 @@ class Transcriber {
   private warn(msg: string): void {
     if (this.warnings.length < 40 && !this.warnings.includes(msg)) this.warnings.push(msg);
   }
-}
-
-/* ── width prediction ──────────────────────────────────────────────── */
-
-// widthOfTextAtSize shapes the whole run through fontkit — measurable on
-// a 400-page export if done per occurrence. Words repeat heavily in real
-// documents, so cache the shaped width per face at a reference size
-// (width scales linearly with size).
-const widthCache = new WeakMap<LoadedFace, Map<string, number>>();
-
-function predictedWidth(face: LoadedFace, text: string, size: number): number {
-  let perFace = widthCache.get(face);
-  if (!perFace) {
-    perFace = new Map();
-    widthCache.set(face, perFace);
-  }
-  let w = perFace.get(text);
-  if (w === undefined) {
-    w = face.pdfFont.widthOfTextAtSize(text, 1000);
-    if (perFace.size < 50_000) perFace.set(text, w);
-  }
-  return (w * size) / 1000;
 }
 
 /* ── small utilities ───────────────────────────────────────────────── */

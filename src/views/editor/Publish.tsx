@@ -45,9 +45,6 @@ export function Publish({
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const [progress, setProgress] = useState(0);
-  // Pages laid out so far — a moving number while typesetting large
-  // documents, so a long layout never reads as a hang.
-  const [laidOut, setLaidOut] = useState(0);
 
   const fileTitle = useMemo(() => buildFileTitle(doc, brand, settings), [doc, brand, settings]);
   // Snapshot at open — the overlay owns the screen, the doc can't change.
@@ -59,38 +56,11 @@ export function Publish({
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
 
-  // Host-side stall watchdog — the iframe's own layout watchdog is an
-  // inline script; if the frame never runs scripts (a stalled vendor/
-  // font request through a dying service worker, the browser reclaiming
-  // the frame) nothing in there can report back and this overlay would
-  // sit on "Typesetting pages…" forever. See Preview.tsx for the same
-  // pattern; here a stall surfaces the error screen, whose "simplified
-  // layout" export path doesn't depend on the dead frame.
-  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const armWatchdog = (ms: number) => {
-    if (watchdogRef.current) clearTimeout(watchdogRef.current);
-    watchdogRef.current = setTimeout(() => {
-      setPhase((p) => {
-        if (p !== "layout") return p;
-        setError("the layout engine never responded — close and reopen Publish to try again");
-        return "error";
-      });
-    }, ms);
-  };
-  useEffect(() => {
-    armWatchdog(20_000);
-    return () => {
-      if (watchdogRef.current) clearTimeout(watchdogRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frameRef.current?.contentWindow) return;
       const d = e.data;
       if (d?.type === "paged-done") {
-        if (watchdogRef.current) clearTimeout(watchdogRef.current);
         if (d.error || !d.pages) {
           setPhase("error");
           setError(String(d.error || "The page layout produced no pages."));
@@ -98,9 +68,6 @@ export function Publish({
           setPhase("ready");
           setPages(d.pages);
         }
-      } else if (d?.type === "paged-progress" && typeof d.pages === "number") {
-        setLaidOut(d.pages);
-        armWatchdog(30_000);
       } else if (d?.type === "page-visible") {
         setCurrent(d.page);
       } else if (d?.type === "zoom" && typeof d.zoom === "number") {
@@ -142,13 +109,9 @@ export function Publish({
     try {
       // The PDF engine (pdf-lib + fontkit) loads only on first export.
       const { exportPaginatedPdf } = await import("../../pdf/engine");
-      // PDF metadata language must be a real BCP-47 tag — "both"/"none"
-      // (the cover badge setting) aren't valid values, so resolve to the
-      // same tag used for <html lang> (see pdf/document.ts).
-      const pdfLang = doc.lang === "hi" || doc.lang === "both" ? "hi" : "en";
       const result = await exportPaginatedPdf(
         srcDoc,
-        { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: pdfLang },
+        { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: doc.lang },
         (done, total) => setProgress(total ? done / total : 0),
       );
       downloadFile(`${fileTitle}.pdf`, result.blob, "application/pdf");
@@ -184,18 +147,14 @@ export function Publish({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg" role="dialog" aria-modal="true" aria-label="Publish PDF">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
-        {/* Leaving mid-export would unmount the iframe the engine is
-            actively measuring — same reason Escape is ignored then. */}
-        <IconButton label="Back to editor" name="back" size={18} onClick={onClose} disabled={phase === "exporting"} />
+        <IconButton label="Back to editor" name="back" size={18} onClick={onClose} />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-bold leading-tight">{doc.title || "Untitled"}</h2>
           <p className="truncate text-xs text-faint">
             {phase === "layout"
-              ? laidOut > 0 ? `Typesetting pages… ${laidOut}` : "Typesetting pages…"
+              ? "Typesetting pages…"
               : phase === "exporting"
-                ? progress >= 1
-                  ? "Finalizing PDF — compressing fonts and streams…"
-                  : `Building vector PDF… ${Math.round(progress * 100)}%`
+                ? `Building vector PDF… ${Math.round(progress * 100)}%`
                 : phase === "ready"
                   ? `${pages} page${pages === 1 ? "" : "s"} · vector PDF, opens instantly`
                   : "Layout failed"}
@@ -254,18 +213,13 @@ export function Publish({
           ref={frameRef}
           title="Typeset pages"
           srcDoc={html}
-          // While the engine transcribes, an accidental touch/pinch on the
-          // preview would change its zoom and corrupt the measurements the
-          // transcriber reads from the live layout — block interaction.
-          className={`h-full w-full border-0${phase === "exporting" ? " pointer-events-none" : ""}`}
+          className="h-full w-full border-0"
           sandbox="allow-same-origin allow-scripts allow-modals"
         />
         {phase === "layout" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg/85">
             <Icon name="loader" size={22} className="animate-spin text-accent" />
-            <p className="text-sm text-ink-2">
-              {laidOut > 0 ? `Typesetting your pages… ${laidOut} so far` : "Typesetting your pages…"}
-            </p>
+            <p className="text-sm text-ink-2">Typesetting your pages…</p>
           </div>
         )}
         {phase === "exporting" && (

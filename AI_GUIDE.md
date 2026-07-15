@@ -115,26 +115,6 @@ using the pre-installed Chromium + Playwright before shipping engine or
 harness changes; don't try to fake this with jsdom/happy-dom, it will
 give false confidence.
 
-**Permanent visual regression benchmark** (`npm run test:visual`,
-`scripts/visual-regression.mjs`) — opt-in, not part of `npm test` or CI
-(it needs a real Chromium + a production build, both too heavy for the
-required pipeline). Builds the app, opens the built-in "Fundamental
-Rights — Complete Notes" demo, exports it to PDF and standalone HTML,
-and checks two things: (1) page count agrees across the live paged
-preview, the PDF, and the HTML export — a cheap, reliable proxy for
-"did pagination break," since pixel-diffing the HTML (Blink layout) and
-PDF (PDFium) renderers against each other isn't practical to keep
-false-positive-free; (2) each PDF page, screenshotted via Chromium's
-own PDF viewer, is pixel-diffed against a saved baseline
-(`scripts/visual-baseline/*.png`, committed) — same renderer both
-times, so any real difference is a real regression. The 3% per-page
-tolerance absorbs measured cross-build PDFium anti-aliasing jitter
-(~0.2–1.7%, confirmed to trace glyph edges uniformly, not a layout
-shift) with headroom below what an actual layout regression produces
-(6–10%+, confirmed by deliberately bumping a heading's font-size).
-Run after touching `pdf/engine/`, `pdf/document.ts`, or `pdf/styles/*.css`;
-re-run with `--update` to intentionally move the baseline.
-
 **No ESLint currently.** `typescript-eslint@8.x` crashes against
 TypeScript 7's restructured compiler internals as of this writing —
 this is an upstream compatibility gap, not a missing config. `tsc --noEmit`
@@ -201,46 +181,6 @@ scripted Playwright pass if you want it automated for one session.
   so a drop never falls through to CodeMirror's own file handling.
   Testing drops (Playwright or otherwise) needs a real `DragEvent` with a
   `DataTransfer` built via `new DataTransfer()` — no `dragenter` required.
-- **Never let Paged.js lay out inside a hidden iframe.** With a
-  `display:none` ancestor every element measures zero, so pagination
-  "succeeds" with a garbage 1-page layout (plus a null
-  `getBoundingClientRect` error) — and the identical-srcDoc restore
-  logic then faithfully re-shows that wedged result when the pane comes
-  back. `Preview.tsx` tracks real on-screen visibility with an
-  IntersectionObserver and suspends the paged pipeline while hidden
-  (same teardown/rebuild as the Publish suspension); the harness also
-  refuses to start layout at zero width so a regression fails loudly.
-  If you add another Paged.js consumer, keep it visible or suspended —
-  never hidden-but-live.
-- **A state-driven `srcDoc` iframe never reloads for identical HTML.**
-  The Pages preview rebuilds its iframe by `setSrcDoc(buildDocumentHtml(…))`;
-  when a setting is toggled and toggled back, the rebuilt HTML is
-  byte-identical, React skips the no-op state update, the iframe never
-  reloads — and anything waiting on the iframe's "done" message waits
-  forever. `Preview.tsx` detects the identical rebuild and restores the
-  settled state instead (see the pages branch of its content-pipeline
-  effect). If you add another srcDoc-driven iframe with a completion
-  signal, handle the identical-content case or you'll reintroduce the
-  v3.1.1 "Laying out pages… forever" hang.
-- **Pseudo-element scans must be scoped, not exhaustive.** Calling
-  `getComputedStyle(el, "::before"/"::after")` across every element of
-  every paginated page is a synchronous full-DOM scan that freezes the
-  tab for seconds on 100+ page documents (measured 3.1s at 4× CPU
-  throttle, 55k elements, 2.2% hit rate). Both consumers are already
-  scoped: `htmlExport.ts` to the four known counter selectors,
-  `engine/materialize.ts` by enumerating the stylesheets' own
-  `::before`/`::after` selectors (complete by construction — inline
-  styles can't create pseudos and every sheet is first-party; it falls
-  back to the exhaustive scan if the stylesheet walk fails). Keep any
-  new generated-content code on the same pattern.
-- **`npm run test:visual` rebuilds by default** — pass
-  `VISUAL_SKIP_BUILD=1` only when you *just* built and know `dist/` is
-  current. It used to silently reuse whatever `dist/` existed, which
-  once validated a stale build as "pixel-identical". In remote/CI
-  sandboxes the pinned playwright package's own browser download is
-  usually absent — the script falls back to the pre-installed
-  `/opt/pw-browsers/chromium` automatically (override with
-  `PLAYWRIGHT_CHROMIUM_PATH`).
 - **CodeMirror's view isn't reachable from the DOM in production builds.**
   When testing/inspecting editor content externally, read
   `document.querySelector(".cm-content").innerText` — note it renders

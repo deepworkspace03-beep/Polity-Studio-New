@@ -2,9 +2,8 @@ import { importBackup } from "./store";
 import { newTally, plural, summarize, wrap, type Tally } from "./importTally";
 import { docxToMarkdown, isDocxSupported } from "./docx";
 import { looksLikeQuestionBank, normalizeQuestionText } from "./questionText";
-import { normalizeMarkdown } from "./markdownReview";
 import { parseMcq, validateMcq } from "../markdown/mcq";
-import type { DocLayout, TemplateId } from "./types";
+import type { TemplateId } from "./types";
 
 /**
  * Smart import engine — converts whatever arrives via clipboard, drag &
@@ -312,47 +311,6 @@ export function smartPaste(html: string, text: string): ImportResult | null {
   return null;
 }
 
-/**
- * Smart Format — the same deterministic, heuristic-based normalization
- * smartPaste applies at paste time, run on demand over a document that's
- * already in the editor (Toolbar's "Smart Format" action). Composes the
- * existing passes rather than adding new parsing logic:
- *   1. A raw exam paper embedded in the body gets restructured into the
- *      clean question dialect (same detection as smartPaste).
- *   2. Otherwise plain-text tidy (unicode bullets, NBSP/zero-width junk,
- *      excess blank lines) applies if the whole body isn't already clean.
- *   3. Either way, a final mechanical pass (heading spacing, breathing
- *      room before headings, trailing whitespace) always runs.
- * Returns null when nothing changes — never silently discards content,
- * and the whole thing is one string transform the caller applies as a
- * single, Ctrl+Z-reversible editor transaction. */
-export function smartFormatDocument(text: string): { markdown: string; summary: string } | null {
-  if (!text.trim()) return null;
-  let working = text;
-  const notes: string[] = [];
-
-  if (looksLikeQuestionBank(text) && !isCleanQuestionDialect(text)) {
-    const { markdown, questions } = normalizeQuestionText(text);
-    if (markdown && markdown !== text.trim()) {
-      working = markdown;
-      notes.push(`structured ${plural(questions, "question")}`);
-    }
-  } else {
-    const { markdown, fixes } = cleanPlainText(text);
-    if (fixes && markdown !== text) {
-      working = markdown;
-      notes.push(`tidied ${plural(fixes, "fix")}`);
-    }
-  }
-
-  const { markdown: normalized, fixes: headingFixes } = normalizeMarkdown(working);
-  if (headingFixes) notes.push(`fixed ${plural(headingFixes, "heading/spacing issue")}`);
-  working = normalized;
-
-  if (working === text || !notes.length) return null;
-  return { markdown: working, summary: notes.join(", ") };
-}
-
 /* ── File import ──────────────────────────────────────────────────── */
 
 export const IMPORT_ACCEPT = ".md,.markdown,.txt,.text,.html,.htm,.json,.docx";
@@ -411,16 +369,16 @@ type Toast = (message: string, tone?: "ok" | "error" | "info") => void;
 /** Q1./Q2. style numbered questions are the one format specific enough
     to guess safely — question papers, PYQs and quiz exports converted
     from Word/PDF almost always keep that numbering. Everything else
-    (notes vs. revision vs. universal) is a stylistic choice the author
+    (notes vs. revision vs. flashcards) is a stylistic choice the author
     makes in the Import Review picker, not something worth guessing. */
-function guessTemplate(body: string): { template: TemplateId; layout?: Partial<DocLayout> } {
+function guessTemplate(body: string): TemplateId {
   const hits = body.match(/^\s{0,3}Q\s*\d*[.):]\s+\S/gim)?.length ?? 0;
-  if (hits < 2) return { template: "notes" };
+  if (hits < 2) return "notes";
   // A solved bank (worked solutions and/or an exam/year stamp) is best
-  // read with the answer revealed inline under each question. A bare
-  // quiz with no solutions reads with a back-of-book answer key instead.
+  // read as a PYQ collection — solution under each question. A bare quiz
+  // with no solutions is an MCQ booklet (answers to a back-of-book key).
   const solved = /^\s*(?:Solution|Detailed Solution|Explanation)\s*:/im.test(body) || /^\s*(?:Source|Exam|Year)\s*:/im.test(body);
-  return { template: "question-bank", layout: solved ? { answers: "inline" } : undefined };
+  return solved ? "pyq" : "mcq";
 }
 
 export interface StagedDoc {
@@ -428,7 +386,6 @@ export interface StagedDoc {
   body: string;
   summary: string;
   template: TemplateId;
-  layout?: Partial<DocLayout>;
 }
 
 /** Converts files into ready-to-review documents, or restores a dropped
@@ -454,7 +411,7 @@ export async function stageImportFiles(files: File[], toast: Toast): Promise<Sta
         toast(`${file.name}: ${(err as Error).message}`, "error");
       }
     } else {
-      staged.push({ title: r.title, body: r.body, summary: r.summary, ...guessTemplate(r.body) });
+      staged.push({ title: r.title, body: r.body, summary: r.summary, template: guessTemplate(r.body) });
     }
   }
   if (restored) toast(`Backup restored — ${plural(restored, "document")}`, "ok");

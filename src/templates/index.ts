@@ -1,10 +1,12 @@
-import type { AnswersMode, Doc, TemplateId } from "../lib/types";
+import type { Doc, TemplateId } from "../lib/types";
 import { escapeHtml } from "../lib/utils";
 import { renderInline, renderMarkdown } from "../markdown/renderer";
-import { parseMcq, topicRevealsAnswer, type McqQuestion } from "../markdown/mcq";
+import { parseMcq, type McqQuestion } from "../markdown/mcq";
 import notesCss from "../pdf/styles/notes.css?raw";
 import revisionCss from "../pdf/styles/revision.css?raw";
-import questionBankCss from "../pdf/styles/question-bank.css?raw";
+import mcqCss from "../pdf/styles/mcq.css?raw";
+import pyqCss from "../pdf/styles/pyq.css?raw";
+import flashcardsCss from "../pdf/styles/flashcards.css?raw";
 
 /**
  * Template registry — the single place a document type is defined.
@@ -33,62 +35,43 @@ function notesBody(doc: Doc): BuiltBody {
   };
 }
 
-function universalBody(doc: Doc): BuiltBody {
+function revisionBody(doc: Doc): BuiltBody {
   return {
     html: `<main class="doc">${renderMarkdown(doc.body)}</main>`,
-    coverLines: [],
+    coverLines: ["Rapid Revision Notes", "Last-Minute Ready"],
   };
 }
 
-/* ── Question Bank (MCQs + previous-year questions, one template) ────
-   A question tagged with a Source (exam/paper/year) reads as a
-   previous-year question — headline exam badge, answer revealed inline
-   when layout.answers is "inline". A question with no Source reads as a
-   plain practice MCQ. Every question uses the same parser and card;
-   layout.answers is the only thing that changes what's visible. */
-
-function headerChips(q: McqQuestion, unit: string): string {
+function questionCard(q: McqQuestion, inline: boolean): string {
   const chips: string[] = [];
-  if (unit) chips.push(`<span class="qchip qchip--unit">${escapeHtml(unit)}</span>`);
-  if (q.topic && !topicRevealsAnswer(q)) chips.push(`<span class="qchip">${escapeHtml(q.topic)}</span>`);
+  if (q.topic) chips.push(`<span class="qchip">${escapeHtml(q.topic)}</span>`);
+  if (q.source) chips.push(`<span class="qchip qchip--source">${escapeHtml(q.source)}</span>`);
   if (q.marks) chips.push(`<span class="qchip">${escapeHtml(q.marks)} marks</span>`);
-  return chips.join("");
-}
-
-function questionBankCard(q: McqQuestion, answers: AnswersMode, unit: string): string {
-  const reveal = answers === "inline";
-  const sourceBadge = q.source ? `<span class="pyq__exam">${escapeHtml(q.source)}</span>` : "";
 
   const options = q.options
-    .map((o) => {
-      const correct = reveal && o.correct;
-      return `<li class="q__opt${correct ? " q__opt--correct" : ""}"><span class="q__key">${o.key}</span><span class="q__opt-text">${renderInline(o.text)}</span>${correct ? `<span class="q__check" aria-hidden="true">✓</span>` : ""}</li>`;
-    })
+    .map(
+      (o) =>
+        `<li class="q__opt${inline && o.correct ? " q__opt--correct" : ""}"><span class="q__key">${o.key}</span><span class="q__opt-text">${renderInline(o.text)}</span></li>`,
+    )
     .join("\n");
 
-  const solution =
-    reveal && q.explanation
-      ? `<div class="pyq__sol"><div class="pyq__sol-label">Solution</div><div class="pyq__sol-body">${renderMarkdown(q.explanation)}</div></div>`
+  const inlineAnswer =
+    inline && q.explanation
+      ? `<div class="q__answer"><div class="q__answer-label">Answer — ${q.answer || "—"}</div><div class="q__answer-body">${renderMarkdown(q.explanation)}</div></div>`
       : "";
 
-  // A long inline solution must be free to break across pages — only the
-  // head+text+options "prompt" stays welded together (see question-bank.css).
-  const long = reveal && !!q.explanation;
-  return `<article class="q${sourceBadge ? " pyq" : ""}${long ? " q--long" : ""}" data-line="${q.line}">
-  <div class="q__prompt">
-    <div class="q__head"><span class="q__num">Q${q.number}</span><span class="q__chips">${headerChips(q, unit)}</span>${sourceBadge}</div>
-    <div class="q__text">${renderMarkdown(q.text)}</div>
-    <ol class="q__options">${options}</ol>
-  </div>
-  ${solution}
+  return `<article class="q" data-line="${q.line}">
+  <div class="q__head"><span class="q__num">Q${q.number}</span><span class="q__chips">${chips.join("")}</span></div>
+  <div class="q__text">${renderMarkdown(q.text)}</div>
+  <ol class="q__options">${options}</ol>
+  ${inlineAnswer}
 </article>`;
 }
 
-function questionBankBody(doc: Doc): BuiltBody {
+function mcqBody(doc: Doc): BuiltBody {
   const parsed = parseMcq(doc.body);
-  const answers = doc.layout.answers;
-  const reveal = answers === "inline";
-  const withKey = answers !== "none";
+  const inline = doc.layout.answers === "inline";
+  const withKey = doc.layout.answers !== "none";
 
   const preamble = parsed.preamble ? `<section class="mcq-preamble">${renderMarkdown(parsed.preamble)}</section>` : "";
 
@@ -98,7 +81,7 @@ function questionBankBody(doc: Doc): BuiltBody {
         ? `<header class="mcq-section"><span class="mcq-section__num">${String(si + 1).padStart(2, "0")}</span><h2 id="sec-${si + 1}">${renderInline(s.title)}</h2></header>`
         : "";
       const intro = s.intro.trim() ? `<div class="mcq-section__intro">${renderMarkdown(s.intro)}</div>` : "";
-      return `${header}${intro}${s.questions.map((q) => questionBankCard(q, answers, s.title)).join("\n")}`;
+      return `${header}${intro}${s.questions.map((q) => questionCard(q, inline)).join("\n")}`;
     })
     .join("\n");
 
@@ -114,7 +97,7 @@ function questionBankBody(doc: Doc): BuiltBody {
 
   const withExplanations = questions.filter((q) => q.explanation);
   const explanations =
-    withKey && !reveal && withExplanations.length > 0
+    withKey && !inline && withExplanations.length > 0
       ? `<section class="explanations">
   <h2 class="block-title" id="explanations">Explanations</h2>
   ${withExplanations
@@ -131,22 +114,73 @@ function questionBankBody(doc: Doc): BuiltBody {
   return {
     html: `${preamble}<main class="mcq">${sectionsHtml}</main>${answerKey}${explanations}`,
     coverLines: [
-      `${parsed.total} Question${parsed.total === 1 ? "" : "s"}`,
-      withKey ? (reveal ? "Solved & Exam-Tagged" : "With Answer Key & Explanations") : "Practice Booklet",
+      `${parsed.total} Practice Question${parsed.total === 1 ? "" : "s"}`,
+      withKey ? "With Answer Key & Explanations" : "Practice Booklet",
     ],
   };
 }
 
-/* ── Revision (summary notes or a flashcard deck) ─────────────────── */
+/* ── PYQ collection ──────────────────────────────────────────────────
+   A previous-year-questions collection is published very differently
+   from an MCQ test: every question is self-contained — its answer and
+   worked solution (often a table) sit right under it, and the exam/year
+   it came from is the headline, not a footnote. So rather than reuse the
+   MCQ card (which hides answers to a back-of-book key), PYQ gets its own
+   card: source badge up top, always-visible solution, no answer key. */
+function pyqCard(q: McqQuestion): string {
+  const badge = q.source
+    ? `<span class="pyq__exam">${escapeHtml(q.source)}</span>`
+    : "";
+  const meta: string[] = [];
+  if (q.topic) meta.push(`<span class="qchip">${escapeHtml(q.topic)}</span>`);
+  if (q.marks) meta.push(`<span class="qchip">${escapeHtml(q.marks)} marks</span>`);
 
-function revisionSummaryBody(doc: Doc): BuiltBody {
+  const options = q.options
+    .map(
+      (o) =>
+        `<li class="q__opt${o.correct ? " q__opt--correct" : ""}"><span class="q__key">${o.key}</span><span class="q__opt-text">${renderInline(o.text)}</span></li>`,
+    )
+    .join("\n");
+
+  const solution = q.explanation
+    ? `<div class="pyq__sol"><div class="pyq__sol-label">Solution</div><div class="pyq__sol-body">${renderMarkdown(q.explanation)}</div></div>`
+    : "";
+  const answerLine = q.answer
+    ? `<div class="pyq__answer"><span class="pyq__answer-label">Correct Answer</span><span class="pyq__answer-key">${escapeHtml(q.answer)}</span></div>`
+    : "";
+
+  return `<article class="q pyq" data-line="${q.line}">
+  <div class="pyq__head"><span class="q__num">Q${q.number}</span>${badge}</div>
+  ${meta.length ? `<div class="q__chips">${meta.join("")}</div>` : ""}
+  <div class="q__text">${renderMarkdown(q.text)}</div>
+  <ol class="q__options">${options}</ol>
+  ${answerLine}
+  ${solution}
+</article>`;
+}
+
+function pyqBody(doc: Doc): BuiltBody {
+  const parsed = parseMcq(doc.body);
+  const sectionsHtml = parsed.sections
+    .map((s, si) => {
+      const header = s.title
+        ? `<header class="mcq-section"><span class="mcq-section__num">${String(si + 1).padStart(2, "0")}</span><h2 id="sec-${si + 1}">${renderInline(s.title)}</h2></header>`
+        : "";
+      const intro = s.intro.trim() ? `<div class="mcq-section__intro">${renderMarkdown(s.intro)}</div>` : "";
+      return `${header}${intro}${s.questions.map((q) => pyqCard(q)).join("\n")}`;
+    })
+    .join("\n");
+  const preamble = parsed.preamble ? `<section class="mcq-preamble">${renderMarkdown(parsed.preamble)}</section>` : "";
   return {
-    html: `<main class="doc">${renderMarkdown(doc.body)}</main>`,
-    coverLines: ["Rapid Revision Notes", "Last-Minute Ready"],
+    html: `${preamble}<main class="mcq pyq-doc">${sectionsHtml}</main>`,
+    coverLines: [
+      `${parsed.total} Previous-Year Question${parsed.total === 1 ? "" : "s"}`,
+      "Solved & Exam-Tagged",
+    ],
   };
 }
 
-function revisionCardsBody(doc: Doc): BuiltBody {
+function flashcardsBody(doc: Doc): BuiltBody {
   const lines = doc.body.split(/\r?\n/);
   const cards: { front: string; back: string[]; line: number }[] = [];
   const intro: string[] = [];
@@ -178,18 +212,12 @@ function revisionCardsBody(doc: Doc): BuiltBody {
   };
 }
 
-function revisionBody(doc: Doc): BuiltBody {
-  return doc.layout.revisionStyle === "cards" ? revisionCardsBody(doc) : revisionSummaryBody(doc);
-}
-
 /* ── Registry ──────────────────────────────────────────────────────── */
 
 export const TEMPLATE_RENDERERS: Record<TemplateId, TemplateRenderer> = {
   notes: { css: notesCss, buildBody: notesBody },
-  "question-bank": { css: questionBankCss, buildBody: questionBankBody },
   revision: { css: revisionCss, buildBody: revisionBody },
-  // Universal reuses the Notes body/CSS wholesale — same typography and
-  // chapter-style headings, just without the fixed branding (handled in
-  // pdf/document.ts, gated on doc.template) and with its own starter.
-  universal: { css: notesCss, buildBody: universalBody },
+  mcq: { css: mcqCss, buildBody: mcqBody },
+  pyq: { css: mcqCss + "\n" + pyqCss, buildBody: pyqBody },
+  flashcards: { css: flashcardsCss, buildBody: flashcardsBody },
 };

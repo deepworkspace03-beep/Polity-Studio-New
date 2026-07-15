@@ -497,7 +497,6 @@ export function Editor({ id, line }: { id: string; line?: number }) {
             fullscreen={fullscreen}
             onToggleFullscreen={() => setFullscreen((v) => !v)}
             onCollapse={() => setPreviewCollapsed(true)}
-            suspended={publishOpen}
           />
         </div>
         {!fullscreen && previewCollapsed && (

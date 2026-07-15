@@ -1,15 +1,13 @@
-import type { DocLayout, TemplateId } from "../lib/types";
+import type { TemplateId } from "../lib/types";
 
 /**
- * Example documents, opened from Library → Examples. Five are real,
- * exam-grade study material (Indian Polity, public-domain constitutional
- * facts) — full 10–12 page documents that exercise nearly every
+ * Example documents — one per template, written as real, exam-grade
+ * study material (Indian Polity, public-domain constitutional facts).
+ * Each is a full 10–12 page document that exercises nearly every
  * capability of the studio: heading hierarchy, comparative tables,
  * nested & task lists, every callout type, footnotes, highlights,
  * underline, super/subscript, block quotes, timelines, page breaks and
- * rich question metadata. Two (mcq/pyq) share the Question Bank template
- * and differ only in layout.answers; a sixth demo shows the Universal
- * template on a short, brand-neutral workplace document.
+ * rich MCQ metadata. Opened from Library → Examples.
  */
 
 export interface DemoDoc {
@@ -20,10 +18,6 @@ export interface DemoDoc {
   paper: string;
   description: string;
   body: string;
-  /** Overrides merged over the reader's default new-document layout —
-      used when the demo needs a specific mode (e.g. layout.answers:
-      "inline" for a solved-PYQ-style example) to render as intended. */
-  layout?: Partial<DocLayout>;
 }
 
 /* ── 1 · Theory notes ──────────────────────────────────────────────── */
@@ -713,55 +707,6 @@ Solution:
 | L.M. Singhvi | 1986 | Constitutional status, Nyaya Panchayats |
 | G.V.K. Rao | 1985 | District as the planning unit |`;
 
-/* ── 6 · Universal ─────────────────────────────────────────────────── */
-
-const UNIVERSAL_BODY = `# Remote Team Onboarding Guide
-
-A generic Markdown document with no exam or education branding — the same editor, PDF engine and export quality, applied to a workplace guide.
-
-## Before Day One
-
-::: important IT access
-File the access request at least three business days before the start date — laptop provisioning is the usual bottleneck.
-:::
-
-- Laptop and monitor shipped to the new hire's address
-- Accounts created: email, calendar, chat, source control
-- Buddy assigned from the immediate team
-
-## First Week Checklist
-
-| Day | Focus | Owner |
-|---|---|---|
-| 1 | Accounts, equipment check, team intros | Manager |
-| 2 | Codebase walkthrough, local environment setup | Buddy |
-| 3 | First small pull request | Buddy |
-| 4 | Process overview: planning, reviews, on-call | Manager |
-| 5 | Retro: what's still unclear? | New hire |
-
-## Communication Norms
-
-1. Default to async — write it down before scheduling a call.
-2. Keep channel topics narrow; use threads for side discussions.
-3. Status updates go in the team channel, not direct messages.
-
-::: tip
-A short written update at the end of each day (three lines: did, blocked, next) replaces most status meetings.
-:::
-
-## Equipment & Access Reference
-
-- **Laptop** — reimaged before shipping, encrypted by default
-- **VPN** — required for internal tools; instructions in the welcome email
-- **Source control** — SSH key added to your account on day one
-
-> "The goal of onboarding isn't to explain everything — it's to make the next question easy to ask." — Engineering handbook, internal note
-
-Questions during onboarding go to the assigned buddy first, then the team channel.[^buddy]
-
-[^buddy]: Buddies are assigned for the first four weeks, not just the first day.
-`;
-
 export const DEMOS: DemoDoc[] = [
   {
     id: "demo-notes",
@@ -783,40 +728,29 @@ export const DEMOS: DemoDoc[] = [
   },
   {
     id: "demo-mcq",
-    template: "question-bank",
+    template: "mcq",
     title: "Indian Constitution — PYQ Drill",
     subtitle: "Previous-year questions with answer key and detailed explanations",
     paper: "Practice Set 01 · 12 Questions",
-    description: "Question Bank, back-of-book style: three sections, topic/source chips, answer key and full explanations (layout.answers: \"end\").",
+    description: "MCQ booklet: three sections, topic / source chips, answer key and full explanations.",
     body: MCQ_BODY,
   },
   {
     id: "demo-pyq",
-    template: "question-bank",
+    template: "pyq",
     title: "Governance & Public Policy — Solved PYQs",
     subtitle: "Previous-year questions with exam tags and worked, tabular solutions",
     paper: "UGC-NET · Unit 10",
-    description: "Question Bank, inline-solved style: exam/year badges, statement-based and match-the-list questions, answers revealed inline with tabular solutions.",
+    description: "PYQ collection: exam/year badges, statement-based and match-the-list questions, inline answers and tabular solutions.",
     body: PYQ_BODY,
-    layout: { answers: "inline" },
   },
   {
     id: "demo-flashcards",
-    template: "revision",
+    template: "flashcards",
     title: "Constitutional Articles — Flash Cards",
     subtitle: "Thirty active-recall prompts on rights, doctrines and landmarks",
     paper: "Core Deck · 30 Cards",
-    description: "Revision, flashcard style: article numbers, doctrines, writs and one-line holdings for spaced repetition (layout.revisionStyle: \"cards\").",
+    description: "Cut-out flash cards: article numbers, doctrines, writs and one-line holdings for spaced repetition.",
     body: FLASHCARDS_BODY,
-    layout: { revisionStyle: "cards" },
-  },
-  {
-    id: "demo-universal",
-    template: "universal",
-    title: "Remote Team Onboarding Guide",
-    subtitle: "A brand-neutral workplace document — no institute, watermark or social links",
-    paper: "",
-    description: "Universal template: the same editor and PDF quality with every fixed branding element removed.",
-    body: UNIVERSAL_BODY,
   },
 ];
