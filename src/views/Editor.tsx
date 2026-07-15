@@ -1,6 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
-import { openSearchPanel } from "@codemirror/search";
 import { navigate } from "../lib/router";
 import { flushSaves, updateDoc, useApp } from "../lib/store";
 import { contentStats, cx, estimatePages } from "../lib/utils";
@@ -15,6 +14,7 @@ import { StudioNav } from "../components/StudioNav";
 import { CodeMirror } from "./editor/CodeMirror";
 import { Toolbar } from "./editor/Toolbar";
 import { ImageTools } from "./editor/ImageTools";
+import { SearchNavigator } from "./editor/SearchNavigator";
 import { Preview, type InlineEdit } from "./editor/Preview";
 import { Details, DetailsPane } from "./editor/Details";
 import { Publish } from "./editor/Publish";
@@ -145,6 +145,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   const [publishOpen, setPublishOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [cursorLine, setCursorLine] = useState(1);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const [settingsWidth, setSettingsWidth] = usePersisted<number>("ps2:pane:settingsWidth", DEFAULT_SETTINGS_WIDTH);
   const [previewWidth, setPreviewWidth] = usePersisted<number>("ps2:pane:previewWidth", DEFAULT_PREVIEW_WIDTH);
@@ -341,15 +342,15 @@ export function Editor({ id, line }: { id: string; line?: number }) {
     [id, docs],
   );
 
-  /** The editor header's search button searches only inside the Markdown
-      editor (highlight, next/previous, auto-scroll, focus stays in the
-      editor) — global cross-document search stays on Ctrl+K. Surfaces the
-      write pane first on mobile so the find bar is visible. */
+  /** The editor header's search button opens the Search Navigator — an
+      in-document find/replace with a grouped, page-tagged results list
+      (SearchNavigator). It searches only the currently open document;
+      global cross-document search stays on Ctrl+K. Surfaces the write pane
+      first on mobile so the panel is visible. */
   const searchInEditor = useCallback(() => {
-    const view = viewRef.current;
-    if (!view) return openPalette();
+    if (!viewRef.current) return openPalette();
     setTab("write");
-    openSearchPanel(view);
+    setSearchOpen(true);
   }, []);
 
   /** Preview → editor: move the CodeMirror cursor to the clicked
@@ -477,6 +478,14 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         >
           {!focusMode && <Toolbar getView={() => viewRef.current} />}
           {!focusMode && <ImageTools getView={() => viewRef.current} line={cursorLine} />}
+          {searchOpen && (
+            <SearchNavigator
+              body={doc.body}
+              estPages={estPages}
+              getView={() => viewRef.current}
+              onClose={() => setSearchOpen(false)}
+            />
+          )}
           <div className="min-h-0 flex-1">
             <CodeMirror
               value={doc.body}
@@ -488,6 +497,10 @@ export function Editor({ id, line }: { id: string; line?: number }) {
               }}
               onSmartPaste={(summary) => toast(`${summary} — Ctrl+Z restores the original`, "ok")}
               onImageFiles={insertImages}
+              onFind={() => {
+                setTab("write");
+                setSearchOpen(true);
+              }}
               estimatedPages={estPages}
               viewRef={viewRef}
             />

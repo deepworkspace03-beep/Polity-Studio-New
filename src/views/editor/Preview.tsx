@@ -292,21 +292,13 @@ export function Preview({
           sandbox="allow-same-origin allow-scripts"
         />
         {selectedImage && (
-          <div className="absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-start gap-1 rounded-xl border border-edge bg-surface px-3 py-2 shadow-xl">
+          <div className="absolute left-1/2 top-2 z-10 flex max-w-[94%] -translate-x-1/2 items-start gap-1 rounded-xl border border-edge bg-surface px-3 py-2 shadow-xl">
             <ImageEditControls
               key={selectedImage.line}
               info={selectedImage}
-              onWidth={(width) => {
+              onPatch={(patch) => {
                 const v = getView?.();
-                if (v) patchImageLine(v, selectedImage.line, { width });
-              }}
-              onAlign={(align) => {
-                const v = getView?.();
-                if (v) patchImageLine(v, selectedImage.line, { align });
-              }}
-              onCaption={(title) => {
-                const v = getView?.();
-                if (v) patchImageLine(v, selectedImage.line, { title });
+                if (v) patchImageLine(v, selectedImage.line, patch);
               }}
               onReplace={async (file) => {
                 const v = getView?.();

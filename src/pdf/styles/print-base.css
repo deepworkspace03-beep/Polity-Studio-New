@@ -78,9 +78,15 @@ body.mode-flow .run-foot-site { display: none; }
   print-color-adjust: exact;
 }
 
-/* Breathing room between the running header and the body. */
+/* Breathing room around the body — symmetric top and bottom so the last
+   line never crowds the footer rule. The top gap was already comfortable;
+   the matching bottom gap is what gives the page its balanced, premium feel
+   (kept a touch under the top so the slightly taller bottom page-margin
+   still reads as the larger of the two). Purely typographic — no engine
+   change — and small enough to leave pagination essentially unchanged. */
 .pagedjs_page:not(.pagedjs_cover_page) .pagedjs_page_content {
   padding-top: 6mm;
+  padding-bottom: 5mm;
 }
 
 /* Divider rules under the header and above the footer. */
@@ -412,10 +418,13 @@ p > img:only-child {
   border-radius: 6pt;
 }
 
-/* Standalone-image figures (see renderer.ts § studio_figures). --fig-w is
-   the author's optional width; alignment is a modifier class. break-inside
-   keeps an image and its caption on one page. */
+/* Standalone-image figures (see renderer.ts § studio_figures, markdown/
+   figure.ts). --fig-w is the author's optional width; layout, spacing and
+   styling are modifier classes. break-inside keeps an image and its caption
+   on one page. --fig-gap is the space a wrapped figure leaves against the
+   text flowing beside it (and the block rhythm above/below). */
 .md-figure {
+  --fig-gap: 1.1em;
   margin: 1.2em 0;
   break-inside: avoid;
   max-width: 100%;
@@ -426,11 +435,6 @@ p > img:only-child {
   max-width: 100%;
   border-radius: 6pt;
 }
-.md-figure--center { text-align: center; }
-.md-figure--center img { margin-inline: auto; }
-.md-figure--right img { margin-inline: auto 0; }
-.md-figure--left img { margin-inline: 0 auto; }
-.md-figure img.md-img--cover { object-fit: cover; aspect-ratio: 16 / 9; }
 .md-figure figcaption {
   margin-top: 0.5em;
   font-size: 0.85em;
@@ -438,6 +442,55 @@ p > img:only-child {
   font-style: italic;
   text-align: center;
 }
+
+/* ── Layout ──────────────────────────────────────────────────────── */
+.md-figure--center { text-align: center; }
+.md-figure--center img { margin-inline: auto; }
+/* Full width: span the whole text column regardless of the chosen size. */
+.md-figure--full { text-align: center; }
+.md-figure--full img { width: 100%; margin-inline: auto; }
+
+/* Book-style wrapping — the figure floats and the following paragraphs
+   flow naturally beside it. Capped so a wrap image can never swallow the
+   column, and the caption reads left-aligned under the picture. The PDF
+   engine transcribes the browser-laid-out positions, so the wrap survives
+   export unchanged. */
+.md-figure--left {
+  float: left;
+  clear: left;
+  width: var(--fig-w, 42%);
+  max-width: 60%;
+  margin: 0.3em var(--fig-gap) 0.7em 0;
+}
+.md-figure--right {
+  float: right;
+  clear: right;
+  width: var(--fig-w, 42%);
+  max-width: 60%;
+  margin: 0.3em 0 0.7em var(--fig-gap);
+}
+.md-figure--left img,
+.md-figure--right img { width: 100%; }
+.md-figure--left figcaption,
+.md-figure--right figcaption { text-align: left; }
+
+/* A heading should never wrap around a floated figure — start it clear. */
+.doc h1, .doc h2, .doc h3 { clear: both; }
+
+/* ── Spacing ─────────────────────────────────────────────────────── */
+.md-fig--gap-sm { --fig-gap: 0.55em; margin-block: 0.7em; }
+.md-fig--gap-md { --fig-gap: 1.1em; margin-block: 1.2em; }
+.md-fig--gap-lg { --fig-gap: 1.9em; margin-block: 2em; }
+
+/* ── Styling ─────────────────────────────────────────────────────── */
+.md-fig--border img { border: 0.6pt solid var(--c-edge); }
+.md-fig--round img { border-radius: 16pt; }
+/* A light lift. The vector PDF engine doesn't replay box-shadow, so this
+   is a preview/HTML nicety that simply no-ops in the exported PDF — never
+   a difference that matters to the page. */
+.md-fig--shadow img { box-shadow: 0 3pt 12pt rgba(15, 23, 42, 0.16); }
+
+.md-figure img.md-img--cover { object-fit: cover; aspect-ratio: 16 / 9; }
 
 /* ── Footnotes (rendered as endnotes) ────────────────────────────── */
 

@@ -9,6 +9,7 @@ import { tags } from "@lezer/highlight";
 import { insertLink, wrapSelection } from "./commands";
 import { smartPaste } from "../../lib/importer";
 import { EditorScrollbar } from "./EditorScrollbar";
+import { searchHighlightField } from "./searchHighlight";
 
 /** Markdown syntax colors driven by the app theme variables, so the
     editor follows dark/light mode automatically. */
@@ -76,6 +77,13 @@ const editorTheme = EditorView.theme({
   ".cm-button:hover": { backgroundColor: "var(--edge)" },
   ".cm-searchMatch": { backgroundColor: "color-mix(in srgb, var(--accent) 25%, transparent)" },
   ".cm-searchMatch-selected": { backgroundColor: "color-mix(in srgb, var(--accent) 55%, transparent)" },
+  // Search Navigator highlights — every match softly, the active one strong
+  // with an underline so it reads even when the editor isn't focused.
+  ".cm-nav-match": { backgroundColor: "color-mix(in srgb, var(--accent) 22%, transparent)", borderRadius: "2px" },
+  ".cm-nav-match-active": {
+    backgroundColor: "color-mix(in srgb, var(--accent) 48%, transparent)",
+    boxShadow: "inset 0 -2px 0 var(--accent)",
+  },
 });
 
 export interface CodeMirrorProps {
@@ -88,12 +96,15 @@ export interface CodeMirrorProps {
   onSmartPaste?: (summary: string) => void;
   /** Fired when image files are pasted — the host inserts them at the cursor. */
   onImageFiles?: (files: File[]) => void;
+  /** Ctrl/⌘+F — opens the host's Search Navigator instead of CodeMirror's
+      own find panel (which stays available through the rest of searchKeymap). */
+  onFind?: () => void;
   /** Estimated total pages for the scrollbar's position readout. */
   estimatedPages?: number;
   viewRef: React.MutableRefObject<EditorView | null>;
 }
 
-export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, estimatedPages, viewRef }: CodeMirrorProps) {
+export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, onFind, estimatedPages, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   // The scroller element + a revision counter feed the custom scrollbar
   // overlay; revision bumps on doc changes so the thumb resizes as content
@@ -105,11 +116,13 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   const onSaveRef = useRef(onSaveShortcut);
   const onSmartPasteRef = useRef(onSmartPaste);
   const onImageFilesRef = useRef(onImageFiles);
+  const onFindRef = useRef(onFind);
   onChangeRef.current = onChange;
   onCursorRef.current = onCursorLine;
   onSaveRef.current = onSaveShortcut;
   onSmartPasteRef.current = onSmartPaste;
   onImageFilesRef.current = onImageFiles;
+  onFindRef.current = onFind;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -127,6 +140,14 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
                 return true;
               },
             },
+            {
+              key: "Mod-f",
+              run: () => {
+                if (!onFindRef.current) return false; // fall through to CodeMirror's own find
+                onFindRef.current();
+                return true;
+              },
+            },
             { key: "Mod-b", run: (v) => (wrapSelection(v, "**"), true) },
             { key: "Mod-i", run: (v) => (wrapSelection(v, "*"), true) },
             { key: "Mod-u", run: (v) => (wrapSelection(v, "++"), true) },
@@ -137,6 +158,7 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
             ...searchKeymap,
           ]),
           search({ top: true }),
+          searchHighlightField,
           // Smart Paste: rich clipboard content (Word, Google Docs, web,
           // AI chats) is converted to the app's Markdown before insert.
           // Returns false when conversion adds nothing, so the default

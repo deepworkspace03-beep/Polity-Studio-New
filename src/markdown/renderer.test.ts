@@ -54,6 +54,15 @@ describe("renderMarkdown", () => {
     expect(html).toContain("<figcaption>A caption</figcaption>");
   });
 
+  it("applies the new figure layout/style options as classes", () => {
+    const html = renderMarkdown("![x](pic.png){align=full border round shadow gap=lg}");
+    expect(html).toContain("md-figure--full");
+    expect(html).toContain("md-fig--border");
+    expect(html).toContain("md-fig--round");
+    expect(html).toContain("md-fig--shadow");
+    expect(html).toContain("md-fig--gap-lg");
+  });
+
   it("adds data-line to block-level elements for editor/preview cursor sync", () => {
     const html = renderMarkdown("First paragraph.");
     expect(html).toContain('data-line="1"');

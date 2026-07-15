@@ -7,6 +7,7 @@ import mark from "markdown-it-mark";
 import sub from "markdown-it-sub";
 import sup from "markdown-it-sup";
 import ins from "markdown-it-ins";
+import { figureClass, parseFigureAttrs } from "./figure";
 
 /* ── Slugs ─────────────────────────────────────────────────────────── */
 
@@ -153,15 +154,13 @@ function getRenderer(): MarkdownIt {
   };
 
   // Standalone images → <figure>. An author-friendly, dependency-free
-  // image layer: any paragraph that is just an image becomes a centered
-  // figure. A caption comes from the Markdown title (`![alt](src "cap")`);
-  // width and alignment from an optional trailing `{width=60% align=left}`.
-  // Inline images (inside a sentence) keep the default <img> rendering.
-  const cssLen = (v: string): string | null => {
-    const m = /^(\d{1,4})(%|px|mm|cm|rem|em)?$/.exec(v.trim());
-    return m ? `${m[1]}${m[2] || "px"}` : null;
-  };
-  const ALIGNS = new Set(["left", "center", "right"]);
+  // image layer: any paragraph that is just an image becomes a figure. A
+  // caption comes from the Markdown title (`![alt](src "cap")`); size,
+  // layout (center · left/right float-wrap · full width) and styling
+  // (border, rounded corners, shadow, spacing) from an optional trailing
+  // `{width=60% align=left border …}` — parsed by markdown/figure.ts so the
+  // in-editor image controls write exactly what the renderer reads. Inline
+  // images (inside a sentence) keep the default <img> rendering.
   md.core.ruler.push("studio_figures", (state) => {
     const t = state.tokens;
     for (let i = 0; i < t.length - 2; i++) {
@@ -179,23 +178,14 @@ function getRenderer(): MarkdownIt {
       const src = img.attrGet("src") || "";
       const alt = img.content;
       const title = img.attrGet("title") || "";
-      let width = "";
-      let align = "center";
-      let cover = false;
-      for (const part of attrs.split(/\s+/)) {
-        const [k, v] = part.split("=");
-        if (!v) continue;
-        if ((k === "width" || k === "w") && cssLen(v)) width = cssLen(v)!;
-        else if (k === "align" && ALIGNS.has(v)) align = v;
-        else if (k === "fit") cover = v === "cover";
-      }
+      const fig = parseFigureAttrs(attrs);
       const map = t[i].map;
       const line = map ? map[0] + 1 : null;
       const esc = md!.utils.escapeHtml;
       const html =
-        `<figure class="md-figure md-figure--${align}"${line ? ` data-line="${line}"` : ""}` +
-        `${width ? ` style="--fig-w:${width}"` : ""}>` +
-        `<img src="${esc(src)}" alt="${esc(alt)}"${cover ? ' class="md-img--cover"' : ""}>` +
+        `<figure class="${figureClass(fig)}"${line ? ` data-line="${line}"` : ""}` +
+        `${fig.width ? ` style="--fig-w:${fig.width}"` : ""}>` +
+        `<img src="${esc(src)}" alt="${esc(alt)}"${fig.cover ? ' class="md-img--cover"' : ""}>` +
         `${title ? `<figcaption>${esc(title)}</figcaption>` : ""}</figure>\n`;
       const tok = new state.Token("html_block", "", 0);
       tok.content = html;
