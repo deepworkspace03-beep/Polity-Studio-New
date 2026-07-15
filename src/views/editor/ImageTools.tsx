@@ -21,17 +21,9 @@ export function ImageTools({ getView, line }: { getView: () => EditorView | null
       <ImageEditControls
         key={info.line}
         info={info}
-        onWidth={(width) => {
+        onPatch={(patch) => {
           const v = getView();
-          if (v) patchImageLine(v, info.line, { width });
-        }}
-        onAlign={(align) => {
-          const v = getView();
-          if (v) patchImageLine(v, info.line, { align });
-        }}
-        onCaption={(title) => {
-          const v = getView();
-          if (v) patchImageLine(v, info.line, { title });
+          if (v) patchImageLine(v, info.line, patch);
         }}
         onReplace={async (file) => {
           const v = getView();

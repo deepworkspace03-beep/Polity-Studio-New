@@ -220,7 +220,11 @@ within its territory.
 
 const IMAGE_EXAMPLE = `![Separation of powers](diagram.png "Fig 1 — the three organs")
 
-![Map](india.png){width=60% align=center}`;
+![Map](india.png){width=60% align=center border}
+
+![Portrait](ambedkar.png){align=left width=35% round shadow}
+Text after a left- or right-aligned image wraps naturally
+beside it, book-style, until the next heading.`;
 
 const STRUCTURE_EXAMPLE = `# Chapter Title        ← starts the TOC
 Intro paragraph…
@@ -274,9 +278,20 @@ ${TABLE_EXAMPLE}
 ${IMAGE_EXAMPLE}
 \`\`\`
 
-A standalone image becomes a centered figure. Caption in quotes; size and
-placement via an optional \`{width=60% align=left}\` (also
-\`align=center|right\`, \`fit=cover\`).
+A standalone image becomes a figure. Caption in quotes; layout and styling
+via an optional \`{…}\` block:
+
+- **Layout** — \`align=center\` (default), \`align=left\` / \`align=right\`
+  (text wraps beside it, book-style), \`align=full\` (full column width).
+- **Size** — \`width=35%\` (S), \`width=65%\` (M), or omit for natural (L);
+  any CSS length works too (\`width=220px\`).
+- **Spacing** — \`gap=sm|md|lg\` controls the margin around the image (and
+  the gap to wrapped text).
+- **Styling** — \`border\`, \`round\` (rounded corners), \`shadow\` (a light
+  lift; preview/HTML only — the PDF stays crisp), \`fit=cover\`.
+
+Every option is also on the image toolbar, so you rarely type this by hand.
+Older \`{width=… align=…}\` images keep working unchanged.
 
 ## Callouts
 
@@ -349,9 +364,9 @@ ${FLASHCARD_PROMPT}
 ## Editor features worth knowing
 
 - The toolbar keeps everyday tools visible; the More (⋯) menu holds the rest (text styles, tables, page breaks, whole-document copy/cut/paste/replace).
-- Inserting an image shows a small toolbar to resize (S/M/L), align (left/center/right), replace or remove it.
+- Inserting or tapping an image shows a toolbar for its layout (left/center/right/full), size, spacing, border, rounded corners, shadow and caption — the same controls appear right in the Flow preview, updating the document live.
 - "Replace with clipboard" (in the More menu) swaps the whole document for the clipboard's text, with a confirmation if the document isn't empty — separate from a normal paste at the cursor.
-- Ctrl/Cmd+K opens universal search and commands; Ctrl/Cmd+F searches inside the open document.
+- Ctrl/Cmd+F opens the Search Navigator — an in-document find/replace whose results are grouped by heading and estimated page; click any result to jump straight to it. Ctrl/Cmd+K opens universal search and commands across every document.
 `;
 }
 
@@ -377,12 +392,11 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Workspace Refinement)`} intro="A focused pass on the toolbar, image handling and this guide — everything else is unchanged.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Search & Image Layout)`} intro="Two focused upgrades: a real in-document search navigator and professional, book-style image layouts.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Simplified toolbar</b> — everyday tools stay visible; the rest live in the new More (⋯) menu, with hover/long-press labels on every icon.</li>
-            <li><b>Image editing</b> — inserting or selecting an image shows a small toolbar to resize, align, replace or remove it.</li>
-            <li><b>Replace with clipboard</b> — swaps the whole document for your clipboard's text (with confirmation), separate from a normal paste.</li>
-            <li><b>Download Guide (.md)</b> — this page, top right, exports the full Markdown reference as a file you can hand to any AI.</li>
+            <li><b>Search Navigator</b> — Ctrl/Cmd+F now opens a find/replace whose results are grouped by heading and estimated page; click a result to jump straight to it, highlighted in place. It searches only the open document and stays fast on long notes.</li>
+            <li><b>Professional image layout</b> — left/right wrap (text flows beside the picture, book-style), centered or full-width, plus size, spacing, border, rounded corners, a light shadow and a caption — all from the image toolbar, editable live from the Flow preview.</li>
+            <li><b>Balanced pages</b> — the exported PDF now leaves matching breathing room above and below the text column for a more symmetric, premium feel.</li>
           </ul>
         </Section>
 
@@ -446,15 +460,20 @@ export function Help() {
         <Section title="Images" intro="Paste a screenshot, drag a picture in, or use the toolbar image button — it's stored inside the document and embeds in the PDF.">
           <Snippet>{IMAGE_EXAMPLE}</Snippet>
           <p className="text-xs text-faint">
-            A standalone image becomes a centered figure. Add a caption in quotes, and control size &amp; placement with an
-            optional <code className="font-mono">{"{width=60% align=left}"}</code> (also <code className="font-mono">align=center|right</code>,{" "}
-            <code className="font-mono">fit=cover</code>). Images are downscaled and saved as data URIs, so they travel with the
-            document and render identically in the preview and the exported PDF — no web links, nothing to break offline.
+            A standalone image becomes a figure. Add a caption in quotes, then control its <b>layout</b> with an optional{" "}
+            <code className="font-mono">{"{…}"}</code>: <code className="font-mono">align=center</code> (default),{" "}
+            <code className="font-mono">align=left</code>/<code className="font-mono">right</code> to wrap text beside it book-style, or{" "}
+            <code className="font-mono">align=full</code> for the full column. Add <code className="font-mono">width=35%</code>{" "}
+            (or <code className="font-mono">65%</code>, or a length like <code className="font-mono">220px</code>),{" "}
+            <code className="font-mono">gap=sm|md|lg</code> for spacing, and any of <code className="font-mono">border</code>,{" "}
+            <code className="font-mono">round</code>, <code className="font-mono">shadow</code>, <code className="font-mono">fit=cover</code>.
+            Older <code className="font-mono">{"{width=… align=…}"}</code> images keep working unchanged. Images are downscaled and
+            saved as data URIs, so they travel with the document and render identically in the preview and the exported PDF.
           </p>
           <p className="text-xs text-faint">
-            Put the cursor on an image line and a small toolbar appears above the editor — resize (S/M/L), align left/center/right,
-            edit its caption, replace the picture or remove it, all without hand-editing the attribute syntax. The same controls
-            appear as a floating toolbar right in the <b>Flow</b> preview when you tap an image there.
+            You rarely type any of that: put the cursor on an image line (or tap the picture in the <b>Flow</b> preview) and a
+            toolbar gives you the layout, size, spacing, style toggles, caption, replace and remove — writing the attributes for
+            you and updating the document live. The shadow is a preview/HTML nicety; the vector PDF keeps every image crisp.
           </p>
         </Section>
 
@@ -563,7 +582,7 @@ export function Help() {
             <li><b>Replace with clipboard</b> (in the More menu) swaps the entire document for your clipboard's text — asks first if the document isn't empty. Different from a normal paste, which inserts at the cursor.</li>
             <li><b>Download Guide (.md)</b> (top of this page) exports the complete Markdown reference — syntax, templates, AI prompts, common mistakes — as one file, kept in sync with this page.</li>
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
-            <li><b>Ctrl/Cmd+F</b>, or the editor header's search icon, finds inside this document — matches are highlighted with next/previous, and the editor stays focused. (Cross-document search is on Ctrl/Cmd+K.)</li>
+            <li><b>Ctrl/Cmd+F</b>, or the editor header's search icon, opens the Search Navigator for this document — results are grouped by heading and estimated page with a snippet each; click one to jump straight to it, highlighted in place, without losing the search box. Replace is one tap away. (Cross-document search is on Ctrl/Cmd+K.)</li>
             <li><b>Navigation readouts</b> — drag the editor's scrollbar to see an estimated page and percentage; both previews show the same, and the Pages view gives the exact page count with prev/next.</li>
             <li><b>Table of contents</b> — click any chapter in a document's Contents (in either preview) to jump right to it, no extra window.</li>
             <li><b>Focus mode</b> (the frame icon in the editor header) hides the toolbar and settings pane for distraction-free writing — toggle it off to bring them back.</li>

@@ -1,29 +1,68 @@
 import { useRef, useState } from "react";
-import type { ImageLineInfo } from "./imageLine";
+import type { ImageLineInfo, ImageLinePatch } from "./imageLine";
+import type { FigureAlign, FigureGap } from "../../markdown/figure";
 import { IconButton, Segmented, inputClass, useToast } from "../../components/ui";
+import { cx } from "../../lib/utils";
 
 const WIDTH_OPTIONS: { value: string; label: string; hint: string }[] = [
   { value: "35%", label: "S", hint: "Small — 35% width" },
   { value: "65%", label: "M", hint: "Medium — 65% width" },
-  { value: "", label: "L", hint: "Large — full width" },
+  { value: "", label: "L", hint: "Large — natural width" },
 ];
 
-/** The resize/align/caption/replace/remove control row shared by the
+const LAYOUT_OPTIONS: { value: FigureAlign; label: string; hint: string }[] = [
+  { value: "left", label: "Left", hint: "Left wrap — text flows to the right, book-style" },
+  { value: "center", label: "Center", hint: "Centered block" },
+  { value: "right", label: "Right", hint: "Right wrap — text flows to the left, book-style" },
+  { value: "full", label: "Full", hint: "Full column width" },
+];
+
+const GAP_OPTIONS: { value: FigureGap; label: string; hint: string }[] = [
+  { value: "sm", label: "S", hint: "Tight spacing" },
+  { value: "md", label: "M", hint: "Normal spacing" },
+  { value: "lg", label: "L", hint: "Roomy spacing" },
+];
+
+/** A small on/off pill for the border/rounded/shadow style flags. */
+function StyleChip({ active, label, hint, onClick }: { active: boolean; label: string; hint: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      title={hint}
+      onClick={onClick}
+      className={cx(
+        "rounded-lg border px-2 py-1 text-xs font-medium transition-colors",
+        active ? "border-accent bg-accent/15 text-accent" : "border-edge text-ink-2 hover:bg-raised",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Group({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-faint">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+/** The layout/style/caption/replace/remove control set shared by the
     editor's docked image bar (ImageTools) and the Preview pane's floating
     one — one place to fix, and both always rewrite the same Markdown
-    attribute syntax the renderer/PDF engine already understand. */
+    attribute syntax the renderer/PDF engine already understand
+    (markdown/figure.ts). */
 export function ImageEditControls({
   info,
-  onWidth,
-  onAlign,
-  onCaption,
+  onPatch,
   onReplace,
   onRemove,
 }: {
   info: ImageLineInfo;
-  onWidth: (width: string) => void;
-  onAlign: (align: "left" | "center" | "right") => void;
-  onCaption: (caption: string) => void;
+  onPatch: (patch: ImageLinePatch) => void;
   onReplace: (file: File) => Promise<void>;
   onRemove: () => void;
 }) {
@@ -31,36 +70,53 @@ export function ImageEditControls({
   const fileRef = useRef<HTMLInputElement>(null);
   const [caption, setCaption] = useState(info.title);
   const width = WIDTH_OPTIONS.some((o) => o.value === info.width) ? info.width : "";
+  const gap: FigureGap = info.gap || "md";
+  const isFull = info.align === "full";
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">Image</span>
-      <Segmented size="sm" value={width} onChange={onWidth} options={WIDTH_OPTIONS} />
-      <Segmented
-        size="sm"
-        value={info.align}
-        onChange={onAlign}
-        options={[
-          { value: "left", label: "Left" },
-          { value: "center", label: "Center" },
-          { value: "right", label: "Right" },
-        ]}
-      />
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <Group label="Layout">
+        <Segmented size="sm" value={info.align} onChange={(align) => onPatch({ align })} options={LAYOUT_OPTIONS} />
+      </Group>
+
+      {!isFull && (
+        <Group label="Size">
+          <Segmented size="sm" value={width} onChange={(w) => onPatch({ width: w })} options={WIDTH_OPTIONS} />
+        </Group>
+      )}
+
+      <Group label="Space">
+        <Segmented
+          size="sm"
+          value={gap}
+          onChange={(g) => onPatch({ gap: g === "md" ? "" : g })}
+          options={GAP_OPTIONS}
+        />
+      </Group>
+
+      <Group label="Style">
+        <StyleChip active={info.border} label="Border" hint="Toggle a thin border" onClick={() => onPatch({ border: !info.border })} />
+        <StyleChip active={info.round} label="Round" hint="Toggle rounded corners" onClick={() => onPatch({ round: !info.round })} />
+        <StyleChip active={info.shadow} label="Shadow" hint="Toggle a light shadow (preview/HTML only)" onClick={() => onPatch({ shadow: !info.shadow })} />
+      </Group>
+
       <input
         className={inputClass + " h-8 w-32 py-1 text-xs"}
         placeholder="Caption…"
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
         onBlur={() => {
-          if (caption !== info.title) onCaption(caption);
+          if (caption !== info.title) onPatch({ title: caption });
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
       />
-      <span className="mx-0.5 h-4 w-px bg-edge" />
-      <IconButton label="Replace image" name="upload" size={14} onClick={() => fileRef.current?.click()} />
-      <IconButton label="Remove image" name="trash" size={14} onClick={onRemove} />
+
+      <div className="flex items-center gap-0.5">
+        <IconButton label="Replace image" name="upload" size={14} onClick={() => fileRef.current?.click()} />
+        <IconButton label="Remove image" name="trash" size={14} onClick={onRemove} />
+      </div>
       <input
         ref={fileRef}
         type="file"

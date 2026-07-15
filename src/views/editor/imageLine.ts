@@ -1,31 +1,25 @@
 import type { EditorView } from "@codemirror/view";
+import { type FigureAttrs, parseFigureAttrs, serializeFigureAttrs } from "../../markdown/figure";
 
 /**
  * Recognizes a Markdown source line that is *only* a standalone image
  * (the shape `renderer.ts`'s `studio_figures` rule turns into a
- * `<figure>`) so the editor can offer resize/align/replace/remove
- * controls without touching the renderer or the PDF engine.
+ * `<figure>`) so the editor can offer layout/style controls without
+ * touching the renderer or the PDF engine. The attribute grammar is owned
+ * by markdown/figure.ts, so what the controls write is exactly what the
+ * renderer reads back.
  */
 const IMAGE_LINE_RE = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\s*\{([^}]*)\})?\s*$/;
 
-export interface ImageLineInfo {
+export interface ImageLineInfo extends FigureAttrs {
   line: number;
   alt: string;
   src: string;
   title: string;
-  width: string;
-  align: "left" | "center" | "right";
 }
 
-function parseAttrs(raw: string): Record<string, string> {
-  const attrs: Record<string, string> = {};
-  for (const part of raw.split(/\s+/)) {
-    if (!part) continue;
-    const [k, v] = part.split("=");
-    if (k && v) attrs[k] = v;
-  }
-  return attrs;
-}
+/** Fields the image controls can patch on a line. */
+export type ImageLinePatch = Partial<FigureAttrs & { src: string; title: string }>;
 
 /** Reads the line at `lineNumber`, returning image details if it matches
     the standalone-figure shape, else null. */
@@ -34,31 +28,31 @@ export function parseImageLine(view: EditorView, lineNumber: number): ImageLineI
   const text = view.state.doc.line(lineNumber).text;
   const m = IMAGE_LINE_RE.exec(text);
   if (!m) return null;
-  const attrs = parseAttrs(m[4] ?? "");
-  const align = attrs.align === "left" || attrs.align === "right" ? attrs.align : "center";
-  return { line: lineNumber, alt: m[1], src: m[2], title: m[3] ?? "", width: attrs.width ?? "", align };
+  const attrs = parseFigureAttrs(m[4] ?? "");
+  return { ...attrs, line: lineNumber, alt: m[1], src: m[2], title: m[3] ?? "" };
 }
 
-/** Rewrites the image line with a patched width/align/src/caption,
+/** Rewrites the image line with a patched layout/style/src/caption,
     preserving the alt text and any attribute this UI doesn't own. */
-export function patchImageLine(view: EditorView, lineNumber: number, patch: Partial<Pick<ImageLineInfo, "width" | "align" | "src" | "title">>): void {
+export function patchImageLine(view: EditorView, lineNumber: number, patch: ImageLinePatch): void {
   if (lineNumber < 1 || lineNumber > view.state.doc.lines) return;
   const line = view.state.doc.line(lineNumber);
   const m = IMAGE_LINE_RE.exec(line.text);
   if (!m) return;
   const [, alt, srcCur, titleCur] = m;
-  const attrs = parseAttrs(m[4] ?? "");
-  const width = patch.width !== undefined ? patch.width : attrs.width ?? "";
-  const align = patch.align !== undefined ? patch.align : (attrs.align as string | undefined) ?? "center";
+  const attrs = parseFigureAttrs(m[4] ?? "");
+  const next: FigureAttrs = {
+    width: patch.width ?? attrs.width,
+    align: patch.align ?? attrs.align,
+    gap: patch.gap ?? attrs.gap,
+    border: patch.border ?? attrs.border,
+    round: patch.round ?? attrs.round,
+    shadow: patch.shadow ?? attrs.shadow,
+    cover: patch.cover ?? attrs.cover,
+  };
   const src = patch.src ?? srcCur;
   const title = patch.title !== undefined ? patch.title : titleCur ?? "";
-  if (width) attrs.width = width;
-  else delete attrs.width;
-  if (align && align !== "center") attrs.align = align;
-  else delete attrs.align;
-  const attrsOut = Object.entries(attrs)
-    .map(([k, v]) => `${k}=${v}`)
-    .join(" ");
+  const attrsOut = serializeFigureAttrs(next);
   const titlePart = title ? ` "${title.replace(/"/g, "'")}"` : "";
   const newText = `![${alt}](${src}${titlePart})${attrsOut ? `{${attrsOut}}` : ""}`;
   view.dispatch({ changes: { from: line.from, to: line.to, insert: newText } });
