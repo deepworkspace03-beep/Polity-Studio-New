@@ -75,13 +75,14 @@ if (typeof window !== "undefined") {
   });
 }
 
-/** Optional `Doc` fields (`institute?`, `coverLines?`) — the single place
-    to register a new one. Typed `satisfies readonly (keyof Doc)[]` so a
-    typo or a renamed/removed field fails `tsc`, not a user's reload. */
-export const DOC_OPTIONAL_KEYS = ["institute", "coverLines"] as const satisfies readonly (keyof Doc)[];
-/** Optional `DocLayout` fields (`coverColors?`, `coverDesign?`) — same
-    contract as DOC_OPTIONAL_KEYS, one level down. */
-export const LAYOUT_OPTIONAL_KEYS = ["coverColors", "coverDesign"] as const satisfies readonly (keyof DocLayout)[];
+/** Optional `Doc` fields (`institute?`, `coverLines?`, `edition?`) — the
+    single place to register a new one. Typed `satisfies readonly (keyof
+    Doc)[]` so a typo or a renamed/removed field fails `tsc`, not a
+    user's reload. */
+export const DOC_OPTIONAL_KEYS = ["institute", "coverLines", "edition"] as const satisfies readonly (keyof Doc)[];
+/** Optional `DocLayout` fields (`coverColors?`, `coverDesign?`, `deck?`)
+    — same contract as DOC_OPTIONAL_KEYS, one level down. */
+export const LAYOUT_OPTIONAL_KEYS = ["coverColors", "coverDesign", "deck"] as const satisfies readonly (keyof DocLayout)[];
 
 /** Merges a stored object over the defaults, keeping only keys the
     current schema knows about — old fields (removed features) are
@@ -120,9 +121,31 @@ const LEGACY_COVERS: Record<string, Doc["layout"]["coverStyle"]> = {
   midnight: "eclipse",
 };
 
-function normalizeDoc(doc: Doc): Doc {
-  const mapped = LEGACY_COVERS[doc.layout.coverStyle as string];
-  return mapped ? { ...doc, layout: { ...doc.layout, coverStyle: mapped } } : doc;
+/** Retired template ids → the unified document model (v3.1). MCQ and PYQ
+    merged into the Question Bank; Flash Cards merged into Revision. The
+    mapper keeps each old document rendering as before: a PYQ collection
+    was always solved-inline, a flash-card deck keeps its card grid. */
+const LEGACY_TEMPLATES: Record<string, { template: Doc["template"]; layout?: Partial<Doc["layout"]> }> = {
+  mcq: { template: "qbank" },
+  pyq: { template: "qbank", layout: { answers: "inline" } },
+  flashcards: { template: "revision", layout: { deck: true } },
+};
+
+/** Schema version stored in kv (and stamped into backups) — bumped when
+    a stored value changes meaning, so migrations run exactly once. v4:
+    "en" stopped meaning "no language label" (that moved to "none") and
+    became an explicit English cover badge. */
+const SCHEMA_VERSION = 4;
+
+function normalizeDoc(doc: Doc, legacyLang = false): Doc {
+  const cover = LEGACY_COVERS[doc.layout.coverStyle as string];
+  if (cover) doc = { ...doc, layout: { ...doc.layout, coverStyle: cover } };
+  const tpl = LEGACY_TEMPLATES[doc.template as string];
+  if (tpl) doc = { ...doc, template: tpl.template, layout: { ...doc.layout, ...tpl.layout } };
+  // Pre-v4 data: "en" meant "no label", so map it to "none" — the cover
+  // keeps looking exactly as it did. Post-v4 "en" is a real choice.
+  if (legacyLang && doc.lang === "en") doc = { ...doc, lang: "none" };
+  return doc;
 }
 
 function normalizeSettings(settings: Settings): Settings {
@@ -132,19 +155,27 @@ function normalizeSettings(settings: Settings): Settings {
 
 export async function initStore(): Promise<void> {
   try {
-    const [docs, settings, brand] = await Promise.all([
+    const [docs, settings, brand, schema] = await Promise.all([
       db.allDocs(),
       db.getKv<Settings>("settings"),
       db.getKv<BrandConfig>("brand"),
+      db.getKv<number>("schema"),
     ]);
+    const legacyLang = (schema ?? 0) < SCHEMA_VERSION;
+    const normalized = docs
+      .map((d) => normalizeDoc(withDefaults(blankDoc(), d, DOC_OPTIONAL_KEYS), legacyLang))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
     setState({
       ready: true,
-      docs: docs
-        .map((d) => normalizeDoc(withDefaults(blankDoc(), d, DOC_OPTIONAL_KEYS)))
-        .sort((a, b) => b.updatedAt - a.updatedAt),
+      docs: normalized,
       settings: normalizeSettings(withDefaults(DEFAULT_SETTINGS, settings)),
       brand: withDefaults(DEFAULT_BRAND, brand),
     });
+    if (legacyLang) {
+      // One-time upgrade: persist the migrated documents and stamp the
+      // schema version so future loads never re-run the mapping.
+      void Promise.all([...normalized.map((d) => db.putDoc(d)), db.putKv("schema", SCHEMA_VERSION)]);
+    }
   } catch (err) {
     console.error("[store] failed to load — starting fresh", err);
     setState({ ...state, ready: true });
@@ -165,7 +196,7 @@ function blankDoc(): Doc {
     paper: "",
     session: "",
     author: state.brand.author,
-    lang: "en",
+    lang: "none",
     layout: { ...state.settings.newDocLayout },
     createdAt: now,
     updatedAt: now,
@@ -285,7 +316,7 @@ interface Backup {
 export function exportBackup(): string {
   const backup: Backup = {
     app: "polity-studio",
-    version: 3,
+    version: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     docs: state.docs,
     settings: state.settings,
@@ -294,17 +325,18 @@ export function exportBackup(): string {
   return JSON.stringify(backup, null, 2);
 }
 
-/** Restores a backup (v2 or v3 — unknown fields from older versions are
+/** Restores a backup (v2–v4 — unknown fields from older versions are
     dropped by the schema merge). Documents merge by id. */
 export async function importBackup(json: string): Promise<number> {
   const data = JSON.parse(json) as Partial<Backup>;
   if (data.app !== "polity-studio" || !Array.isArray(data.docs)) {
     throw new Error("Not a Polity Studio backup file.");
   }
+  const legacyLang = (data.version ?? 0) < SCHEMA_VERSION;
   const byId = new Map(state.docs.map((d) => [d.id, d]));
   for (const doc of data.docs) {
     if (!doc.id || typeof doc.body !== "string") continue;
-    byId.set(doc.id, normalizeDoc(withDefaults(byId.get(doc.id) ?? { ...blankDoc(), id: doc.id }, doc, DOC_OPTIONAL_KEYS)));
+    byId.set(doc.id, normalizeDoc(withDefaults(byId.get(doc.id) ?? { ...blankDoc(), id: doc.id }, doc, DOC_OPTIONAL_KEYS), legacyLang));
   }
   const docs = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   const settings = normalizeSettings(withDefaults(state.settings, data.settings));

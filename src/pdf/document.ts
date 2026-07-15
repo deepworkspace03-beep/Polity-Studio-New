@@ -49,7 +49,11 @@ const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { k
   eclipse: { kind: "rings", color: "rgba(211,166,98,0.08)" },
 };
 
+/** Ultra tightens spacing rhythm as much as type size — the body class
+    `density-ultra` carries the spacing deltas in print-base.css, so the
+    font stays comfortably readable while pages hold visibly more. */
 const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string }> = {
+  ultra: { size: "10.9pt", leading: "1.42" },
   compact: { size: "11.6pt", leading: "1.52" },
   comfort: { size: "12.6pt", leading: "1.62" },
   relaxed: { size: "13.6pt", leading: "1.72" },
@@ -59,30 +63,35 @@ function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   const c = brand.colors;
   if (theme === "dark") {
     // Dark reading theme — a deliberate visual design, not an inversion.
-    // A deep, slightly-cool ink ground (#0F141B) with two lifted surface
-    // steps (band/edge) gives real depth without halation; text is a soft
-    // off-white rather than pure white to calm contrast on long reads.
+    // A deep, slightly-warm charcoal ground (#11161E) with two lifted
+    // surface steps (band/edge) gives real depth without halation; text
+    // is a soft warm off-white (not pure white) to calm contrast on long
+    // reads, and muted ink stays readable at small caption sizes.
     // Brand hues are lightened with color-mix so headings and accents keep
     // their identity on the dark ground. Because --c-primary is now a
     // *light* tint here, table headers flip their ink dark (--c-th-ink)
     // so a light-blue header band stays legible — the one relationship
-    // that silently broke in the previous palette.
+    // that silently broke in the previous palette. --c-card lifts
+    // question cards and code blocks slightly off the page so the dark
+    // theme keeps the same surface hierarchy the light theme gets from
+    // borders alone.
     return `
-  --c-primary: color-mix(in srgb, ${c.primary} 26%, #D7E4F6);
-  --c-primarySoft: color-mix(in srgb, ${c.primarySoft} 34%, #C4D6EE);
-  --c-accent: color-mix(in srgb, ${c.accent} 68%, #C9EEEA);
-  --c-accentSoft: color-mix(in srgb, ${c.accent} 16%, #0F141B);
-  --c-gold: color-mix(in srgb, ${c.gold} 68%, #F2DFAF);
-  --c-text: #DDE4EE;
-  --c-muted: #8B99AB;
-  --c-paper: #0F141B;
-  --c-band: #19212C;
-  --c-edge: #2A3441;
-  --c-danger: #E88C81;
-  --c-warn: #E0B267;
-  --c-good: #62C892;
-  --c-mix: #0F141B;
-  --c-th-ink: #0F141B;`;
+  --c-primary: color-mix(in srgb, ${c.primary} 30%, #DCE7F7);
+  --c-primarySoft: color-mix(in srgb, ${c.primarySoft} 38%, #C8D9EF);
+  --c-accent: color-mix(in srgb, ${c.accent} 62%, #BFEDE8);
+  --c-accentSoft: color-mix(in srgb, ${c.accent} 18%, #11161E);
+  --c-gold: color-mix(in srgb, ${c.gold} 60%, #F3E2B8);
+  --c-text: #E3E9F2;
+  --c-muted: #96A3B5;
+  --c-paper: #11161E;
+  --c-band: #1B2330;
+  --c-edge: #2D3846;
+  --c-danger: #EA9188;
+  --c-warn: #E3B76F;
+  --c-good: #6FCE9C;
+  --c-mix: #11161E;
+  --c-card: #161D27;
+  --c-th-ink: #101722;`;
   }
   return `
   --c-primary: ${c.primary};
@@ -99,6 +108,7 @@ function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   --c-warn: #B07C24;
   --c-good: #177245;
   --c-mix: #FFFFFF;
+  --c-card: #FFFFFF;
   --c-th-ink: #FFFFFF;`;
 }
 
@@ -179,14 +189,24 @@ function customCoverVars(d: CoverDesign): string {
   ].join(";")}"`;
 }
 
+/** Cover language label — each of the four choices is explicit; "none"
+    (the default) shows no label at all. */
+function langLabelHtml(lang: Doc["lang"]): string {
+  const text = lang === "hi" ? "हिन्दी" : lang === "en" ? "English" : lang === "both" ? "हिन्दी · English" : "";
+  return text ? `<span class="cv-lang">${text}</span>` : "";
+}
+
 function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): string {
   if (!doc.layout.cover) return "";
+  // Universal is brand-neutral: no institute fallback, no initiative
+  // line, no emblem, no website — the cover carries only what the
+  // author actually set on this document.
+  const plain = !!TEMPLATE_META[doc.template].plainChrome;
   const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
-  const author = doc.author || brand.author;
-  const institute = doc.institute?.trim() || brand.name;
-  // Language label — Hindi shows हिन्दी; English intentionally shows nothing.
-  const langLabel = doc.lang === "hi" ? `<span class="cv-lang">हिन्दी</span>` : "";
+  const author = doc.author || (plain ? "" : brand.author);
+  const institute = doc.institute?.trim() || (plain ? "" : brand.name);
+  const langLabel = langLabelHtml(doc.lang);
   // Author-authored highlight lines override the template's defaults; an
   // explicit empty array hides them entirely.
   const coverLines = (doc.coverLines ?? defaultCoverLines).map((l) => l.trim()).filter(Boolean);
@@ -206,10 +226,32 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
     design?.frame ? "cover--framed" : "",
   ].filter(Boolean).join(" ");
   const styleAttr = design ? customCoverVars(design) : coverColorVars(doc.layout.coverColors);
-  const emblem = design && !design.emblem ? "" : templeEmblemSvg("cv-emblem");
+  const emblem = plain || (design && !design.emblem) ? "" : templeEmblemSvg("cv-emblem");
   const mark = design?.logo
     ? `<img class="cv-logo" src="${escapeHtml(design.logo)}" alt="">`
-    : templeMarkSvg("13mm", "cv-mark");
+    : plain
+      ? ""
+      : templeMarkSvg("13mm", "cv-mark");
+  const lockup = institute
+    ? `<div class="cv-pub">
+      ${mark}
+      <div class="cv-pub__words">
+        <b>${escapeHtml(institute.toUpperCase())}</b>
+        ${plain ? "" : `<span>${escapeHtml(brand.initiative)}</span>`}
+      </div>
+    </div>`
+    : `<div class="cv-pub"></div>`;
+  const editionBadge = doc.edition?.trim() ? `<span class="cv-edition-badge">${escapeHtml(doc.edition.trim())}</span>` : "";
+  // Universal shows a session pill only when the author set one; the
+  // branded templates keep the current-year fallback.
+  const session = doc.session || (plain ? "" : String(new Date().getFullYear()));
+  const footer =
+    plain && !author
+      ? ""
+      : `<div class="cv-foot">
+    ${plain ? "<span></span>" : `<a class="cv-foot__site" href="${escapeHtml(brand.website)}">${escapeHtml(brand.website.replace(/^https?:\/\//, ""))}</a>`}
+    <div class="cv-foot__jrf"><span>${escapeHtml(author)}</span></div>
+  </div>`;
 
   return `
 <section class="cover ${classes}"${styleAttr}>
@@ -217,16 +259,11 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
   <div class="cv-shade" aria-hidden="true"></div>
   ${emblem}
   <header class="cv-top">
-    <div class="cv-pub">
-      ${mark}
-      <div class="cv-pub__words">
-        <b>${escapeHtml(institute.toUpperCase())}</b>
-        <span>${escapeHtml(brand.initiative)}</span>
-      </div>
-    </div>
+    ${lockup}
     <div class="cv-top__meta">
       ${langLabel}
-      <span class="cv-edition">${escapeHtml(doc.session || String(new Date().getFullYear()))}</span>
+      ${editionBadge}
+      ${session ? `<span class="cv-session">${escapeHtml(session)}</span>` : ""}
     </div>
   </header>
   <div class="cv-body">
@@ -237,10 +274,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
       ${coverLines.map((h) => `<li>${escapeHtml(h)}</li>`).join("\n      ")}
     </ul>` : ""}
   </div>
-  <div class="cv-foot">
-    <a class="cv-foot__site" href="${escapeHtml(brand.website)}">${escapeHtml(brand.website.replace(/^https?:\/\//, ""))}</a>
-    <div class="cv-foot__jrf"><span>${escapeHtml(author)}</span></div>
-  </div>
+  ${footer}
 </section>`;
 }
 
@@ -268,6 +302,16 @@ function tocHtml(doc: Doc): string {
 /* ── Page chrome (running header/footer sources) ───────────────────── */
 
 function runnersHtml(doc: Doc, brand: BrandConfig): string {
+  // Universal keeps the useful chrome (title · topic · page number) but
+  // drops every branded element from the footer.
+  if (TEMPLATE_META[doc.template].plainChrome) {
+    return `
+<div class="run-head-book">${escapeHtml(doc.exam || doc.title || "")}</div>
+<div class="run-head-topic"></div>
+<div class="run-foot-brand"></div>
+<div class="run-foot-site">${doc.author ? `<span>${escapeHtml(doc.author)}</span>` : ""}</div>
+<div class="run-foot-social"></div>`;
+  }
   const site = brand.website.replace(/^https?:\/\//, "");
   const social = [
     brand.telegram.url
@@ -422,7 +466,7 @@ ${body.html}`;
 <style>${css}</style>
 ${watermarkTemplate}
 </head>
-<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
+<body class="tpl-${doc.template} mode-${mode} purpose-${purpose} density-${doc.layout.density}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
 ${paged ? content : `<div id="doc-root">${content}</div>`}
 ${scripts}
 </body>
