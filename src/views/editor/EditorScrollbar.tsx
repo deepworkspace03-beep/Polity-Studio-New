@@ -15,8 +15,12 @@ import { cx } from "../../lib/utils";
  * `revision` is bumped by CodeMirror whenever the document changes so the
  * thumb geometry recomputes as the content grows or shrinks (scroll and
  * resize are observed directly).
+ *
+ * `estimatedPages` (optional) turns the drag readout into a document
+ * position — "Page 18 / 46 · 39%" — using a word-count estimate the host
+ * computes; the scrollbar itself only maps its scroll fraction onto it.
  */
-export function EditorScrollbar({ scroller, revision }: { scroller: HTMLElement | null; revision: number }) {
+export function EditorScrollbar({ scroller, revision, estimatedPages }: { scroller: HTMLElement | null; revision: number; estimatedPages?: number }) {
   const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
   const [pct, setPct] = useState(0);
   const [active, setActive] = useState(false); // dragging or hovering — shows the readout
@@ -111,7 +115,13 @@ export function EditorScrollbar({ scroller, revision }: { scroller: HTMLElement 
         onPointerLeave={() => !drag.current && setActive(false)}
       />
       {active && (
-        <span className="pointer-events-none absolute right-4 top-0 -translate-y-1/2 rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-bg shadow-lg" style={{ top: thumb.top + thumb.height / 2 }}>
+        <span
+          className="pointer-events-none absolute right-4 top-0 -translate-y-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-center text-[10px] font-bold leading-tight tabular-nums text-bg shadow-lg"
+          style={{ top: thumb.top + thumb.height / 2 }}
+        >
+          {estimatedPages && estimatedPages > 1 && (
+            <span className="block">Page {Math.min(estimatedPages, Math.floor(pct * estimatedPages) + 1)} / {estimatedPages}</span>
+          )}
           {Math.round(pct * 100)}%
         </span>
       )}

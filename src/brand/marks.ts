@@ -43,32 +43,63 @@ export function watermarkHtml(text: string): string {
 </div>`;
 }
 
+export type CoverPatternKind = "grid" | "dots" | "lines" | "rings" | "weave" | "abstract";
+
 /**
  * Full-bleed cover pattern layer, generated as inline SVG (mm units) so
  * it stays vector in print and in the PDF engine — CSS repeating
  * gradients would be rasterized by the browser's print pipeline.
+ *
+ * `density` (0.5–2) tightens or loosens the element spacing; `size`
+ * (0.5–2.5) scales stroke width / dot radius. Both default to 1 so
+ * existing covers render exactly as before.
  */
-export function coverPatternSvg(style: "grid" | "rings" | "weave" | "lines", wMm: number, hMm: number, color: string): string {
+export function coverPatternSvg(
+  style: CoverPatternKind,
+  wMm: number,
+  hMm: number,
+  color: string,
+  opts: { density?: number; size?: number } = {},
+): string {
+  const d = Math.min(2, Math.max(0.5, opts.density ?? 1));
+  const s = Math.min(2.5, Math.max(0.5, opts.size ?? 1));
   const parts: string[] = [];
   if (style === "grid") {
-    const step = 12;
-    for (let x = step; x < wMm; x += step) parts.push(`<line x1="${x}" y1="0" x2="${x}" y2="${hMm}"/>`);
-    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y}" x2="${wMm}" y2="${y}"/>`);
+    const step = 12 / d;
+    for (let x = step; x < wMm; x += step) parts.push(`<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${hMm}"/>`);
+    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y.toFixed(1)}" x2="${wMm}" y2="${y.toFixed(1)}"/>`);
+  } else if (style === "dots") {
+    // Even dot grid — filled circles so the size control reads clearly.
+    const step = 9 / d;
+    const r = (0.5 * s).toFixed(2);
+    for (let y = step; y < hMm; y += step)
+      for (let x = step; x < wMm; x += step) parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${color}" stroke="none"/>`);
   } else if (style === "lines") {
     // Laid-paper texture: fine horizontal rules only.
-    const step = 7;
-    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y}" x2="${wMm}" y2="${y}"/>`);
+    const step = 7 / d;
+    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y.toFixed(1)}" x2="${wMm}" y2="${y.toFixed(1)}"/>`);
   } else if (style === "rings") {
     const cx = wMm * 0.82;
     const cy = hMm * 0.1;
     const max = Math.hypot(wMm, hMm);
-    for (let r = 6.4; r < max; r += 6.4) parts.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none"/>`);
+    const step = 6.4 / d;
+    for (let r = step; r < max; r += step) parts.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none"/>`);
+  } else if (style === "abstract") {
+    // A few large, soft sweeping arcs from two corners — a modern,
+    // premium "designed" texture rather than a repeating pattern.
+    const step = 13 / d;
+    const max = Math.hypot(wMm, hMm);
+    for (let r = step * 2; r < max * 1.05; r += step) {
+      parts.push(`<circle cx="${(wMm * 0.05).toFixed(1)}" cy="${(hMm * 0.98).toFixed(1)}" r="${r.toFixed(1)}" fill="none"/>`);
+      parts.push(`<circle cx="${(wMm * 0.98).toFixed(1)}" cy="${(hMm * 0.06).toFixed(1)}" r="${(r * 0.72).toFixed(1)}" fill="none"/>`);
+    }
   } else {
-    const step = 5.8;
-    for (let d = -hMm; d < wMm + hMm; d += step) {
-      parts.push(`<line x1="${d.toFixed(1)}" y1="0" x2="${(d + hMm).toFixed(1)}" y2="${hMm}"/>`);
-      parts.push(`<line x1="${d.toFixed(1)}" y1="${hMm}" x2="${(d + hMm).toFixed(1)}" y2="0"/>`);
+    const step = 5.8 / d;
+    for (let dd = -hMm; dd < wMm + hMm; dd += step) {
+      parts.push(`<line x1="${dd.toFixed(1)}" y1="0" x2="${(dd + hMm).toFixed(1)}" y2="${hMm}"/>`);
+      parts.push(`<line x1="${dd.toFixed(1)}" y1="${hMm}" x2="${(dd + hMm).toFixed(1)}" y2="0"/>`);
     }
   }
-  return `<svg class="cv-pattern" viewBox="0 0 ${wMm} ${hMm}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" stroke="${color}" stroke-width="0.16">${parts.join("")}</svg>`;
+  const stroke = (0.16 * s).toFixed(3);
+  return `<svg class="cv-pattern" viewBox="0 0 ${wMm} ${hMm}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" stroke="${color}" stroke-width="${stroke}">${parts.join("")}</svg>`;
 }

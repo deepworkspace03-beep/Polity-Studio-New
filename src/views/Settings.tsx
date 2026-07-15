@@ -10,17 +10,69 @@ import {
 } from "../lib/store";
 import { DEFAULT_BRAND } from "../brand/defaults";
 import type { BrandConfig } from "../lib/types";
-import { downloadFile } from "../lib/utils";
+import { cx, downloadFile } from "../lib/utils";
 import { buildZip } from "../lib/zip";
 import { Button, Field, Modal, Segmented, Toggle, inputClass, useToast } from "../components/ui";
+import { Icon } from "../components/Icon";
 import { StudioNav } from "../components/StudioNav";
 
-function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+/** Remembers a section's open/closed state across reloads, falling back
+    silently where storage is unavailable (private mode). */
+function useDisclosure(key: string, initial: boolean): [boolean, () => void] {
+  const [open, setOpen] = useState(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw === null ? initial : raw === "1";
+    } catch {
+      return initial;
+    }
+  });
+  const toggle = () => {
+    setOpen((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(key, next ? "1" : "0");
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
+  };
+  return [open, toggle];
+}
+
+/** A titled, collapsible settings card. Everything stays one tap away, but
+    long groups can fold out of sight to keep the page scannable on a
+    tablet; the open/closed choice persists per group. */
+function Section({
+  title,
+  description,
+  storageKey,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  description?: string;
+  storageKey: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, toggle] = useDisclosure(storageKey, defaultOpen);
   return (
-    <section className="rounded-2xl border border-edge bg-surface p-5">
-      <h2 className="text-sm font-bold">{title}</h2>
-      {description && <p className="mb-4 mt-0.5 text-xs text-faint">{description}</p>}
-      <div className={description ? "space-y-4" : "mt-4 space-y-4"}>{children}</div>
+    <section className="overflow-hidden rounded-2xl border border-edge bg-surface">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-bold">{title}</span>
+          {description && <span className="mt-0.5 block text-xs text-faint">{description}</span>}
+        </span>
+        <Icon name="chevronDown" size={16} className={cx("flex-none text-faint transition-transform", !open && "-rotate-90")} />
+      </button>
+      {open && <div className="space-y-4 px-5 pb-5">{children}</div>}
     </section>
   );
 }
@@ -66,7 +118,7 @@ export function Settings() {
       </header>
 
       <div className="space-y-5">
-        <Section title="Appearance">
+        <Section title="Appearance" storageKey="ps2:settings:appearance">
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm">App theme</span>
             <Segmented
@@ -98,7 +150,7 @@ export function Settings() {
           </div>
         </Section>
 
-        <Section title="Branding" description="Drives every cover, header, footer, watermark and link in your PDFs.">
+        <Section title="Branding" description="Drives every cover, header, footer, watermark and link in your PDFs." storageKey="ps2:settings:branding">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Institute name">
               <input className={inputClass} value={brand.name} onChange={(e) => saveBrand({ name: e.target.value })} />
@@ -161,7 +213,7 @@ export function Settings() {
           </div>
         </Section>
 
-        <Section title="New document defaults" description="Applied to newly created documents — each document can still override them in Details.">
+        <Section title="New document defaults" description="Applied to newly created documents — each document can still override them in its Settings pane." storageKey="ps2:settings:defaults">
           <Field label="PDF filename pattern" hint="{title}, {brand} and {date} are replaced automatically.">
             <input className={inputClass} value={settings.fileNamePattern} onChange={(e) => saveSettings({ fileNamePattern: e.target.value })} />
           </Field>
@@ -199,6 +251,7 @@ export function Settings() {
         <Section
           title="Storage & data"
           description="Nothing is ever uploaded — everything below lives only in this browser, on this device."
+          storageKey="ps2:settings:storage"
         >
           {/* 1 · The only thing that is your data and worth backing up. */}
           <div className="space-y-3">

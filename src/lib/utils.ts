@@ -41,3 +41,21 @@ export function contentStats(body: string): { words: number; headings: number; r
   const headings = (body.match(/^#{1,6}\s/gm) || []).length;
   return { words, headings, readingMinutes: Math.max(1, Math.round(words / 200)) };
 }
+
+/** Rough page-count estimate for the navigation readouts (editor
+    scrollbar, flow preview). The exact count only exists after Paged.js
+    lays the document out; this is a words-per-page approximation tuned per
+    density, plus a page each for an enabled cover and table of contents —
+    deliberately labelled "estimated" everywhere it surfaces. */
+export function estimatePages(
+  words: number,
+  density: "compact" | "comfort" | "relaxed",
+  cover: boolean,
+  toc: boolean,
+): number {
+  const wpp = density === "compact" ? 560 : density === "relaxed" ? 380 : 460;
+  let pages = Math.max(1, Math.ceil(words / wpp));
+  if (cover) pages += 1;
+  if (toc) pages += 1;
+  return pages;
+}

@@ -4,7 +4,7 @@ export type TemplateId = "notes" | "revision" | "mcq" | "pyq" | "flashcards";
 
 export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse" | "custom";
 
-export type CoverPattern = "none" | "grid" | "lines" | "rings" | "weave";
+export type CoverPattern = "none" | "grid" | "dots" | "lines" | "rings" | "weave" | "abstract";
 
 /** The "custom" cover style: a complete design authored in the Cover
     Designer (Details → Cover style → Custom). Every field always has a
@@ -23,12 +23,20 @@ export interface CoverDesign {
   pattern: CoverPattern;
   /** Pattern line opacity, 0–0.3. */
   patternOpacity: number;
+  /** Pattern element spacing (density), 0.5–2 — higher packs more
+      lines/dots in. Optional so older stored designs default to 1. */
+  patternDensity?: number;
+  /** Pattern stroke/dot size, 0.5–2.5 — optional, defaults to 1. */
+  patternSize?: number;
   titleFont: "serif" | "sans";
   /** Multiplies the 44 pt base title size (0.8 – 1.3). */
   titleScale: number;
   align: "left" | "center";
   /** Hairline frame inset from the page edge. */
   frame: boolean;
+  /** Optional premium header band: a thin top rule and a hairline divider
+      under the publisher lockup. Optional so older designs default off. */
+  headerRule?: boolean;
   /** Temple emblem watermark in the lower-right. */
   emblem: boolean;
   /** Small data-URI image replacing the temple mark in the publisher

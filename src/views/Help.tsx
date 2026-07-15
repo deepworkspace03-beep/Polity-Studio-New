@@ -159,6 +159,7 @@ TEXT
 - x^2^ superscript · H~2~O subscript · \`inline code\`
 - [text](https://example.com) links · "> " quotations
 - Footnotes: [^1] in the text plus a matching "[^1]: note" line below.
+- Arrow shortcuts in plain text: -> => <- <-> become → ⇒ ← ↔ (skipped inside code).
 
 LISTS & TABLES
 - "- item" bullets · "1. item" numbered · "- [ ]" / "- [x]" task lists.
@@ -244,6 +245,17 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
+        <Section title="What's new — version 3.1 (Workspace & Navigation)" intro="A focused update to the editing workspace, navigation and cover design — everything else is unchanged.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>Find in document</b> — the editor header's search icon (and Ctrl/Cmd+F) now searches inside the Markdown editor, with match highlighting and next/previous.</li>
+            <li><b>Position readouts</b> — the editor scrollbar and both previews show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
+            <li><b>Contents navigation</b> — clicking a chapter in a document's table of contents jumps straight to it inside the same preview.</li>
+            <li><b>Arrow shortcuts</b> — <code className="font-mono text-xs">-&gt;</code>, <code className="font-mono text-xs">&lt;-</code>, <code className="font-mono text-xs">&lt;-&gt;</code>, <code className="font-mono text-xs">=&gt;</code> render as → ← ↔ ⇒.</li>
+            <li><b>Cover Designer</b> — new patterns (Fine Grid, Dots, Minimal Lines, Rings, Weave, Abstract) with opacity, density and size controls, plus an optional premium header rule.</li>
+            <li><b>Presets & settings</b> — Default and Preset 1–3 layout slots you can save, load, rename and reset; the Settings page is now organised into collapsible groups.</li>
+          </ul>
+        </Section>
+
         <Section title="The basics" intro="Type on the left, get the right — live in the preview.">
           <Ex code="**bold**" result={<strong>bold</strong>} />
           <Ex code="*italic*" result={<em>italic</em>} />
@@ -254,6 +266,23 @@ export function Help() {
           <Ex code="`inline code`" result={<code className="rounded bg-raised px-1.5 py-0.5 font-mono text-xs">inline code</code>} />
           <Ex code="[link text](https://example.com)" result={<span className="text-accent">link text</span>} />
           <Ex code="> A quotation" result={<span className="border-l-2 border-accent pl-2 italic text-ink-2">A quotation</span>} />
+          <Ex code="cause -> effect  ·  <->  ·  =>" result={<span>cause → effect · ↔ · ⇒</span>} />
+        </Section>
+
+        <Section
+          title="Symbols & arrows"
+          intro="Type these ASCII shortcuts and they render as clean symbols — only in normal text, never inside code."
+        >
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-3">
+            <span><code className="font-mono text-xs">-&gt;</code> or <code className="font-mono text-xs">--&gt;</code> → <b>→</b></span>
+            <span><code className="font-mono text-xs">&lt;-</code> or <code className="font-mono text-xs">&lt;--</code> → <b>←</b></span>
+            <span><code className="font-mono text-xs">&lt;-&gt;</code> → <b>↔</b></span>
+            <span><code className="font-mono text-xs">=&gt;</code> or <code className="font-mono text-xs">==&gt;</code> → <b>⇒</b></span>
+          </div>
+          <p className="text-xs text-faint">
+            You can also paste any symbol directly — arrows (→ ← ↔ ⇒ ➜ ➤), ticks and marks (✓ ✔ ✗ ★ •) and the like all render
+            in the preview and the exported PDF exactly as typed.
+          </p>
         </Section>
 
         <Section
@@ -385,7 +414,9 @@ export function Help() {
         <Section title="Working efficiently" intro="The workspace has a few features worth knowing about.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
-            <li><b>Ctrl/Cmd+F</b> in the editor opens Find &amp; Replace; the toolbar's search icon does the same.</li>
+            <li><b>Ctrl/Cmd+F</b>, or the editor header's search icon, finds inside this document — matches are highlighted with next/previous, and the editor stays focused. (Cross-document search is on Ctrl/Cmd+K.)</li>
+            <li><b>Navigation readouts</b> — drag the editor's scrollbar to see an estimated page and percentage; both previews show the same, and the Pages view gives the exact page count with prev/next.</li>
+            <li><b>Table of contents</b> — click any chapter in a document's Contents (in either preview) to jump right to it, no extra window.</li>
             <li><b>Focus mode</b> (the frame icon in the editor header) hides the toolbar and settings pane for distraction-free writing — toggle it off to bring them back.</li>
             <li>The settings and preview panes are resizable by dragging their edges, and collapsible to a thin rail when you need the width back.</li>
             <li>In the <b>Flow</b> preview, click the cover title, subtitle or any heading to edit it right there — it writes straight back to your Markdown.</li>
@@ -401,7 +432,8 @@ export function Help() {
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li>Cover style, table of contents, watermark, page size and text density are all per-document, in the settings pane (the sliders icon).</li>
             <li>Each cover style also accepts optional background, heading and accent color overrides, right below the style picker — leave any of them unset to keep the style's own palette.</li>
-            <li><b>Custom — design your own</b> opens the Cover Designer: background gradient (two colors + angle), text and accent colors, a vector pattern with adjustable strength, title font and size, left or centered layout, a hairline frame, the temple emblem, and your own uploaded logo. It starts from the preset you were using and previews live on the cover.</li>
+            <li><b>Custom — design your own</b> opens the Cover Designer: background gradient (two colors + angle), text and accent colors, a vector pattern (None, Fine Grid, Dots, Minimal Lines, Rings, Weave or Abstract) with opacity, density and size controls, title font and size, left or centered layout, an optional premium header rule, a hairline frame, the temple emblem, and your own uploaded logo. It starts from the preset you were using and previews live on the cover.</li>
+            <li><b>Layout presets</b> (in the settings pane, under Layout &amp; PDF) save a whole look — cover, TOC, watermark, page size, density — under a name. Default and Preset 1–3 come ready-made; save the current document's layout, apply a preset to any document, rename, duplicate or reset to the Studio defaults.</li>
             <li>Settings → Appearance has two separate themes: the <b>app theme</b> (this UI) and the <b>document reading theme</b> (how previews, PDFs and HTML exports render) — the preview toolbar's sun/moon icon toggles the latter without leaving the editor.</li>
             <li>Institute name, links, watermark text and the PDF color palette live in Settings → Branding and apply to every document.</li>
           </ul>

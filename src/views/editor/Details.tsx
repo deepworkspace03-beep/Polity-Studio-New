@@ -30,10 +30,12 @@ const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: str
 
 const PATTERN_OPTIONS: { value: CoverPattern; label: string }[] = [
   { value: "none", label: "None" },
-  { value: "grid", label: "Grid" },
-  { value: "lines", label: "Lines" },
+  { value: "grid", label: "Fine Grid" },
+  { value: "dots", label: "Dots" },
+  { value: "lines", label: "Minimal Lines" },
   { value: "rings", label: "Rings" },
   { value: "weave", label: "Weave" },
+  { value: "abstract", label: "Abstract" },
 ];
 
 const TITLE_SIZES: { value: string; label: string }[] = [
@@ -197,11 +199,34 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
       </FieldGroup>
 
       <FieldGroup label="Pattern">
-        <Segmented size="sm" value={design.pattern} onChange={(pattern) => set({ pattern })} options={PATTERN_OPTIONS} />
+        <div className="flex flex-wrap gap-1.5">
+          {PATTERN_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => set({ pattern: o.value })}
+              aria-pressed={design.pattern === o.value}
+              className={cx(
+                "rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                design.pattern === o.value ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
         {design.pattern !== "none" && (
-          <Field label={`Strength — ${Math.round(design.patternOpacity * 100)}%`}>
-            <input type="range" min={1} max={30} step={1} value={Math.round(design.patternOpacity * 100)} onChange={(e) => set({ patternOpacity: Number(e.target.value) / 100 })} className="w-full" />
-          </Field>
+          <>
+            <Field label={`Opacity — ${Math.round(design.patternOpacity * 100)}%`}>
+              <input type="range" min={1} max={30} step={1} value={Math.round(design.patternOpacity * 100)} onChange={(e) => set({ patternOpacity: Number(e.target.value) / 100 })} className="w-full" />
+            </Field>
+            <Field label={`Density — ${Math.round((design.patternDensity ?? 1) * 100)}%`}>
+              <input type="range" min={50} max={200} step={10} value={Math.round((design.patternDensity ?? 1) * 100)} onChange={(e) => set({ patternDensity: Number(e.target.value) / 100 })} className="w-full" />
+            </Field>
+            <Field label={`Size — ${Math.round((design.patternSize ?? 1) * 100)}%`}>
+              <input type="range" min={50} max={250} step={10} value={Math.round((design.patternSize ?? 1) * 100)} onChange={(e) => set({ patternSize: Number(e.target.value) / 100 })} className="w-full" />
+            </Field>
+          </>
         )}
       </FieldGroup>
 
@@ -235,7 +260,8 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         </Field>
       </FieldGroup>
 
-      <FieldGroup label="Emblem & logo">
+      <FieldGroup label="Header & emblem">
+        <Toggle label="Premium header rule" checked={!!design.headerRule} onChange={(headerRule) => set({ headerRule })} />
         <Toggle label="Hairline frame" checked={design.frame} onChange={(frame) => set({ frame })} />
         <Toggle label="Temple emblem" checked={design.emblem} onChange={(emblem) => set({ emblem })} />
         <div className="flex flex-wrap items-center gap-2">

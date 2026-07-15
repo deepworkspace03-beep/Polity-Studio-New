@@ -308,6 +308,24 @@ body.mode-paged .cv-guide--empty { display: none; }
   pointer-events: none;
   z-index: 0;
 }
+/* Optional premium header band — a thin rule at the very top plus a
+   hairline divider under the publisher lockup. Structural, so it works on
+   the custom cover regardless of the chosen colors. */
+.cover--header-rule::before {
+  content: "";
+  position: absolute;
+  top: 9mm;
+  left: 17mm;
+  right: 17mm;
+  height: 0;
+  border-top: 0.7pt solid var(--cv-accent);
+  z-index: 1;
+}
+.cover--header-rule .cv-top {
+  padding-bottom: 4mm;
+  border-bottom: 0.5pt solid var(--cv-line);
+}
+
 .cover--center .cv-body { align-items: center; text-align: center; }
 .cover--center .cv-guide { margin-left: auto; margin-right: auto; }
 .cover--center .cv-highlights li { padding-left: 0; }

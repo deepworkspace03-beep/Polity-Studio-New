@@ -26,10 +26,14 @@ const KEY = "ps2:layoutPresets";
 /** Soft cap — the spec targets ~4–5; a little headroom avoids nagging. */
 export const MAX_PRESETS = 8;
 
+// Four starters matching the studio's preset slots — "Default" is the
+// factory layout; Preset 1–3 are distinct ready-made looks. All are
+// renamable, editable and deletable like any user preset.
 const STARTERS: Omit<LayoutPreset, "id">[] = [
-  { name: "Premium Notes", layout: { ...DEFAULT_LAYOUT, coverStyle: "regal", toc: true, watermark: true, density: "comfort" } },
-  { name: "Minimal", layout: { ...DEFAULT_LAYOUT, coverStyle: "heritage", toc: false, watermark: false, density: "comfort" } },
-  { name: "Compact Booklet", layout: { ...DEFAULT_LAYOUT, coverStyle: "eclipse", toc: true, watermark: true, pageSize: "a5", density: "compact" } },
+  { name: "Default", layout: { ...DEFAULT_LAYOUT } },
+  { name: "Preset 1 · Premium Notes", layout: { ...DEFAULT_LAYOUT, coverStyle: "regal", toc: true, watermark: true, density: "comfort" } },
+  { name: "Preset 2 · Minimal", layout: { ...DEFAULT_LAYOUT, coverStyle: "heritage", toc: false, watermark: false, density: "comfort" } },
+  { name: "Preset 3 · Compact Booklet", layout: { ...DEFAULT_LAYOUT, coverStyle: "eclipse", toc: true, watermark: true, pageSize: "a5", density: "compact" } },
 ];
 
 const listeners = new Set<() => void>();
