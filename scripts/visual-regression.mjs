@@ -60,7 +60,13 @@ const REFERENCE_TITLE = /Fundamental Rights.*Complete Notes/i;
 // still catching real layout/spacing/pagination changes.
 const DIFF_THRESHOLD_PCT = 3;
 const UPDATE = process.argv.includes("--update");
-const CHROMIUM_PATH = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
+// Prefer an explicit override; otherwise fall back to the shared
+// pre-installed Chromium that remote/CI sandboxes expose at a fixed path
+// (the pinned playwright package's own browser revision usually isn't
+// installed there, so launch() without a path fails with "Executable
+// doesn't exist").
+const CHROMIUM_PATH =
+  process.env.PLAYWRIGHT_CHROMIUM_PATH || (existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
 
 function log(msg) {
   console.log(`[visual-regression] ${msg}`);

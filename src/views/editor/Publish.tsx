@@ -59,11 +59,38 @@ export function Publish({
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
 
+  // Host-side stall watchdog — the iframe's own layout watchdog is an
+  // inline script; if the frame never runs scripts (a stalled vendor/
+  // font request through a dying service worker, the browser reclaiming
+  // the frame) nothing in there can report back and this overlay would
+  // sit on "Typesetting pages…" forever. See Preview.tsx for the same
+  // pattern; here a stall surfaces the error screen, whose "simplified
+  // layout" export path doesn't depend on the dead frame.
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armWatchdog = (ms: number) => {
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = setTimeout(() => {
+      setPhase((p) => {
+        if (p !== "layout") return p;
+        setError("the layout engine never responded — close and reopen Publish to try again");
+        return "error";
+      });
+    }, ms);
+  };
+  useEffect(() => {
+    armWatchdog(20_000);
+    return () => {
+      if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frameRef.current?.contentWindow) return;
       const d = e.data;
       if (d?.type === "paged-done") {
+        if (watchdogRef.current) clearTimeout(watchdogRef.current);
         if (d.error || !d.pages) {
           setPhase("error");
           setError(String(d.error || "The page layout produced no pages."));
@@ -73,6 +100,7 @@ export function Publish({
         }
       } else if (d?.type === "paged-progress" && typeof d.pages === "number") {
         setLaidOut(d.pages);
+        armWatchdog(30_000);
       } else if (d?.type === "page-visible") {
         setCurrent(d.page);
       } else if (d?.type === "zoom" && typeof d.zoom === "number") {
@@ -156,14 +184,18 @@ export function Publish({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg" role="dialog" aria-modal="true" aria-label="Publish PDF">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
-        <IconButton label="Back to editor" name="back" size={18} onClick={onClose} />
+        {/* Leaving mid-export would unmount the iframe the engine is
+            actively measuring — same reason Escape is ignored then. */}
+        <IconButton label="Back to editor" name="back" size={18} onClick={onClose} disabled={phase === "exporting"} />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-bold leading-tight">{doc.title || "Untitled"}</h2>
           <p className="truncate text-xs text-faint">
             {phase === "layout"
               ? laidOut > 0 ? `Typesetting pages… ${laidOut}` : "Typesetting pages…"
               : phase === "exporting"
-                ? `Building vector PDF… ${Math.round(progress * 100)}%`
+                ? progress >= 1
+                  ? "Finalizing PDF — compressing fonts and streams…"
+                  : `Building vector PDF… ${Math.round(progress * 100)}%`
                 : phase === "ready"
                   ? `${pages} page${pages === 1 ? "" : "s"} · vector PDF, opens instantly`
                   : "Layout failed"}

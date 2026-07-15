@@ -3,6 +3,71 @@
 High-level evolution of Polity Studio — meaningful milestones only, not
 a commit log. See `git log` for the full history.
 
+## v3.2.0 — 2026-07-14
+
+**Second stabilization pass, tablet-first navigation, PDF word-spacing
+fix, settings-panel reorganization.** Primary target platform for the
+stability work: Chrome on Android tablets.
+
+- **Fixed: the intermittent "preview stuck until reboot" hang.** Root
+  cause: every settings change reloads the paged preview iframe, whose
+  Paged.js/font requests flow through the service worker — and Android
+  Chrome kills/restarts service workers aggressively. A stalled cache
+  lookup left the iframe's `<script src>` pending forever, so the
+  inline harness (which owned the only layout watchdog) never ran and
+  the pane waited forever. Three independent layers now prevent it:
+  the service worker races every cache lookup against a 4s timeout
+  (a stall becomes an ordinary network fetch); a **host-side watchdog**
+  in both the editor preview and Publish — outside the iframe, so it
+  survives anything that kills the iframe — silently rebuilds after 20s
+  of silence and offers a Retry button if that fails too. Verified by
+  injecting real request stalls: transient stalls self-heal with no
+  user action.
+- **Fixed: merged words in the exported PDF** ("PreventiveDetention").
+  pdf-lib draws words with raw un-kerned advances, so a word could
+  render a few px wider than the browser measured and swallow the gap
+  before its neighbor. Every text run is now width-checked and any
+  divergence is distributed across the run as PDF character spacing,
+  so each word occupies exactly its browser-measured width — one extra
+  operator per affected word, no per-character fallback, complex
+  scripts (Devanagari) never split. PDF word spacing now matches the
+  HTML preview throughout.
+- **Three-pane navigation (tablet-first).** The editor and settings
+  panes get always-visible, touch-draggable scrollbars; both preview
+  iframes style theirs to match; and the paged preview gains a page
+  navigator rail — page-number ticks, a viewport thumb, drag-to-jump
+  and a live "page / total" bubble.
+
+- **Fixed: preview wedged on a broken 1-page layout after hiding the
+  pane.** Collapsing the preview pane (or switching to the mobile Write
+  tab) left the Pages preview re-paginating inside a `display:none`
+  iframe, where every element measures zero — Paged.js "succeeded" with
+  a garbage single page, and re-opening the pane restored that wedged
+  result. The preview now tracks real on-screen visibility and suspends
+  exactly like it already did under Publish: tear down while hidden,
+  rebuild on return (which also frees the paginated DOM's memory while
+  the pane is closed). The harness additionally refuses to lay out a
+  zero-width document so any future hidden-layout bug fails loudly.
+- **Autosave can no longer die silently.** If the browser closes the
+  IndexedDB connection (storage pressure, cross-tab schema upgrade),
+  the cached handle is dropped and reopened; a save caught mid-close
+  retries once.
+- **Export lifecycle** — the Back button is disabled while the engine
+  transcribes (leaving mid-export unmounted the iframe being measured);
+  the status line says "Finalizing PDF…" during the final compression
+  pass instead of sitting at "100%".
+- **Service-worker cache no longer grows without bound** — hashed
+  assets from old deploys are pruned on each fresh navigation (current
+  + previous build are kept).
+- **Settings panel reorganized** into five collapsible groups:
+  Publication · Cover Design (cover toggle, style, colors, highlights)
+  · Typography & Page · Content Options (TOC, watermark, answers) ·
+  Presets & Advanced — replacing the two long mixed sections.
+- **Quick Reboot** button on the permanent header (flushes saves, then
+  reloads fresh) and a **storage breakdown** in Settings → Your data
+  (documents & settings / offline app cache / a note that generated
+  PDFs are never stored).
+
 ## v3.1.1 — 2026-07-14
 
 **Production stabilization pass** — no new features; every change makes

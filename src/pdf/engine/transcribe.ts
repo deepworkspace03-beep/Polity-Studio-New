@@ -526,7 +526,7 @@ class Transcriber {
     if (rects.length === 0) return;
     this.runStats.total++;
 
-    const drawAt = (str: string, rect: DOMRect) => {
+    const drawAt = (str: string, rect: DOMRect, extraSpacing = 0) => {
       const baseline = rect.top - this.pageOrigin.y + face.ascent * opt.fontSize;
       const x = rect.left - this.pageOrigin.x;
       this.canvas.drawText(
@@ -537,7 +537,7 @@ class Transcriber {
         opt.fontSize,
         opt.color,
         opt.ctx.opacity,
-        opt.letterSpacing,
+        opt.letterSpacing + extraSpacing,
         face.def.italic === false && (opt.cs.fontStyle.includes("italic") || opt.cs.fontStyle.includes("oblique")),
       );
       this.drawDecorations(rect, face, opt);
@@ -548,38 +548,36 @@ class Transcriber {
     // whether failures were widespread enough to abort.
     try {
       if (rects.length === 1 && opt.letterSpacing === 0) {
-        // pdf-lib's encodeText lays glyphs out with the font's raw,
-        // un-kerned advance widths — it doesn't replay GPOS kerning
-        // pairs the way the browser does. Measured directly: a short,
-        // heavily-kerned pair ("To", "Ta") can land 2-3px wider than the
-        // browser rendered it at heading sizes, visible as the pair
-        // reading loosely spaced against its neighbors. But kerning
-        // divergence *accumulates* across a run's length, not just its
-        // "badness" — an ordinary 11-letter word like "Fundamental"
-        // measured a similar 3.4px total divergence despite having no
-        // single dramatic pair and looking visually fine, because that
-        // divergence is spread thin across many small pair adjustments
-        // instead of concentrated in one visible gap. A whole-run
-        // width-divergence check can't tell those two cases apart, so
-        // checking it for every run (this session's first attempt)
-        // sent the *majority* of multi-syllable words through the
-        // character-by-character fallback below — each character its
-        // own PDF text-positioning operator instead of one per word —
-        // measurably inflating both export time and file size on real
-        // documents. Limiting the check to short runs targets exactly
-        // the case it was meant for (a single dominant pair, most
-        // visible as the first few characters of a word) without
-        // paying for it on the long words that make up most real text.
-        const KERNING_CHECK_MAX_LEN = 6;
-        let useFastPath = true;
-        if (text.length <= KERNING_CHECK_MAX_LEN) {
-          const predicted = face.pdfFont.widthOfTextAtSize(text, opt.fontSize);
-          useFastPath = Math.abs(predicted - rects[0].width) < 0.15;
-        }
-        if (useFastPath) {
+        // pdf-lib lays glyphs out with the font's raw, un-kerned advance
+        // widths — it doesn't replay GPOS kerning pairs the way the
+        // browser does — so a word can come out a few px wider than the
+        // browser measured it. Because every word is positioned
+        // absolutely at its own browser rect, an overshooting word eats
+        // the visual gap before its neighbor: at TOC/heading sizes that
+        // read as merged words ("PreventiveDetention"). v3.1.0 only
+        // width-checked short runs because its sole remedy was the
+        // per-character fallback below (expensive in time and file
+        // size); distributing the divergence as PDF character spacing
+        // instead makes every run occupy exactly its browser-measured
+        // width for one extra operator, so the check can afford to run
+        // on everything. Complex scripts (Devanagari) always stay a
+        // single run — splitting them per character would break
+        // conjunct/matra shaping — so any divergence there is spread
+        // uncapped rather than falling through.
+        const delta = rects[0].width - predictedWidth(face, text, opt.fontSize);
+        if (Math.abs(delta) < 0.15) {
           drawAt(text, rects[0]);
           return;
         }
+        const glyphs = [...text].length;
+        const spacing = glyphs > 1 ? delta / glyphs : 0;
+        const complexScript = /[ऀ-ॿ᳐-᳿꣠-ꣿ]/.test(text);
+        if (glyphs > 1 && (complexScript || Math.abs(spacing) <= 0.75)) {
+          drawAt(text, rects[0], spacing);
+          return;
+        }
+        // Gross divergence on a simple script (wrong fallback face,
+        // exotic glyphs) — use exact per-character rects below.
       }
       // Letter-spaced, kerning-diverged, or fragmented runs: position
       // character by character with exact browser rects.
@@ -623,6 +621,28 @@ class Transcriber {
   private warn(msg: string): void {
     if (this.warnings.length < 40 && !this.warnings.includes(msg)) this.warnings.push(msg);
   }
+}
+
+/* ── width prediction ──────────────────────────────────────────────── */
+
+// widthOfTextAtSize shapes the whole run through fontkit — measurable on
+// a 400-page export if done per occurrence. Words repeat heavily in real
+// documents, so cache the shaped width per face at a reference size
+// (width scales linearly with size).
+const widthCache = new WeakMap<LoadedFace, Map<string, number>>();
+
+function predictedWidth(face: LoadedFace, text: string, size: number): number {
+  let perFace = widthCache.get(face);
+  if (!perFace) {
+    perFace = new Map();
+    widthCache.set(face, perFace);
+  }
+  let w = perFace.get(text);
+  if (w === undefined) {
+    w = face.pdfFont.widthOfTextAtSize(text, 1000);
+    if (perFace.size < 50_000) perFace.set(text, w);
+  }
+  return (w * size) / 1000;
 }
 
 /* ── small utilities ───────────────────────────────────────────────── */

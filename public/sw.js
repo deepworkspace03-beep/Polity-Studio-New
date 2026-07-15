@@ -63,6 +63,22 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
+// Cache Storage lookups can stall on Android when Chrome is terminating
+// or restarting this worker under memory pressure — and a stalled
+// respondWith() leaves the request hanging forever. For the paged
+// preview that meant the Paged.js <script src> never finished, the
+// inline harness (which owns the layout watchdog) never ran, and the
+// editor sat on "Laying out pages…" until the app was rebooted. Racing
+// every cache lookup against a short timeout turns a stall into an
+// ordinary network fetch (or, offline, a fast failure the preview
+// harness already reports cleanly).
+function cacheMatchSafe(request) {
+  return Promise.race([
+    caches.match(request),
+    new Promise((resolve) => setTimeout(() => resolve(undefined), 4000)),
+  ]).catch(() => undefined);
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -74,21 +90,43 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
+          const forPrune = res.clone();
+          // Cache the fresh shell, then prune hashed assets no build
+          // references anymore. Without this the cache grows without
+          // bound across deploys (every old bundle stays forever). The
+          // previous shell's assets are kept too, so a still-open tab
+          // running the previous build can lazy-load its own chunks.
+          caches.open(CACHE).then(async (c) => {
+            const prev = await c.match("/");
+            const prevHtml = prev ? await prev.text().catch(() => "") : "";
+            await c.put(request, copy);
+            try {
+              const html = await forPrune.text();
+              const live = new Set(
+                [...(prevHtml + html).matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]),
+              );
+              for (const key of await c.keys()) {
+                const path = new URL(key.url).pathname;
+                if (path.startsWith("/assets/") && !live.has(path)) await c.delete(key);
+              }
+            } catch {
+              /* best-effort — next navigation will try again */
+            }
+          });
           return res;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
+        .catch(() => cacheMatchSafe(request).then((cached) => cached || cacheMatchSafe("/")).then((cached) => cached || Response.error())),
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
+    cacheMatchSafe(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((res) => {
         if (res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
+          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
         }
         return res;
       });

@@ -367,6 +367,65 @@ body.purpose-preview .pagedjs_page {
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
   flex: none;
 }
+/* Always-visible, draggable scrollbar — Android Chrome's overlay
+   scrollbar is invisible at rest and ungrabbable on touch. */
+body.purpose-preview::-webkit-scrollbar { width: 12px; background: rgba(255,255,255,0.04); }
+body.purpose-preview::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.28);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  min-height: 44px;
+}
+/* Page navigator rail (built by the harness after layout): a scrub bar
+   with page labels for jumping straight to a page in long documents. */
+#x-nav-rail {
+  position: fixed;
+  top: 10px;
+  bottom: 10px;
+  right: 14px;
+  width: 30px;
+  z-index: 6;
+  border-radius: 15px;
+  background: rgba(13, 17, 23, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+#x-nav-rail .x-nav-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 600 9px/1 system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.78);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+#x-nav-rail .x-nav-thumb {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+}
+#x-nav-bubble {
+  position: fixed;
+  right: 52px;
+  z-index: 7;
+  transform: translateY(-50%);
+  background: rgba(13, 17, 23, 0.92);
+  color: #e6edf6;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font: 700 12px/1 system-ui, sans-serif;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
 /* NOTE: Paged.js is a print polyfill — it applies @media print rules to
    the paginated screen document too, so an !important zoom reset here
    would permanently disable the preview's zoom controls. The harness
@@ -375,6 +434,7 @@ body.purpose-preview .pagedjs_page {
   body.purpose-preview { background: none; }
   body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; }
   body.purpose-preview .pagedjs_page { box-shadow: none; }
+  #x-nav-rail, #x-nav-bubble { display: none; }
 }`;
 
 /** Cursor-follow highlight + inline-editing affordances (flow only). */
@@ -398,7 +458,16 @@ const FLOW_PREVIEW_CSS = `
   opacity: 0.55;
   font-style: italic;
 }
-.cv-guide--empty { display: block !important; }`;
+.cv-guide--empty { display: block !important; }
+/* Always-visible, draggable scrollbar (see PAGED_PREVIEW_CSS note). */
+body::-webkit-scrollbar { width: 12px; background: transparent; }
+body::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--c-muted) 55%, transparent);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  min-height: 44px;
+}`;
 
 /** Content pasted from other tools often carries YAML front matter —
     it is metadata, never body text, so drop it before rendering. */
