@@ -75,6 +75,16 @@ if (typeof window !== "undefined") {
   });
 }
 
+/** Quick Reboot — a plain reload used only as a recovery tool if the UI
+    ever wedges. Non-destructive: pending edits are flushed to IndexedDB
+    first (with a short beat for the debounced writes to land) so no
+    document work is lost, then the page reloads from a clean state. */
+export async function restartStudio(): Promise<void> {
+  flushSaves();
+  await new Promise((r) => setTimeout(r, 150));
+  location.reload();
+}
+
 /** Optional `Doc` fields (`institute?`, `coverLines?`) — the single place
     to register a new one. Typed `satisfies readonly (keyof Doc)[]` so a
     typo or a renamed/removed field fails `tsc`, not a user's reload. */

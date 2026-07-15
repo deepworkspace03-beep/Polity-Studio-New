@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CoverColors, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
 import { useApp } from "../../lib/store";
 import { DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
@@ -42,6 +42,73 @@ const TITLE_SIZES: { value: string; label: string }[] = [
   { value: "1.15", label: "L" },
   { value: "1.3", label: "XL" },
 ];
+
+/** Remembers a section's open/closed state across reloads, falling back
+    silently where storage is unavailable (private mode). */
+function useDisclosure(key: string, initial: boolean): [boolean, () => void] {
+  const [open, setOpen] = useState(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw === null ? initial : raw === "1";
+    } catch {
+      return initial;
+    }
+  });
+  const toggle = () => {
+    setOpen((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(key, next ? "1" : "0");
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
+  };
+  return [open, toggle];
+}
+
+/** A titled, collapsible group in the settings pane. Keeps the everyday
+    fields one tap away while letting advanced groups fold out of sight to
+    cut clutter; the open/closed choice persists per group. */
+function CollapsibleGroup({
+  title,
+  storageKey,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  storageKey: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, toggle] = useDisclosure(storageKey, defaultOpen);
+  return (
+    <section className="border-t border-edge pt-4 first:border-0 first:pt-0">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 rounded-md py-0.5 text-left"
+      >
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">{title}</h3>
+        <Icon name="chevronDown" size={15} className={cx("flex-none text-faint transition-transform", !open && "-rotate-90")} />
+      </button>
+      {open && <div className="mt-4 space-y-4">{children}</div>}
+    </section>
+  );
+}
+
+/** A labeled sub-group inside the Cover Designer — a hairline rule and a
+    small caption keep the many controls visually balanced and scannable. */
+function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-2.5 border-t border-edge/70 pt-3 first:border-0 first:pt-0">
+      <span className="block text-[10.5px] font-bold uppercase tracking-wide text-faint">{label}</span>
+      {children}
+    </div>
+  );
+}
 
 /** Downscale an uploaded logo to ≤320 px and store it as a PNG data URI
     (PNG keeps transparency; the PDF engine embeds it as-is). */
@@ -102,9 +169,9 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
     onChange({ layout: { ...doc.layout, coverDesign: { ...design, ...patch } } });
 
   return (
-    <div className="space-y-3 rounded-xl border border-edge p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-ink-2">Start from</span>
+    <div className="space-y-4 rounded-xl border border-edge p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-bold uppercase tracking-wide text-faint">Start from</span>
         <div className="flex gap-1.5">
           {COVER_STYLES.map((s) => (
             <SwatchButton
@@ -116,84 +183,94 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <ColorField label="Background 1" value={design.bg1} onChange={(bg1) => set({ bg1 })} />
-        <ColorField label="Background 2" value={design.bg2} onChange={(bg2) => set({ bg2 })} />
-        <ColorField label="Text" value={design.ink} onChange={(ink) => set({ ink })} />
-        <ColorField label="Accent" value={design.accent} onChange={(accent) => set({ accent })} />
-      </div>
-      <Field label={`Gradient angle — ${design.angle}°`}>
-        <input type="range" min={0} max={360} step={5} value={design.angle} onChange={(e) => set({ angle: Number(e.target.value) })} className="w-full" />
-      </Field>
-      <Field label="Pattern">
-        <Segmented size="sm" value={design.pattern} onChange={(pattern) => set({ pattern })} options={PATTERN_OPTIONS} />
-      </Field>
-      {design.pattern !== "none" && (
-        <Field label={`Pattern strength — ${Math.round(design.patternOpacity * 100)}%`}>
-          <input type="range" min={1} max={30} step={1} value={Math.round(design.patternOpacity * 100)} onChange={(e) => set({ patternOpacity: Number(e.target.value) / 100 })} className="w-full" />
+
+      <FieldGroup label="Colors">
+        <div className="grid grid-cols-2 gap-2">
+          <ColorField label="Background 1" value={design.bg1} onChange={(bg1) => set({ bg1 })} />
+          <ColorField label="Background 2" value={design.bg2} onChange={(bg2) => set({ bg2 })} />
+          <ColorField label="Text" value={design.ink} onChange={(ink) => set({ ink })} />
+          <ColorField label="Accent" value={design.accent} onChange={(accent) => set({ accent })} />
+        </div>
+        <Field label={`Gradient angle — ${design.angle}°`}>
+          <input type="range" min={0} max={360} step={5} value={design.angle} onChange={(e) => set({ angle: Number(e.target.value) })} className="w-full" />
         </Field>
-      )}
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Title font">
+      </FieldGroup>
+
+      <FieldGroup label="Pattern">
+        <Segmented size="sm" value={design.pattern} onChange={(pattern) => set({ pattern })} options={PATTERN_OPTIONS} />
+        {design.pattern !== "none" && (
+          <Field label={`Strength — ${Math.round(design.patternOpacity * 100)}%`}>
+            <input type="range" min={1} max={30} step={1} value={Math.round(design.patternOpacity * 100)} onChange={(e) => set({ patternOpacity: Number(e.target.value) / 100 })} className="w-full" />
+          </Field>
+        )}
+      </FieldGroup>
+
+      <FieldGroup label="Typography">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Font">
+            <Segmented
+              size="sm"
+              value={design.titleFont}
+              onChange={(titleFont) => set({ titleFont })}
+              options={[
+                { value: "serif", label: "Serif" },
+                { value: "sans", label: "Sans" },
+              ]}
+            />
+          </Field>
+          <Field label="Size">
+            <Segmented size="sm" value={String(design.titleScale)} onChange={(v) => set({ titleScale: Number(v) })} options={TITLE_SIZES} />
+          </Field>
+        </div>
+        <Field label="Alignment">
           <Segmented
             size="sm"
-            value={design.titleFont}
-            onChange={(titleFont) => set({ titleFont })}
+            value={design.align}
+            onChange={(align) => set({ align })}
             options={[
-              { value: "serif", label: "Serif" },
-              { value: "sans", label: "Sans" },
+              { value: "left", label: "Left" },
+              { value: "center", label: "Centered" },
             ]}
           />
         </Field>
-        <Field label="Title size">
-          <Segmented size="sm" value={String(design.titleScale)} onChange={(v) => set({ titleScale: Number(v) })} options={TITLE_SIZES} />
-        </Field>
-      </div>
-      <Field label="Alignment">
-        <Segmented
-          size="sm"
-          value={design.align}
-          onChange={(align) => set({ align })}
-          options={[
-            { value: "left", label: "Left" },
-            { value: "center", label: "Centered" },
-          ]}
-        />
-      </Field>
-      <Toggle label="Hairline frame" checked={design.frame} onChange={(frame) => set({ frame })} />
-      <Toggle label="Temple emblem" checked={design.emblem} onChange={(emblem) => set({ emblem })} />
-      <div className="flex items-center gap-2">
-        {design.logo && <img src={design.logo} alt="Logo" className="h-8 w-8 rounded border border-edge object-contain" />}
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="rounded-lg border border-edge px-2.5 py-1.5 text-xs font-semibold text-ink-2 hover:border-faint"
-        >
-          {design.logo ? "Replace logo" : "Upload logo…"}
-        </button>
-        {design.logo && (
-          <button type="button" onClick={() => set({ logo: undefined })} className="text-xs font-medium text-faint underline decoration-dotted">
-            Remove
+      </FieldGroup>
+
+      <FieldGroup label="Emblem & logo">
+        <Toggle label="Hairline frame" checked={design.frame} onChange={(frame) => set({ frame })} />
+        <Toggle label="Temple emblem" checked={design.emblem} onChange={(emblem) => set({ emblem })} />
+        <div className="flex flex-wrap items-center gap-2">
+          {design.logo && <img src={design.logo} alt="Logo" className="h-8 w-8 rounded border border-edge object-contain" />}
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="rounded-lg border border-edge px-2.5 py-1.5 text-xs font-semibold text-ink-2 hover:border-faint"
+          >
+            {design.logo ? "Replace logo" : "Upload logo…"}
           </button>
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (!file) return;
-            try {
-              set({ logo: await fileToLogo(file) });
-            } catch {
-              toast("Couldn't read that image — try a PNG, JPEG or SVG", "error");
-            }
-          }}
-        />
-      </div>
-      <p className="text-[10.5px] leading-relaxed text-faint">The logo replaces the temple mark next to the publication name. Everything here previews live on the cover.</p>
+          {design.logo && (
+            <button type="button" onClick={() => set({ logo: undefined })} className="text-xs font-medium text-faint underline decoration-dotted">
+              Remove
+            </button>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              try {
+                set({ logo: await fileToLogo(file) });
+              } catch {
+                toast("Couldn't read that image — try a PNG, JPEG or SVG", "error");
+              }
+            }}
+          />
+        </div>
+        <p className="text-[10.5px] leading-relaxed text-faint">The logo replaces the temple mark next to the publication name. Everything here previews live on the cover.</p>
+      </FieldGroup>
     </div>
   );
 }
@@ -385,9 +462,8 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
   }, [doc.template, doc.body]);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Publication</h3>
+    <div className="space-y-4">
+      <CollapsibleGroup title="Publication" storageKey="ps2:details:publication" defaultOpen>
         <Field label="Subtitle">
           <input className={inputClass} value={doc.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} placeholder="Shown under the title on the cover" />
         </Field>
@@ -403,7 +479,7 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           <Field label="Paper / Unit">
             <input className={inputClass} value={doc.paper} onChange={(e) => onChange({ paper: e.target.value })} placeholder="Paper 2 · Unit 1" />
           </Field>
-          <Field label="Session / Edition">
+          <Field label="Edition / Session" hint="Shown as a badge on the cover.">
             <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="2026" />
           </Field>
         </div>
@@ -425,7 +501,7 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             placeholder={"Premium Study Notes\nExam-Ready Coverage"}
           />
         </Field>
-        <Field label="Language" hint="Hindi prints a हिन्दी badge on the cover and sets the PDF/HTML language for screen readers; English shows no label. It doesn't translate your content.">
+        <Field label="Language" hint="Hindi prints a हिन्दी badge on the cover and sets the PDF/HTML language for screen readers; English shows no badge. It doesn't translate your content.">
           <Segmented
             value={doc.lang}
             onChange={(lang) => onChange({ lang })}
@@ -435,11 +511,9 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             ]}
           />
         </Field>
-      </div>
+      </CollapsibleGroup>
 
-      <div className="space-y-4">
-        <h3 className="text-xs font-extrabold uppercase tracking-wider text-faint">Layout & PDF</h3>
-        <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
+      <CollapsibleGroup title="Cover" storageKey="ps2:details:cover" defaultOpen>
         <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
         {doc.layout.cover && (
           <div className="grid grid-cols-2 gap-2">
@@ -481,10 +555,14 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         {doc.layout.cover && doc.layout.coverStyle === "custom" && <CoverDesigner doc={doc} onChange={onChange} />}
         {doc.layout.cover && doc.layout.coverStyle !== "custom" && (
           <div>
-            <span className="mb-1.5 block text-xs font-semibold text-ink-2">Cover colors (optional)</span>
+            <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">Cover colors (optional)</span>
             <CoverColorPicker doc={doc} onChange={onChange} />
           </div>
         )}
+      </CollapsibleGroup>
+
+      <CollapsibleGroup title="Layout & PDF" storageKey="ps2:details:layout" defaultOpen={false}>
+        <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
         {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
         <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
         {template.hasAnswers && (
@@ -522,7 +600,7 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             ]}
           />
         </Field>
-      </div>
+      </CollapsibleGroup>
 
       {mcqIssues.length > 0 && (
         <div className="space-y-1.5 rounded-xl border border-edge bg-raised p-4">

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EditorView, keymap, placeholder, type ViewUpdate } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -8,6 +8,7 @@ import { search, searchKeymap } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 import { insertLink, wrapSelection } from "./commands";
 import { smartPaste } from "../../lib/importer";
+import { EditorScrollbar } from "./EditorScrollbar";
 
 /** Markdown syntax colors driven by the app theme variables, so the
     editor follows dark/light mode automatically. */
@@ -27,7 +28,9 @@ const mdHighlight = HighlightStyle.define([
 const editorTheme = EditorView.theme({
   "&": { backgroundColor: "transparent", color: "var(--ink)" },
   ".cm-content": {
-    padding: "16px 4px 45vh",
+    // Right gutter leaves room for the custom draggable scrollbar overlay
+    // (EditorScrollbar) so long unbroken tokens never slide under it.
+    padding: "16px 14px 45vh 4px",
     caretColor: "var(--accent)",
     fontFamily: "var(--font-mono)",
     fontSize: "14px",
@@ -40,7 +43,11 @@ const editorTheme = EditorView.theme({
   },
   ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--raised) 55%, transparent)" },
   ".cm-placeholder": { color: "var(--faint)" },
-  ".cm-scroller": { overflow: "auto" },
+  // Hide the thin native scrollbar — the custom EditorScrollbar overlay
+  // replaces it with a fat, touch-friendly thumb. Wheel/touch/keyboard
+  // scrolling on the scroller are untouched, so nothing is lost.
+  ".cm-scroller": { overflow: "auto", scrollbarWidth: "none" },
+  ".cm-scroller::-webkit-scrollbar": { display: "none" },
   // Find & replace panel — matches the app's own inputs/buttons instead
   // of CodeMirror's unstyled defaults.
   ".cm-panels": { backgroundColor: "var(--surface)", color: "var(--ink)" },
@@ -85,6 +92,11 @@ export interface CodeMirrorProps {
 
 export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  // The scroller element + a revision counter feed the custom scrollbar
+  // overlay; revision bumps on doc changes so the thumb resizes as content
+  // grows/shrinks (scroll and resize are observed directly by the overlay).
+  const [scroller, setScroller] = useState<HTMLElement | null>(null);
+  const [revision, setRevision] = useState(0);
   const onChangeRef = useRef(onChange);
   const onCursorRef = useRef(onCursorLine);
   const onSaveRef = useRef(onSaveShortcut);
@@ -154,7 +166,10 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
           EditorView.lineWrapping,
           placeholder("Paste or write your Markdown here…"),
           EditorView.updateListener.of((u: ViewUpdate) => {
-            if (u.docChanged) onChangeRef.current(u.state.doc.toString());
+            if (u.docChanged) {
+              onChangeRef.current(u.state.doc.toString());
+              setRevision((r) => r + 1); // refresh the custom scrollbar geometry
+            }
             if (u.selectionSet || u.docChanged) {
               onCursorRef.current?.(u.state.doc.lineAt(u.state.selection.main.head).number);
             }
@@ -163,8 +178,11 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
       }),
     });
     viewRef.current = view;
+    view.scrollDOM.id = "editor-scroller";
+    setScroller(view.scrollDOM);
     return () => {
       viewRef.current = null;
+      setScroller(null);
       view.destroy();
     };
     // The view owns the document after mount; external value changes are
@@ -182,5 +200,10 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
     }
   }, [value, viewRef]);
 
-  return <div ref={hostRef} className="h-full min-h-0" />;
+  return (
+    <div className="relative h-full min-h-0">
+      <div ref={hostRef} className="h-full min-h-0" />
+      <EditorScrollbar scroller={scroller} revision={revision} />
+    </div>
+  );
 }
