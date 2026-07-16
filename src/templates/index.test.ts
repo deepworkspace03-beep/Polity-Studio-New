@@ -23,48 +23,72 @@ function baseDoc(partial: Partial<Doc>): Doc {
   };
 }
 
-describe("mcqBody", () => {
-  it("includes an answer key when answers mode is not none", () => {
-    const doc = baseDoc({ template: "mcq", body: "Q. Test?\nA) a\nB) b *\nC) c\nD) d", layout: { ...DEFAULT_LAYOUT, answers: "end" } });
-    const { html } = TEMPLATE_RENDERERS.mcq.buildBody(doc);
-    expect(html).toContain('id="answer-key"');
+const SOLVED_Q = "Q. Test?\nA) a\nB) b *\nC) c\nD) d\nTopic: Greek Thought\nSource: UGC-NET Dec 2023\nSolution: Because reasons.";
+
+describe("questionsBody", () => {
+  it("inline mode highlights the correct option with a ✓ and shows the solution under the question", () => {
+    const doc = baseDoc({ template: "questions", body: SOLVED_Q, layout: { ...DEFAULT_LAYOUT, answers: "inline" } });
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).toContain("q__opt--correct");
+    expect(html).toContain("q__tick");
+    expect(html).toContain("q__sol");
+    expect(html).toContain("Because reasons");
+    // The old separate "Correct Answer" block is gone for good.
+    expect(html).not.toContain("q__answer");
+    expect(html).not.toContain("Correct Answer");
   });
 
-  it("omits the answer key entirely when answers mode is none", () => {
-    const doc = baseDoc({ template: "mcq", body: "Q. Test?\nA) a\nB) b *\nC) c\nD) d", layout: { ...DEFAULT_LAYOUT, answers: "none" } });
-    const { html } = TEMPLATE_RENDERERS.mcq.buildBody(doc);
-    expect(html).not.toContain('id="answer-key"');
+  it("renders the label-free header row: number, topic, source", () => {
+    const doc = baseDoc({ template: "questions", body: SOLVED_Q, layout: { ...DEFAULT_LAYOUT, answers: "inline" } });
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).toContain('<span class="q__num">Q1</span>');
+    expect(html).toContain('<span class="q__topic">Greek Thought</span>');
+    expect(html).toContain("UGC-NET Dec 2023");
+    expect(html).not.toContain("Topic:");
+    expect(html).not.toContain("Source:");
   });
 
-  it("shows the answer inline under each question when answers mode is inline", () => {
+  it("reserves no space when a question has no solution", () => {
     const doc = baseDoc({
-      template: "mcq",
-      body: "Q. Test?\nA) a\nB) b *\nC) c\nD) d\nExplanation: Because.",
+      template: "questions",
+      body: "Q. Test?\nA) a\nB) b *\nC) c\nD) d",
       layout: { ...DEFAULT_LAYOUT, answers: "inline" },
     });
-    const { html } = TEMPLATE_RENDERERS.mcq.buildBody(doc);
-    expect(html).toContain('class="q__answer"');
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).not.toContain("q__sol");
+  });
+
+  it("anchors every question card with id=q-N for cross-references and PDF links", () => {
+    const doc = baseDoc({ template: "questions", body: `${SOLVED_Q}\n\nQ. Second?\nA) a *\nB) b`, layout: { ...DEFAULT_LAYOUT, answers: "inline" } });
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).toContain('id="q-1"');
+    expect(html).toContain('id="q-2"');
+  });
+
+  it("end mode keeps cards clean and collects the key + explanations at the back", () => {
+    const doc = baseDoc({ template: "questions", body: SOLVED_Q, layout: { ...DEFAULT_LAYOUT, answers: "end" } });
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).toContain('id="answer-key"');
+    expect(html).toContain('id="explanations"');
+    expect(html).not.toContain("q__opt--correct");
+    expect(html).not.toContain("q__sol");
+  });
+
+  it("none mode reveals nothing at all", () => {
+    const doc = baseDoc({ template: "questions", body: SOLVED_Q, layout: { ...DEFAULT_LAYOUT, answers: "none" } });
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).not.toContain('id="answer-key"');
+    expect(html).not.toContain("q__opt--correct");
+    expect(html).not.toContain("q__sol");
   });
 });
 
-describe("pyqBody", () => {
-  it("always shows the solution inline (no answers toggle)", () => {
-    const doc = baseDoc({
-      template: "pyq",
-      body: "Q. Test?\nA) a\nB) b *\nC) c\nD) d\nAnswer: B\nSolution: Because reasons.",
-    });
-    const { html } = TEMPLATE_RENDERERS.pyq.buildBody(doc);
-    expect(html).toContain("pyq__sol");
-    expect(html).toContain("Because reasons");
-  });
-});
-
-describe("flashcardsBody", () => {
-  it("splits ## fronts into cards with their body as the back", () => {
-    const doc = baseDoc({ template: "flashcards", body: "## Term A\nDefinition A\n\n## Term B\nDefinition B" });
-    const { html, coverLines } = TEMPLATE_RENDERERS.flashcards.buildBody(doc);
+describe("universalBody", () => {
+  it("renders plain Markdown, including migrated flash-card style content", () => {
+    const doc = baseDoc({ template: "universal", body: "## Term A\nDefinition A\n\n## Term B\nDefinition B" });
+    const { html } = TEMPLATE_RENDERERS.universal.buildBody(doc);
+    expect(html).toContain("doc--universal");
     expect(html).toContain("Term A");
     expect(html).toContain("Definition B");
-    expect(coverLines[0]).toContain("2 Active-Recall Card");
   });
 });

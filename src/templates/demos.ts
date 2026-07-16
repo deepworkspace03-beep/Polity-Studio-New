@@ -1,13 +1,13 @@
-import type { TemplateId } from "../lib/types";
+import type { AnswersMode, TemplateId } from "../lib/types";
 
 /**
- * Example documents — one per template, written as real, exam-grade
- * study material (Indian Polity, public-domain constitutional facts).
- * Each is a full 10–12 page document that exercises nearly every
- * capability of the studio: heading hierarchy, comparative tables,
- * nested & task lists, every callout type, footnotes, highlights,
- * underline, super/subscript, block quotes, timelines, page breaks and
- * rich MCQ metadata. Opened from Library → Examples.
+ * Example documents — real, exam-grade study material (Indian Polity,
+ * public-domain constitutional facts). Each is a full 10–12 page
+ * document that exercises nearly every capability of the studio:
+ * heading hierarchy, comparative tables, nested & task lists, every
+ * callout type, footnotes, highlights, underline, super/subscript,
+ * block quotes, timelines, page breaks and rich question metadata.
+ * Opened from Library → Examples.
  */
 
 export interface DemoDoc {
@@ -18,6 +18,9 @@ export interface DemoDoc {
   paper: string;
   description: string;
   body: string;
+  /** Question Bank demos only: force the answers mode that shows this
+      example off (inline study layout vs back-of-book key). */
+  answers?: AnswersMode;
 }
 
 /* ── 1 · Theory notes ──────────────────────────────────────────────── */
@@ -727,30 +730,32 @@ export const DEMOS: DemoDoc[] = [
     body: REVISION_BODY,
   },
   {
-    id: "demo-mcq",
-    template: "mcq",
-    title: "Indian Constitution — PYQ Drill",
+    id: "demo-questions-solved",
+    template: "questions",
+    title: "Governance & Public Policy — Solved PYQs",
+    subtitle: "Previous-year questions with sources and worked, tabular solutions",
+    paper: "UGC-NET · Unit 10",
+    description: "Question Bank, study layout: number · topic · source header, correct option ✓-highlighted, worked solutions inline.",
+    body: PYQ_BODY,
+    answers: "inline",
+  },
+  {
+    id: "demo-questions-practice",
+    template: "questions",
+    title: "Indian Constitution — Practice Set",
     subtitle: "Previous-year questions with answer key and detailed explanations",
     paper: "Practice Set 01 · 12 Questions",
-    description: "MCQ booklet: three sections, topic / source chips, answer key and full explanations.",
+    description: "Question Bank, practice layout: clean cards to attempt first, answer key and explanations at the back.",
     body: MCQ_BODY,
+    answers: "end",
   },
   {
-    id: "demo-pyq",
-    template: "pyq",
-    title: "Governance & Public Policy — Solved PYQs",
-    subtitle: "Previous-year questions with exam tags and worked, tabular solutions",
-    paper: "UGC-NET · Unit 10",
-    description: "PYQ collection: exam/year badges, statement-based and match-the-list questions, inline answers and tabular solutions.",
-    body: PYQ_BODY,
-  },
-  {
-    id: "demo-flashcards",
-    template: "flashcards",
-    title: "Constitutional Articles — Flash Cards",
+    id: "demo-universal",
+    template: "universal",
+    title: "Constitutional Articles — Q&A Bank",
     subtitle: "Thirty active-recall prompts on rights, doctrines and landmarks",
-    paper: "Core Deck · 30 Cards",
-    description: "Cut-out flash cards: article numbers, doctrines, writs and one-line holdings for spaced repetition.",
+    paper: "Core Set · 30 Prompts",
+    description: "Universal document: a rapid Q&A glossary — article numbers, doctrines, writs and one-line holdings.",
     body: FLASHCARDS_BODY,
   },
 ];

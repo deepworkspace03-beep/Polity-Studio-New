@@ -240,6 +240,7 @@ export function Settings() {
                 value={settings.newDocLayout.density}
                 onChange={(density) => saveSettings({ newDocLayout: { ...settings.newDocLayout, density } })}
                 options={[
+                  { value: "ultra", label: "Ultra" },
                   { value: "compact", label: "Compact" },
                   { value: "comfort", label: "Comfort" },
                   { value: "relaxed", label: "Relaxed" },

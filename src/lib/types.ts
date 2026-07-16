@@ -1,6 +1,8 @@
 /* ── Domain model ─────────────────────────────────────────────────── */
 
-export type TemplateId = "notes" | "revision" | "mcq" | "pyq" | "flashcards";
+/** The four document types. Legacy ids ("mcq", "pyq", "flashcards")
+    migrate on load — see LEGACY_TEMPLATES in lib/store.ts. */
+export type TemplateId = "notes" | "questions" | "revision" | "universal";
 
 export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse" | "custom";
 
@@ -67,7 +69,7 @@ export interface CoverDesign {
   logo?: string;
 }
 export type PageSize = "a4" | "a5" | "letter";
-export type Density = "compact" | "comfort" | "relaxed";
+export type Density = "ultra" | "compact" | "comfort" | "relaxed";
 export type AnswersMode = "inline" | "end" | "none";
 
 /** Per-document layout & PDF options — everything the user can tune
@@ -91,7 +93,10 @@ export interface DocLayout {
   watermark: boolean;
   pageSize: PageSize;
   density: Density;
-  /** MCQ booklets only: where answers & explanations appear. */
+  /** Question Bank only: where answers & solutions appear — "inline"
+      highlights the correct option and shows the solution under each
+      question; "end" collects a key + explanations at the back;
+      "none" prints a clean question paper. */
   answers: AnswersMode;
 }
 

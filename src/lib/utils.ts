@@ -49,11 +49,11 @@ export function contentStats(body: string): { words: number; headings: number; r
     deliberately labelled "estimated" everywhere it surfaces. */
 export function estimatePages(
   words: number,
-  density: "compact" | "comfort" | "relaxed",
+  density: "ultra" | "compact" | "comfort" | "relaxed",
   cover: boolean,
   toc: boolean,
 ): number {
-  const wpp = density === "compact" ? 560 : density === "relaxed" ? 380 : 460;
+  const wpp = density === "ultra" ? 700 : density === "compact" ? 560 : density === "relaxed" ? 380 : 460;
   let pages = Math.max(1, Math.ceil(words / wpp));
   if (cover) pages += 1;
   if (toc) pages += 1;

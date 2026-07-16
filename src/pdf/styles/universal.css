@@ -1,0 +1,9 @@
+/* UNIVERSAL — the flexible do-anything document. Plain Markdown with
+   the shared print foundation: no chapter ceremony, no forced page
+   breaks — headings, tables, callouts and figures exactly as authored.
+   (Migrated Flash Card decks land here: each "##" front reads as a
+   section heading with its answer text beneath.) */
+
+.doc--universal h1 {
+  font-size: 1.85em;
+}

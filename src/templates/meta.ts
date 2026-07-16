@@ -17,7 +17,7 @@ export interface TemplateMeta {
   starter: string;
   /** Whether the TOC option applies to this template. */
   hasToc: boolean;
-  /** Whether the answers-placement option applies (MCQ). */
+  /** Whether the answers-placement option applies (Question Bank). */
   hasAnswers: boolean;
 }
 
@@ -32,6 +32,16 @@ export const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
     hasToc: true,
     hasAnswers: false,
   },
+  questions: {
+    id: "questions",
+    name: "Question Bank",
+    description: "PYQs, MCQs and practice sets in an examination-book layout.",
+    icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+    starterTitle: STARTERS.questions.title,
+    starter: STARTERS.questions.body,
+    hasToc: false,
+    hasAnswers: true,
+  },
   revision: {
     id: "revision",
     name: "Quick Revision",
@@ -42,36 +52,14 @@ export const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
     hasToc: true,
     hasAnswers: false,
   },
-  mcq: {
-    id: "mcq",
-    name: "MCQ Booklet",
-    description: "Practice questions with answer key and explanations.",
-    icon: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
-    starterTitle: STARTERS.mcq.title,
-    starter: STARTERS.mcq.body,
-    hasToc: false,
-    hasAnswers: true,
-  },
-  pyq: {
-    id: "pyq",
-    name: "PYQ Collection",
-    description: "Previous-year questions with inline answers and worked solutions.",
-    icon: '<path d="M9 11H3v10h6z"/><path d="M15 3H9v18h6z"/><path d="M21 7h-6v14h6z"/>',
-    starterTitle: STARTERS.pyq.title,
-    starter: STARTERS.pyq.body,
-    hasToc: false,
-    // No answers toggle: a PYQ collection always shows the answer and
-    // solution inline under each question — that IS the product.
-    hasAnswers: false,
-  },
-  flashcards: {
-    id: "flashcards",
-    name: "Flash Cards",
-    description: "Term-and-definition decks for active recall.",
-    icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M6 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/>',
-    starterTitle: STARTERS.flashcards.title,
-    starter: STARTERS.flashcards.body,
-    hasToc: false,
+  universal: {
+    id: "universal",
+    name: "Universal",
+    description: "A flexible do-anything document — full Markdown, no ceremony.",
+    icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>',
+    starterTitle: STARTERS.universal.title,
+    starter: STARTERS.universal.body,
+    hasToc: true,
     hasAnswers: false,
   },
 };

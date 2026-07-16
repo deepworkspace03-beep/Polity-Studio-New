@@ -197,8 +197,13 @@ function getRenderer(): MarkdownIt {
       const map = t[i].map;
       const line = map ? map[0] + 1 : null;
       const esc = md!.utils.escapeHtml;
+      // Figures are numbered in document order so "Figure 2" / "Diagram 2"
+      // cross-references can target them (skipped for fragment renders —
+      // see studio_ref_ids below for the same env contract).
+      const env = state.env as { refIds?: boolean; __figN?: number };
+      const figId = env.refIds !== false ? ` id="fig-${(env.__figN = (env.__figN ?? 0) + 1)}"` : "";
       const html =
-        `<figure class="${figureClass(fig)}"${line ? ` data-line="${line}"` : ""}` +
+        `<figure class="${figureClass(fig)}"${figId}${line ? ` data-line="${line}"` : ""}` +
         `${fig.width ? ` style="--fig-w:${fig.width}"` : ""}>` +
         `<img src="${esc(src)}" alt="${esc(alt)}"${fig.cover ? ' class="md-img--cover"' : ""}>` +
         `${title ? `<figcaption>${esc(title)}</figcaption>` : ""}</figure>\n`;
@@ -256,6 +261,80 @@ function getRenderer(): MarkdownIt {
     }
   });
 
+  // Tables numbered in document order so "Table 3" cross-references can
+  // target them. Fragment renders (a question's solution, an option) pass
+  // refIds:false so repeated fragments never mint duplicate ids.
+  md.core.ruler.push("studio_ref_ids", (state) => {
+    if ((state.env as { refIds?: boolean }).refIds === false) return;
+    let n = 0;
+    for (const token of state.tokens) {
+      if (token.type === "table_open") token.attrSet("id", `table-${++n}`);
+    }
+  });
+
+  // Cross-references — "Question 42" / "Q7" / "Table 3" / "Figure 2" /
+  // "Diagram 2" / "Note 15" in plain prose become internal links
+  // (class="xref") to the matching anchor: question cards carry id="q-N"
+  // (templates/index.ts), tables/figures get ids above, and footnotes
+  // already render as id="fnN". Links whose target doesn't exist stay
+  // harmless: previews no-op and the PDF engine drops them. Runs on text
+  // runs only — never inside code, existing links or headings (headings
+  // are anchors themselves).
+  const XREF_RE = /\b(Question|Table|Figure|Fig\.?|Diagram|Note)\s+(\d{1,4})\b|\bQ(\d{1,4})\b/g;
+  const xrefHref = (kind: string, num: string): string => {
+    const k = kind.toLowerCase();
+    if (k.startsWith("q")) return `#q-${num}`;
+    if (k === "table") return `#table-${num}`;
+    if (k === "note") return `#fn${num}`;
+    return `#fig-${num}`;
+  };
+  md.core.ruler.push("studio_xrefs", (state) => {
+    let inHeading = false;
+    for (const block of state.tokens) {
+      if (block.type === "heading_open") inHeading = true;
+      else if (block.type === "heading_close") inHeading = false;
+      if (inHeading || block.type !== "inline" || !block.children) continue;
+      let linkDepth = 0;
+      let changed = false;
+      const out: typeof block.children = [];
+      for (const child of block.children) {
+        if (child.type === "link_open") linkDepth++;
+        else if (child.type === "link_close") linkDepth--;
+        XREF_RE.lastIndex = 0;
+        if (linkDepth > 0 || child.type !== "text" || !XREF_RE.test(child.content)) {
+          out.push(child);
+          continue;
+        }
+        changed = true;
+        XREF_RE.lastIndex = 0;
+        const text = child.content;
+        let last = 0;
+        let m: RegExpExecArray | null;
+        while ((m = XREF_RE.exec(text))) {
+          if (m.index > last) {
+            const before = new state.Token("text", "", 0);
+            before.content = text.slice(last, m.index);
+            out.push(before);
+          }
+          const open = new state.Token("link_open", "a", 1);
+          open.attrSet("href", xrefHref(m[3] ? "q" : m[1], m[3] ?? m[2]));
+          open.attrSet("class", "xref");
+          const label = new state.Token("text", "", 0);
+          label.content = m[0];
+          const close = new state.Token("link_close", "a", -1);
+          out.push(open, label, close);
+          last = m.index + m[0].length;
+        }
+        if (last < text.length) {
+          const rest = new state.Token("text", "", 0);
+          rest.content = text.slice(last);
+          out.push(rest);
+        }
+      }
+      if (changed) block.children = out;
+    }
+  });
+
   // Source line mapping — every block-level element carries data-line
   // (1-based) so the preview can follow the editor cursor precisely.
   // Headings additionally carry data-edit-line so the flow preview can
@@ -287,8 +366,15 @@ function getRenderer(): MarkdownIt {
   return md;
 }
 
-export function renderMarkdown(body: string): string {
-  return getRenderer().render(body);
+export interface RenderOptions {
+  /** Assign document-order ids to tables/figures (cross-reference
+      targets). Pass false for fragment renders — a question's text or
+      solution — so repeated fragments never mint duplicate ids. */
+  refIds?: boolean;
+}
+
+export function renderMarkdown(body: string, opts: RenderOptions = {}): string {
+  return getRenderer().render(body, { refIds: opts.refIds !== false });
 }
 
 export function renderInline(text: string): string {

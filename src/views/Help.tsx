@@ -6,14 +6,14 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "3.6";
+const STUDIO_VERSION = "4.0";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
- * a template-by-template guide (Notes, Revision, MCQ/PYQ, Flash Cards),
- * ready-made AI prompts per content type, and workspace tips. Content
- * only — no app logic — so it's safe to keep expanding without touching
- * anything else.
+ * a template-by-template guide (Notes, Question Bank, Revision,
+ * Universal), ready-made AI prompts per content type, and workspace
+ * tips. Content only — no app logic — so it's safe to keep expanding
+ * without touching anything else.
  */
 
 function Section({ title, intro, children }: { title: string; intro?: string; children: ReactNode }) {
@@ -90,6 +90,7 @@ const NOTES_PROMPT = `Write study notes as Markdown for a PDF publishing tool. F
   (available types: definition, example, important, summary, tip, warning, note, exam)
 - Footnotes with [^1] markers and matching [^1]: entries are supported.
 - Write "\\pagebreak" alone on a line to force a new PDF page.
+- Cross-references like "see Table 2" or "see Note 3" become clickable links in the PDF automatically.
 - Do NOT use raw HTML, YAML front matter, images from the web, or code fences unless showing actual code.
 
 Topic: <your topic here>. Aim for clear, exam-oriented prose with one "exam" callout per major section.`;
@@ -105,49 +106,38 @@ const REVISION_PROMPT = `Write a quick-revision sheet as Markdown for a PDF publ
 
 Topic: <your topic here>. Summarize only what a student needs the night before the exam.`;
 
-const MCQ_PROMPT = `Write MCQ practice questions as Markdown for a PDF publishing tool, using exactly this grammar per question:
+const QUESTIONS_PROMPT = `Write questions as Markdown for a PDF publishing tool, using exactly this grammar per question:
 
 Q. <question text>
 A) <option>
-B) <option> *        ← put the trailing * on the correct option
+B) <option> *        ← put the trailing * on the correct option (or add "Answer: B")
 C) <option>
 D) <option>
-Explanation: <one or two sentences>
-Topic: <short topic tag>
-Source: <exam/paper reference, or omit if unknown>
+Topic: <short topic or unit tag — shown in the question header>
+Source: <exam + year, e.g. UGC-NET Dec 2023 — shown in the question header; omit if unknown>
+Solution: <optional worked solution, 2–5 sentences; "Explanation:" also works; a small Markdown table is allowed>
 
-- Group questions under "##" section headings (e.g. "## Section A — <topic>").
-- Exactly one correct option per question, always marked with a trailing *.
-- Keep explanations factual and short — they print in the answer key.
+- Group questions under "##" section headings (e.g. "## Unit 5 — Comparative Politics").
+- Exactly one correct option per question, one option per line.
+- The Topic and Source lines print label-free in each question's header row (number · topic · source) — write them as clean display text.
+- A question without a Solution simply prints without one — no space is wasted.
 - No difficulty labels, no raw HTML, no YAML front matter.
 
-Topic: <your topic here>. Write <N> questions at genuine exam difficulty, previous-year style where possible.`;
+Exam & topic: <your exam and topic here>. Write <N> questions at genuine exam difficulty — previous-year questions with faithful wording where possible, or fresh practice questions in the same style.`;
 
-const FLASHCARD_PROMPT = `Write an active-recall flashcard deck as Markdown for a PDF publishing tool:
+const UNIVERSAL_PROMPT = `Write a document as Markdown for a PDF publishing tool. This is a free-form document — essays, answer frameworks, syllabi, glossaries, plans — so use whatever structure fits:
 
-- Each card is one "##" heading (the front — a question or term) followed by its answer text (the back).
-- Keep the front short (a question, not a paragraph) and the back to 1–3 sentences.
-- Bold the key term in the back with **term**.
-- No raw HTML, no YAML front matter, no images.
+- "#" for the title, "##" / "###" for sections — the table of contents is built from them.
+- All standard Markdown applies: **bold**, *italic*, ==highlight==, tables, lists, task lists, footnotes, quotes.
+- Callout boxes for anything worth boxing:
+  ::: tip Optional Title
+  Body text.
+  :::
+  (types: definition, example, important, summary, tip, warning, note, exam)
+- "\\pagebreak" alone on a line forces a new PDF page.
+- No raw HTML, no YAML front matter, no images from the web.
 
-Topic: <your topic here>. Write <N> cards covering the most exam-relevant terms and questions.`;
-
-const PYQ_PROMPT = `Write solved previous-year questions (PYQs) as Markdown for a PDF publishing tool, using exactly this grammar per question:
-
-Q1. <question text>
-A) <option>
-B) <option> *        ← put the trailing * on the correct option
-C) <option>
-D) <option>
-Source: <exam + year, e.g. UGC-NET Dec 2023>
-Solution: <2–5 sentences: why the answer is right and why the tempting options are wrong; a small Markdown table is allowed>
-
-- Group questions by paper/topic under "##" section headings.
-- Every question needs a Source line (exam + year) and a Solution.
-- Exactly one correct option per question, one option per line.
-- No raw HTML, no YAML front matter, no difficulty labels.
-
-Exam & topic: <your exam and topic here>. Reproduce <N> genuine previous-year questions with faithful wording where possible.`;
+Request: <describe the document you want here>.`;
 
 /** The complete authoring contract, in one copyable block — paste it
     into any AI tool before your request and the reply imports clean.
@@ -166,6 +156,7 @@ TEXT
 - [text](https://example.com) links · "> " quotations
 - Footnotes: [^1] in the text plus a matching "[^1]: note" line below.
 - Arrow shortcuts in plain text: -> => <- <-> become → ⇒ ← ↔ (skipped inside code).
+- Cross-references in plain text — "Question 42", "Q7", "Table 3", "Figure 2", "Diagram 2", "Note 15" — become clickable internal links in the preview, PDF and HTML export automatically.
 
 LISTS & TABLES
 - "- item" bullets · "1. item" numbered · "- [ ]" / "- [x]" task lists.
@@ -177,41 +168,32 @@ Body text.
 :::
 Types: definition · example · important · summary · tip · warning · note · exam.
 
-QUESTIONS (for MCQ / PYQ documents)
+QUESTIONS (for Question Bank documents)
 Q1. Question text?
 A) option
 B) option *        ← trailing * marks the correct option (or add "Answer: B")
 C) option
 D) option
-Solution: worked explanation ("Explanation:" also works)
-Topic: short tag
-Source: UPSC 2021
+Topic: short topic/unit tag (question header, center)
+Source: UPSC 2021 (question header, right)
+Solution: optional worked explanation ("Explanation:" also works)
 - One option per line, A)–E) or 1)–5). Group questions under "##" headings.
-
-FLASHCARDS
-- Each "##" heading is a card front; the text under it is the back.
 
 AVOID
 - Raw HTML, YAML front matter (--- blocks), images from the web.
 - Bold question numbers like "**Q1.**" — write "Q1." plainly.
 - Code fences unless showing actual code.`;
 
-const MCQ_EXAMPLE = `## Section A — Greek Political Thought
+const QUESTIONS_EXAMPLE = `## Unit 1 — Greek Political Thought
 
 Q. Who called man "a political animal"?
 A) Plato
 B) Aristotle *
 C) Cicero
 D) Locke
-Explanation: From Aristotle's Politics, Book I.
 Topic: Greek Political Thought
-Source: UGC-NET Dec 2023`;
-
-const FLASHCARD_EXAMPLE = `## What is the "basic structure doctrine"?
-The principle that Parliament cannot amend the Constitution's core features — laid down in **Kesavananda Bharati v. State of Kerala** (1973).
-
-## Who wrote the Objectives Resolution?
-Moved by **Jawaharlal Nehru** in the Constituent Assembly on 13 December 1946.`;
+Source: UGC-NET Dec 2023
+Solution: From Aristotle's Politics, Book I — the polis precedes the individual.`;
 
 const CALLOUT_EXAMPLE = `::: definition Sovereignty
 The supreme authority of a state
@@ -244,6 +226,10 @@ const TABLE_EXAMPLE = `| Feature | Federal | Unitary |
 - [x] Highlight key terms
 [^1]: A footnote, collected at the end.`;
 
+const XREF_EXAMPLE = `The doctrine is summarized in Table 2 — compare it
+with the holding discussed in Question 14, the map in
+Figure 3 and the caveat in Note 5.`;
+
 /** Assembles the on-page reference material into one self-contained
     Markdown file — built from the same constants this page renders, so a
     downloaded copy never drifts from what's shown here. Meant to be
@@ -272,6 +258,21 @@ ${STRUCTURE_EXAMPLE}
 \`\`\`
 ${TABLE_EXAMPLE}
 \`\`\`
+
+## Cross-references (clickable in the PDF)
+
+\`\`\`
+${XREF_EXAMPLE}
+\`\`\`
+
+Plain-text references — "Question 42" / "Q7", "Table 3", "Figure 2" /
+"Diagram 2", "Note 15" — turn into internal links automatically: clickable
+in both previews, the exported PDF (real PDF destinations, working in
+Chrome, Adobe Reader, Edge, Drive and every standard reader) and the HTML
+export. Tables and figures are numbered in document order; "Note N" points
+at footnote N; "Question N" points at question N in a Question Bank.
+The table of contents is clickable the same way, and every chapter/section
+also lands in the PDF's bookmark outline.
 
 ## Images
 
@@ -307,7 +308,7 @@ Eight types: definition · example · important · summary · tip · warning · 
 ${CALLOUT_EXAMPLE}
 \`\`\`
 
-## Templates
+## Document types
 
 ### Theory Notes
 Long-form chapters — the default for explanatory writing, with a cover, table of contents and callouts. Plain Markdown throughout.
@@ -315,6 +316,22 @@ Long-form chapters — the default for explanatory writing, with a cover, table 
 AI prompt:
 \`\`\`
 ${NOTES_PROMPT}
+\`\`\`
+
+### Question Bank
+PYQs, MCQs, mixed banks and practice sets in one examination-book layout. Each question's header row shows number · topic · source (label-free). The answers mode decides what each card reveals:
+
+- **Inline** (default) — the study layout: correct option highlighted with a ✓, worked solution under the question when one exists.
+- **At the end** — a practice test: clean cards, answer key + explanations at the back.
+- **Hidden** — a plain question paper.
+
+\`\`\`
+${QUESTIONS_EXAMPLE}
+\`\`\`
+
+AI prompt:
+\`\`\`
+${QUESTIONS_PROMPT}
 \`\`\`
 
 ### Quick Revision
@@ -325,36 +342,12 @@ AI prompt:
 ${REVISION_PROMPT}
 \`\`\`
 
-### MCQ Booklet
-Practice questions with a back-of-booklet answer key.
-
-\`\`\`
-${MCQ_EXAMPLE}
-\`\`\`
+### Universal
+The flexible do-anything document — essays, answer frameworks, syllabi, glossaries, plans. Full Markdown, no chapter ceremony, no forced page breaks.
 
 AI prompt:
 \`\`\`
-${MCQ_PROMPT}
-\`\`\`
-
-### PYQ Collection
-Solved previous-year questions — exam/year badge, correct answer and worked solution inline. Same grammar as MCQ, plus a \`Source:\` and \`Solution:\` line per question.
-
-AI prompt:
-\`\`\`
-${PYQ_PROMPT}
-\`\`\`
-
-### Flash Cards
-Active-recall decks — one \`##\` heading per card front, the text under it is the back.
-
-\`\`\`
-${FLASHCARD_EXAMPLE}
-\`\`\`
-
-AI prompt:
-\`\`\`
-${FLASHCARD_PROMPT}
+${UNIVERSAL_PROMPT}
 \`\`\`
 
 ## Common mistakes to avoid
@@ -402,27 +395,26 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Tablet workflow refinement)`} intro="A focused pass on Android/Chrome tablet editing: the on-screen keyboard no longer pops up for selection, navigation or toolbar formatting, and the toolbar is now yours to arrange.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Document architecture upgrade)`} intro="Four clean document types, a professional Question Bank layout, an Ultra Compact density and clickable navigation inside the PDF.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>No more surprise keyboard</b> — on touch devices the editor starts in a keyboard-free mode: tapping to place the cursor, selecting text, and every toolbar action (headings, callouts, highlight…) leave the on-screen keyboard closed. A small <b>Tap to type</b> pill in the bottom-left corner of the editor is the explicit switch into typing mode (which opens the keyboard) and back out again — desktop typing is unaffected.</li>
-            <li><b>Customizable toolbar</b> — every formatting button in <b>More (⋯)</b> now has its own pin toggle: <em>Pin to Toolbar</em> adds it to the always-visible bar, <em>Remove from Toolbar</em> sends it back to More. No drag-and-drop — just tap the pin. Your layout is remembered per browser.</li>
+            <li><b>Four document types</b> — <b>Theory Notes</b>, <b>Question Bank</b>, <b>Quick Revision</b> and <b>Universal</b>. Your existing documents migrated automatically: MCQ Booklets and PYQ Collections are now Question Banks (PYQs keep their inline solutions), and Flash Card decks became Universal documents — nothing was changed in their content.</li>
+            <li><b>Question Bank, redesigned</b> — an examination-book card: the header row reads <em>number · topic · source</em> with no labels, the correct option is highlighted in green with a ✓ right on the option (no separate "Correct Answer" line), and the worked solution renders under the question only when one exists. PYQs, standard MCQs, mixed banks and practice sets all use the same layout — the <em>Answers &amp; solutions</em> setting picks between the inline study layout, a back-of-book key, or a clean question paper.</li>
+            <li><b>Ultra Compact density</b> — a fourth density that tightens the whole layout (spacing, margins, callouts, tables, lists, question cards), not just the font. Roughly five question-only cards fit an A4 page; adapts intelligently to solutions of any length. Works across all four document types.</li>
+            <li><b>Clickable navigation inside the PDF</b> — plain-text cross-references like <code className="font-mono text-xs">Question 42</code>, <code className="font-mono text-xs">Table 3</code>, <code className="font-mono text-xs">Figure 2</code> or <code className="font-mono text-xs">Note 15</code> become internal links automatically — in both previews, the HTML export and the PDF (real PDF destinations that work in Chrome, Adobe Reader, Edge, Drive and other standard readers). The table of contents stays clickable and chapters/sections land in the PDF bookmark outline as before.</li>
+            <li><b>Lighter pages</b> — question cards and key cells dropped redundant background paint, so large banks preview and export faster with byte-for-byte identical output.</li>
           </ul>
         </Section>
 
-        <Section title="Previously — Selection-aware toolbar, covers & scroll sync" intro="Still current from the last few updates.">
+        <Section title="Previously — Tablet workflow & selection-aware toolbar" intro="Still current from the last few updates.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Selection-aware toolbar</b> — the floating selection menu is gone (it fought Android's own selection popup). Instead the main toolbar acts on your selection: pick a callout (Definition, Important, Tip…) or the code block and it wraps the <em>selected text</em> rather than inserting an empty template; headings, lists and quote transform the selected lines; the clipboard paste button replaces the selection.</li>
-            <li><b>Smarter scroll sync</b> — editor scrolling now maps onto the <em>document body</em>, skipping the generated cover and contents pages, so the editor and preview point at the same logical position even in very long documents.</li>
-            <li><b>Cover peek</b> — while you're editing cover or publication fields in the settings pane, the preview shows the cover so you see the change land, then returns to where you were reading.</li>
-            <li><b>Balanced cover</b> — the publisher lockup and session sit a step below the page edge, only the edition badge owns the extreme top-right corner, and the language badge moved to the bottom of the cover, just above the footer rule.</li>
-            <li><b>Quieter navigation buttons</b> — the Go-to-Top/Bottom buttons are smaller, translucent and fade in and out; each pane's pair scrolls only itself.</li>
-            <li><b>Full-height highlight</b> — <code className="font-mono text-xs">==highlight==</code> now paints a clean full-height wash behind the text (identical in previews, PDF and HTML export) instead of the old half-height band.</li>
-            <li><b>Four-group settings pane</b> — Publication · Cover · Layout &amp; PDF · Advanced, with everything cover-related together under Cover.</li>
-            <li><b>Cover Designer</b> — hairline frames (Single, Double or Accent), a title box (Outline, Filled or Premium), nine patterns with opacity/density/size, your own uploaded logo, and per-style color overrides.</li>
-            <li><b>Any image size</b> — the image toolbar has a width slider (down to 10% of the column) alongside XS/S/M/L; wrapped text stops cleanly, so headings, tables, callouts and lists always start clear of a floated image.</li>
-            <li><b>Search Navigator</b> — Ctrl/Cmd+F opens a find/replace whose results are grouped by heading and estimated page; click a result to jump straight to it, highlighted in place.</li>
+            <li><b>No more surprise keyboard</b> — on touch devices the editor starts in a keyboard-free mode; the <b>Tap to type</b> pill switches into typing mode and back.</li>
+            <li><b>Customizable toolbar</b> — every formatting button in <b>More (⋯)</b> has a pin toggle; your layout is remembered per browser.</li>
+            <li><b>Selection-aware toolbar</b> — callouts and the code block wrap the <em>selected text</em>; headings, lists and quote transform the selected lines; the clipboard paste button replaces the selection.</li>
+            <li><b>Smarter scroll sync</b> — editor scrolling maps onto the <em>document body</em>, skipping the generated cover and contents pages.</li>
+            <li><b>Cover peek</b> — editing cover or publication fields shows the cover in the preview, then returns to where you were.</li>
+            <li><b>Cover Designer</b> — hairline frames, title boxes, nine patterns with opacity/density/size, your own uploaded logo, and per-style color overrides.</li>
+            <li><b>Search Navigator</b> — Ctrl/Cmd+F opens find/replace grouped by heading and estimated page.</li>
             <li><b>Premium dark PDF</b> — the dark reading theme typesets tables, callouts, blockquotes and highlights like a professionally printed dark publication.</li>
-            <li><b>Arrow shortcuts</b> — <code className="font-mono text-xs">-&gt;</code>, <code className="font-mono text-xs">&lt;-</code>, <code className="font-mono text-xs">&lt;-&gt;</code>, <code className="font-mono text-xs">=&gt;</code> render as → ← ↔ ⇒.</li>
           </ul>
         </Section>
 
@@ -437,6 +429,7 @@ export function Help() {
           <Ex code="[link text](https://example.com)" result={<span className="text-accent">link text</span>} />
           <Ex code="> A quotation" result={<span className="border-l-2 border-accent pl-2 italic text-ink-2">A quotation</span>} />
           <Ex code="cause -> effect  ·  <->  ·  =>" result={<span>cause → effect · ↔ · ⇒</span>} />
+          <Ex code="see Table 3 · Question 42 · Note 15" result={<span>clickable <span className="font-semibold text-accent">internal links</span> — preview, PDF &amp; HTML</span>} />
         </Section>
 
         <Section
@@ -460,6 +453,20 @@ export function Help() {
           intro="Headings drive the table of contents, PDF bookmarks and the running header on every page."
         >
           <Snippet>{STRUCTURE_EXAMPLE}</Snippet>
+        </Section>
+
+        <Section
+          title="Cross-references — clickable inside the PDF"
+          intro="Write a reference in plain text; it becomes an internal link automatically — in both previews, the exported PDF (real PDF destinations: Chrome, Adobe Reader, Edge, Drive…) and the HTML export."
+        >
+          <Snippet>{XREF_EXAMPLE}</Snippet>
+          <p className="text-xs text-faint">
+            <code className="font-mono">Question 42</code> / <code className="font-mono">Q7</code> jump to that question in a Question
+            Bank; <code className="font-mono">Table 3</code>, <code className="font-mono">Figure 2</code> /{" "}
+            <code className="font-mono">Diagram 2</code> jump to the table or figure counted in document order;{" "}
+            <code className="font-mono">Note 15</code> jumps to footnote 15. References inside code, existing links or headings are
+            left alone, and a reference whose target doesn't exist stays plain text in the PDF — nothing breaks.
+          </p>
         </Section>
 
         <Section title="Tables, lists & footnotes" intro="All standard Markdown, rendered with the app's own print styling.">
@@ -487,14 +494,9 @@ export function Help() {
             in the preview and the exported PDF.
           </p>
           <p className="text-xs text-faint">
-            Wrapped text can never spill into what follows: the next heading, table, callout or list always starts clear below
-            the image, so a floated portrait beside its introductory paragraph stays a clean, textbook-style unit.
-          </p>
-          <p className="text-xs text-faint">
             You rarely type any of that: put the cursor on an image line (or tap the picture in the <b>Flow</b> preview) and a
             toolbar gives you the layout, XS/S/M/L sizes plus a fine width slider, spacing, style toggles, caption, replace and
-            remove — writing the attributes for you and updating the document live. The shadow is a preview/HTML nicety; the
-            vector PDF keeps every image crisp.
+            remove — writing the attributes for you and updating the document live.
           </p>
         </Section>
 
@@ -518,18 +520,36 @@ export function Help() {
             <li>Copy the specification below and paste it at the start of your chat (Claude, Google Gemini, ChatGPT — any of them).</li>
             <li>Add your request, e.g. <em>"Notes on Federalism in India, exam-oriented, ~2000 words"</em> — or use a tuned per-template prompt from the next section.</li>
             <li>Copy the AI's reply and paste it into a new document here — Smart Paste cleans up whatever the chat window adds.</li>
-            <li>Pick the matching template (Notes, MCQ, PYQ…), check the preview, publish.</li>
+            <li>Pick the matching document type (Notes, Question Bank…), check the preview, publish.</li>
           </ol>
           <Snippet>{MASTER_SPEC}</Snippet>
           <CopyButton text={MASTER_SPEC} label="Copy specification" />
         </Section>
 
-        <Section title="Templates, one by one" intro="Each template has its own body grammar and its own tuned AI prompt below.">
+        <Section title="Document types, one by one" intro="Each type has its own guide and its own tuned AI prompt below.">
           <TemplateGuide
             name="Theory Notes"
             forWhat="Long-form chapters — the default for explanatory writing, with a cover, table of contents and callouts."
-            grammar={<span>Plain Markdown — headings, paragraphs, tables, callouts, footnotes all apply as above.</span>}
+            grammar={<span>Plain Markdown — headings, paragraphs, tables, callouts, footnotes all apply as above. Chapters (<code className="font-mono">#</code>) open on a fresh page with a numbered opener.</span>}
             prompt={NOTES_PROMPT}
+          />
+          <TemplateGuide
+            name="Question Bank"
+            forWhat="PYQs, standard MCQs, mixed banks and practice sets — one examination-book layout for all of them."
+            grammar={
+              <span>
+                <code className="font-mono">Q.</code> starts a question, <code className="font-mono">A)</code>…
+                <code className="font-mono">D)</code> are options, a trailing <code className="font-mono">*</code>{" "}
+                (or <code className="font-mono">Answer: B</code>) marks the correct one.{" "}
+                <code className="font-mono">Topic:</code> and <code className="font-mono">Source:</code> fill the label-free
+                header row (number · topic · source); <code className="font-mono">Solution:</code> (or{" "}
+                <code className="font-mono">Explanation:</code>) adds the optional worked solution. Use{" "}
+                <code className="font-mono">##</code> headings to split into sections. The <em>Answers &amp; solutions</em>{" "}
+                setting switches between the inline study layout (✓ on the correct option, solution under the question),
+                a back-of-book key, or a clean question paper.
+              </span>
+            }
+            prompt={QUESTIONS_PROMPT}
           />
           <TemplateGuide
             name="Quick Revision"
@@ -538,51 +558,19 @@ export function Help() {
             prompt={REVISION_PROMPT}
           />
           <TemplateGuide
-            name="MCQ Booklet"
-            forWhat="Practice questions where answers sit in a back-of-booklet key with explanations — a clean test to attempt first, then check."
-            grammar={
-              <span>
-                <code className="font-mono">Q.</code> starts a question, <code className="font-mono">A)</code>…
-                <code className="font-mono">D)</code> are options, a trailing <code className="font-mono">*</code>{" "}
-                (or <code className="font-mono">Answer: B</code>) marks the correct one.{" "}
-                <code className="font-mono">Explanation: / Topic: / Source:</code> lines are optional. Use{" "}
-                <code className="font-mono">##</code> headings to split into sections.
-              </span>
-            }
-            prompt={MCQ_PROMPT}
-          />
-          <TemplateGuide
-            name="PYQ Collection"
-            forWhat="Solved previous-year questions — each shows its exam/year badge, the correct answer and a worked solution right under it (no back-of-book flipping). Best target when you paste a solved paper."
-            grammar={
-              <span>
-                Same grammar as MCQ. Add <code className="font-mono">Source: UPSC 2021</code> (or{" "}
-                <code className="font-mono">Exam: / Year:</code>) for the badge and{" "}
-                <code className="font-mono">Solution:</code> (also <code className="font-mono">Detailed Solution:</code>) for the
-                worked answer — tables inside a solution render as tables. Pasting or importing a real paper fills these in
-                automatically.
-              </span>
-            }
-            prompt={PYQ_PROMPT}
-          />
-          <TemplateGuide
-            name="Flash Cards"
-            forWhat="Active-recall decks for spaced repetition — one card per term or question."
-            grammar={<span>Each <code className="font-mono">##</code> heading is the front of a card; the text under it is the back.</span>}
-            prompt={FLASHCARD_PROMPT}
+            name="Universal"
+            forWhat="The flexible do-anything document — essays, answer frameworks, syllabi, glossaries, plans, mixed material."
+            grammar={<span>Everything from the Markdown guide, with no imposed structure: headings don't force page breaks and there's no chapter numbering — what you write is what you get.</span>}
+            prompt={UNIVERSAL_PROMPT}
           />
         </Section>
 
-        <Section title="MCQ / PYQ example">
-          <Snippet>{MCQ_EXAMPLE}</Snippet>
+        <Section title="Question Bank example">
+          <Snippet>{QUESTIONS_EXAMPLE}</Snippet>
           <p className="text-xs text-faint">
-            The answer key and explanations position (end of booklet, inline under each question, or hidden) is chosen
-            in the document's Settings pane.
+            The answers &amp; solutions position (inline under each question, at the end of the booklet, or hidden) is chosen
+            in the document's Settings pane. Pasting or importing a real exam paper fills the grammar in automatically.
           </p>
-        </Section>
-
-        <Section title="Flash card example">
-          <Snippet>{FLASHCARD_EXAMPLE}</Snippet>
         </Section>
 
         <Section title="Common mistakes" intro="The handful of things that trip up imported content — all easy to avoid.">
@@ -590,7 +578,7 @@ export function Help() {
             <li><b>The whole reply wrapped in a code fence</b> — some chat UIs copy Markdown inside ``` fences. Delete the fence lines; otherwise the document renders as one code block.</li>
             <li><b>Bold question numbers</b> (<code className="font-mono text-xs">**Q1.**</code>) — the question parser needs a plain <code className="font-mono text-xs">Q1.</code> at the start of the line.</li>
             <li><b>Two options on one line</b> (<code className="font-mono text-xs">A) x B) y</code>) — Smart Import repairs this when you paste a real exam paper, but ask your AI for one option per line to be safe.</li>
-            <li><b>No correct answer marked</b> — without a trailing <code className="font-mono text-xs">*</code> or an <code className="font-mono text-xs">Answer:</code> line, the question prints with no key entry. The Booklet check in the settings pane flags these.</li>
+            <li><b>No correct answer marked</b> — without a trailing <code className="font-mono text-xs">*</code> or an <code className="font-mono text-xs">Answer:</code> line, the question prints with nothing highlighted and no key entry. The Booklet check in the settings pane flags these.</li>
             <li><b>Raw HTML</b> (<code className="font-mono text-xs">&lt;br&gt;</code>, <code className="font-mono text-xs">&lt;table&gt;</code>) — ignored by design; use Markdown tables and blank lines instead.</li>
             <li><b>Linking an image by web URL</b> — a remote <code className="font-mono text-xs">![](https://…)</code> can fail on export (offline/cross-origin). Paste, drag in or upload the picture instead — it's embedded in the document and always survives.</li>
             <li><b>An unclosed callout</b> — every <code className="font-mono text-xs">::: type</code> needs its closing <code className="font-mono text-xs">:::</code> line, or the rest of the document lands inside the box.</li>
@@ -600,21 +588,21 @@ export function Help() {
         <Section title="Working efficiently" intro="The workspace has a few features worth knowing about.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li>The formatting toolbar keeps everyday tools visible; the <b>More (⋯)</b> menu holds the rest. Every icon shows its name on hover (desktop) or long-press (touch).</li>
-            <li><b>Customizable toolbar</b> — every action listed in More has its own pin toggle: <b>Pin to Toolbar</b> moves it into the always-visible bar, <b>Remove from Toolbar</b> sends it back to More. No drag-and-drop, no reordering — just tap the pin next to any action. Your choices are remembered in this browser and survive a refresh.</li>
-            <li><b>Keyboard-free selection on tablets</b> — on a touch device the editor starts in a mode where tapping to place the cursor, selecting text and every toolbar formatting action never pop the on-screen keyboard. When you actually want to type, tap the <b>Tap to type</b> pill in the editor's bottom-left corner — it opens the keyboard and switches back to a plain keyboard icon you can tap again to hide it. Desktop editing is unchanged.</li>
+            <li><b>Customizable toolbar</b> — every action listed in More has its own pin toggle: <b>Pin to Toolbar</b> moves it into the always-visible bar, <b>Remove from Toolbar</b> sends it back to More. Your choices are remembered in this browser and survive a refresh.</li>
+            <li><b>Keyboard-free selection on tablets</b> — on a touch device the editor starts in a mode where tapping to place the cursor, selecting text and every toolbar formatting action never pop the on-screen keyboard. When you actually want to type, tap the <b>Tap to type</b> pill in the editor's bottom-left corner. Desktop editing is unchanged.</li>
             <li><b>The toolbar is selection-aware</b> — select text first, then tap a callout (Definition, Important, Tip…) or the code block to wrap the <em>selected text</em> in it; headings, bullet/numbered/check lists and quote transform the selected lines; bold/italic/highlight wrap the exact selection; the clipboard paste button replaces it. With nothing selected the same buttons insert their usual templates.</li>
-            <li><b>Shared navigation</b> — scrolling the editor keeps the preview at the same <em>body</em> position (the generated cover and contents pages don't skew the mapping). Small <b>Go to Top / Go to Bottom</b> buttons fade in on each pane once you've scrolled — each pair scrolls only its own pane — and fade away near the ends. The editor scrollbar and both previews also show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
+            <li><b>Shared navigation</b> — scrolling the editor keeps the preview at the same <em>body</em> position (the generated cover and contents pages don't skew the mapping). Small <b>Go to Top / Go to Bottom</b> buttons fade in on each pane once you've scrolled — each pair scrolls only its own pane. The editor scrollbar and both previews also show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
             <li><b>Replace with clipboard</b> (in the More menu) swaps the entire document for your clipboard's text — asks first if the document isn't empty. Different from a normal paste, which inserts at the cursor.</li>
-            <li><b>Download Guide (.md)</b> (top of this page) exports the complete Markdown reference — syntax, templates, AI prompts, common mistakes — as one file, kept in sync with this page.</li>
+            <li><b>Download Guide (.md)</b> (top of this page) exports the complete Markdown reference — syntax, document types, AI prompts, common mistakes — as one file, kept in sync with this page.</li>
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
-            <li><b>Ctrl/Cmd+F</b>, or the editor header's search icon, opens the Search Navigator for this document — results are grouped by heading and estimated page with a snippet each; click one to jump straight to it, highlighted in place, without losing the search box. Replace is one tap away. (Cross-document search is on Ctrl/Cmd+K.)</li>
-            <li><b>Table of contents</b> — click any chapter in a document's Contents (in either preview) to jump right to it, no extra window.</li>
+            <li><b>Ctrl/Cmd+F</b>, or the editor header's search icon, opens the Search Navigator for this document — results are grouped by heading and estimated page with a snippet each; click one to jump straight to it. Replace is one tap away. (Cross-document search is on Ctrl/Cmd+K.)</li>
+            <li><b>Table of contents</b> — click any chapter in a document's Contents (in either preview) to jump right to it; in the exported PDF the same links work as real PDF destinations, and chapters land in the reader's bookmark sidebar.</li>
             <li><b>Focus mode</b> (the frame icon in the editor header) hides the toolbar and settings pane for distraction-free writing — toggle it off to bring them back.</li>
             <li>The settings and preview panes are resizable by dragging their edges, and collapsible to a thin rail when you need the width back.</li>
             <li>In the <b>Flow</b> preview, click the cover title, subtitle or any heading to edit it right there — it writes straight back to your Markdown.</li>
             <li>The <b>Pages</b> preview shows the exact pages you'll publish — headers, footers, watermark and all — with pinch/±/fit-width/fit-page zoom.</li>
             <li>Smart Import converts pasted Word, Google Docs, web and AI-chat content automatically; drag a <code className="font-mono text-xs">.md</code>, <code className="font-mono text-xs">.txt</code>, <code className="font-mono text-xs">.html</code> or <code className="font-mono text-xs">.docx</code> file onto the Library (new documents) or the editor (inserts at the cursor) — either way you get a review step to confirm or edit before anything is saved.</li>
-            <li>Paste or import a raw <b>exam paper</b> and Smart Import restructures it into clean questions on its own — it recognises <code className="font-mono text-xs">Q.</code> / <code className="font-mono text-xs">Que.</code> / <code className="font-mono text-xs">[3/23]</code> numbering, statement lists, the real options (even two to a line), the answer and the worked solution, tags the exam/year, and strips page-number noise. Pick <b>PYQ Collection</b> in the review for the solved layout.</li>
+            <li>Paste or import a raw <b>exam paper</b> and Smart Import restructures it into clean questions on its own — it recognises <code className="font-mono text-xs">Q.</code> / <code className="font-mono text-xs">Que.</code> / <code className="font-mono text-xs">[3/23]</code> numbering, statement lists, the real options (even two to a line), the answer and the worked solution, tags the exam/year, and strips page-number noise — landing as a ready Question Bank.</li>
             <li>Select several documents in the Library (the checklist icon) to merge them into one PDF, each starting on its own page.</li>
             <li><b>Home</b>, <b>Resume last session</b> and <b>Restart Studio</b> in the header work from anywhere — resume reopens your last document at the exact cursor line; restart safely reloads the app (autosave already covers your work).</li>
           </ul>
@@ -623,9 +611,8 @@ export function Help() {
         <Section title="The Settings pane, covers & the dark reading theme" intro="The editor's Settings pane (the sliders icon) is organised into four groups: Publication · Cover · Layout & PDF · Advanced.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Publication</b> holds the document's identity — subtitle, exam, paper/unit and author.</li>
-            <li><b>Cover</b> holds everything on the cover page in one place: the brand/institute name, session (a pill in the cover's top-right), edition (a small badge in the extreme top-right corner, e.g. 1e/2e), the language badge (English · हिन्दी · Both · None — shown at the bottom of the cover just above the footer; it never changes your content), highlight lines, and the cover design. Each preset style accepts optional background, heading and accent color overrides; <b>Custom — design your own</b> opens the Cover Designer (background gradient, colors, a vector pattern with opacity/density/size, title font and size, alignment, a hairline frame, a title box, the temple emblem and your own logo), previewing live.</li>
-            <li>While any Publication or Cover field has focus, the preview <b>peeks at the cover</b> so you watch your edit land, then returns to where you were.</li>
-            <li><b>Layout &amp; PDF</b> covers text density, page size, table of contents, watermark, (for question booklets) the answers position, and named layout presets you can save, apply, rename, duplicate or reset.</li>
+            <li><b>Cover</b> holds everything on the cover page in one place: the brand/institute name, session, edition, the language badge (cover only — it never changes your content), highlight lines, and the cover design. Each preset style accepts optional color overrides; <b>Custom — design your own</b> opens the Cover Designer, previewing live.</li>
+            <li><b>Layout &amp; PDF</b> covers text density (<b>Ultra</b> · Compact · Comfort · Relaxed — Ultra tightens the whole layout, not just the font, to pack the most onto each page while staying readable), page size, table of contents, watermark, (for Question Banks) the answers &amp; solutions position, and named layout presets.</li>
             <li><b>Advanced</b> holds the document reading theme, the studio-wide PDF colors, and the PDF filename pattern. The full Branding page (names, links, watermark text) stays in Studio Settings.</li>
             <li>The <b>document reading theme</b> (light/dark) renders previews, PDFs and HTML exports on an eye-friendly dark palette that typesets like a professional dark publication — the preview toolbar's sun/moon icon toggles it without leaving the editor. Covers keep their own design.</li>
           </ul>
@@ -635,7 +622,7 @@ export function Help() {
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li>Everything autosaves as you type; documents live in this browser (back them up in Settings → Your data).</li>
             <li>YAML front matter (<code className="font-mono text-xs">--- … ---</code>) pasted from other tools is ignored automatically.</li>
-            <li>Publish PDF opens a full review of the real typeset pages before you download — what you approve is exactly what downloads, as a true vector PDF (small, selectable text, no print dialog).</li>
+            <li>Publish PDF opens a full review of the real typeset pages before you download — what you approve is exactly what downloads, as a true vector PDF (small, selectable text, clickable links and bookmarks, no print dialog).</li>
             <li>Download HTML (next to Download PDF) gives the same pages as a small, offline, instantly-opening web page — handy for sharing without a PDF reader.</li>
           </ul>
         </Section>

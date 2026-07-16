@@ -34,10 +34,13 @@ export interface BuildOptions {
   theme?: "light" | "dark";
 }
 
-const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; margin: string }> = {
-  a4: { w: 210, h: 297, size: "210mm 297mm", margin: "21mm 15mm 23mm 15mm" },
-  a5: { w: 148, h: 210, size: "148mm 210mm", margin: "16mm 12mm 18mm 12mm" },
-  letter: { w: 216, h: 279, size: "216mm 279mm", margin: "21mm 16mm 23mm 16mm" },
+/** `margin` is the standard page frame; `marginUltra` is the Ultra
+    Compact frame — reduced within safe limits (the running header and
+    footer live inside these margins and still need their room). */
+const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; margin: string; marginUltra: string }> = {
+  a4: { w: 210, h: 297, size: "210mm 297mm", margin: "21mm 15mm 23mm 15mm", marginUltra: "17mm 12mm 19mm 12mm" },
+  a5: { w: 148, h: 210, size: "148mm 210mm", margin: "16mm 12mm 18mm 12mm", marginUltra: "13.5mm 10mm 15.5mm 10mm" },
+  letter: { w: 216, h: 279, size: "216mm 279mm", margin: "21mm 16mm 23mm 16mm", marginUltra: "17mm 13mm 19mm 13mm" },
 };
 
 /** Vector pattern layer per cover style (SVG so print stays vector).
@@ -49,7 +52,12 @@ const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { k
   eclipse: { kind: "rings", color: "rgba(211,166,98,0.08)" },
 };
 
+/** Body size/leading per density. "ultra" additionally gets a
+    density-ultra body class: the real work is layout-level tightening
+    (spacing, margins, padding) in the print stylesheets — never just a
+    smaller font. */
 const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string }> = {
+  ultra: { size: "10.9pt", leading: "1.44" },
   compact: { size: "11.6pt", leading: "1.52" },
   comfort: { size: "12.6pt", leading: "1.62" },
   relaxed: { size: "13.6pt", leading: "1.72" },
@@ -418,7 +426,7 @@ export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOp
   --body-size: ${density.size};
   --body-leading: ${density.leading};
 }
-@page { size: ${geometry.size}; margin: ${geometry.margin}; }
+@page { size: ${geometry.size}; margin: ${doc.layout.density === "ultra" ? geometry.marginUltra : geometry.margin}; }
 ${printBaseCss}
 ${coversCss}
 ${template.css}
@@ -452,7 +460,7 @@ ${body.html}`;
 <style>${css}</style>
 ${watermarkTemplate}
 </head>
-<body class="tpl-${doc.template} mode-${mode} purpose-${purpose}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
+<body class="tpl-${doc.template} mode-${mode} purpose-${purpose} density-${doc.layout.density}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
 ${paged ? content : `<div id="doc-root">${content}</div>`}
 ${scripts}
 </body>
