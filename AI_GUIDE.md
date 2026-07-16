@@ -192,7 +192,9 @@ Mirrors ARCHITECTURE.md § How to extend — read that section for the full
 reasoning; this is the quick-reference version:
 
 - **New template** → `templates/meta.ts` entry + `templates/starters.ts`
-  + a body builder/CSS entry in `templates/index.ts`.
+  + a body builder/CSS entry in `templates/index.ts`. Retiring one →
+  add to `LEGACY_TEMPLATES` in `lib/store.ts` so stored documents and
+  backups migrate on load (regression tests in `store.test.ts`).
 - **New cover style** → `.cover--<id>` in `pdf/styles/covers.css` +
   `COVER_PATTERNS` in `pdf/document.ts` + `COVER_STYLES` in
   `views/editor/Details.tsx`. Retiring one → add to `LEGACY_COVERS`

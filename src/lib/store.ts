@@ -130,9 +130,30 @@ const LEGACY_COVERS: Record<string, Doc["layout"]["coverStyle"]> = {
   midnight: "eclipse",
 };
 
-function normalizeDoc(doc: Doc): Doc {
-  const mapped = LEGACY_COVERS[doc.layout.coverStyle as string];
-  return mapped ? { ...doc, layout: { ...doc.layout, coverStyle: mapped } } : doc;
+/** Retired document types map onto the current four-type architecture.
+    MCQ and PYQ merge into the unified Question Bank; Flash Cards become
+    a Universal document (each "##" front renders as a section heading,
+    so the content survives intact). PYQ always showed the solution under
+    each question, so its answers mode becomes "inline" to preserve that
+    exact behavior; MCQ keeps whatever answers mode it had. */
+const LEGACY_TEMPLATES: Record<string, Doc["template"]> = {
+  mcq: "questions",
+  pyq: "questions",
+  flashcards: "universal",
+};
+
+/** Exported for the migration regression tests in store.test.ts — not
+    meant to be called from outside this module otherwise. */
+export function normalizeDoc(doc: Doc): Doc {
+  let out = doc;
+  const cover = LEGACY_COVERS[out.layout.coverStyle as string];
+  if (cover) out = { ...out, layout: { ...out.layout, coverStyle: cover } };
+  const template = LEGACY_TEMPLATES[out.template as string];
+  if (template) {
+    out = { ...out, template };
+    if ((doc.template as string) === "pyq") out = { ...out, layout: { ...out.layout, answers: "inline" } };
+  }
+  return out;
 }
 
 function normalizeSettings(settings: Settings): Settings {

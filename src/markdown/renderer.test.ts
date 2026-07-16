@@ -108,3 +108,42 @@ describe("renderMarkdown", () => {
     expect(html).toContain("text → here");
   });
 });
+
+describe("cross-references & anchor targets", () => {
+  it("turns Question/Q/Table/Figure/Diagram/Note references into internal xref links", () => {
+    const html = renderMarkdown("See Question 42 and Q7, then Table 3, Figure 2, Diagram 5 and Note 15.");
+    expect(html).toContain('<a href="#q-42" class="xref">Question 42</a>');
+    expect(html).toContain('<a href="#q-7" class="xref">Q7</a>');
+    expect(html).toContain('<a href="#table-3" class="xref">Table 3</a>');
+    expect(html).toContain('<a href="#fig-2" class="xref">Figure 2</a>');
+    expect(html).toContain('<a href="#fig-5" class="xref">Diagram 5</a>');
+    expect(html).toContain('<a href="#fn15" class="xref">Note 15</a>');
+  });
+
+  it("never rewrites references inside code, existing links or headings", () => {
+    const code = renderMarkdown("`Question 42` stays code");
+    expect(code).not.toContain("xref");
+    const link = renderMarkdown("[Question 42](https://example.com)");
+    expect(link).not.toContain("xref");
+    const heading = renderMarkdown("## Question 42 Analysis");
+    expect(heading).not.toContain("xref");
+  });
+
+  it("leaves plain words without a number untouched", () => {
+    const html = renderMarkdown("A good question deserves a note and a table.");
+    expect(html).not.toContain("xref");
+  });
+
+  it("numbers tables and figures in document order as link targets", () => {
+    const html = renderMarkdown("| a |\n|---|\n| b |\n\n![x](p.png)\n\n| c |\n|---|\n| d |");
+    expect(html).toContain('id="table-1"');
+    expect(html).toContain('id="table-2"');
+    expect(html).toContain('id="fig-1"');
+  });
+
+  it("skips id assignment for fragment renders (refIds: false) so repeated fragments stay unique", () => {
+    const html = renderMarkdown("| a |\n|---|\n| b |\n\n![x](p.png)", { refIds: false });
+    expect(html).not.toContain('id="table-1"');
+    expect(html).not.toContain('id="fig-1"');
+  });
+});

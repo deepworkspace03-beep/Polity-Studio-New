@@ -41,7 +41,40 @@ Political theory questions frequently test Plato, Aristotle, Hobbes, Locke and R
 
 ## Formatting Cheatsheet
 
-**bold** · *italic* · ==highlight== · ++underline++ · ~~struck~~ · x^2^ · H~2~O — and \`\\pagebreak\` on its own line starts a new PDF page. Open Library → Examples for a full showcase.
+**bold** · *italic* · ==highlight== · ++underline++ · ~~struck~~ · x^2^ · H~2~O — and \`\\pagebreak\` on its own line starts a new PDF page. Cross-references like "see Table 1" become clickable in the PDF. Open Library → Examples for a full showcase.
+`,
+  },
+
+  questions: {
+    title: "Untitled Question Bank",
+    body: `Attempt all questions. Add \`Topic:\` and \`Source:\` lines to stamp each question's header — no labels are printed, the content speaks for itself.
+
+## Section A — Political Theory
+
+Q. Who described political science as "the master science"?
+A) Plato
+B) Aristotle *
+C) Machiavelli
+D) Harold Laski
+Topic: Greek Political Thought
+Source: UGC-NET Dec 2023
+Solution: Aristotle called politics the master science because it determines what other sciences should be studied within the state.
+
+Q. The concept of "Judicial Review" in the Indian Constitution is borrowed from —
+A) United Kingdom
+B) United States *
+C) Ireland
+D) Canada
+Topic: Indian Polity
+Source: UPSC CSE 2021
+Solution: Judicial review — the power of courts to test laws against the Constitution — is drawn from the **United States**. India adopts a moderated form: unlike the American "due process", Indian courts review under "procedure established by law" (Article 21).
+
+Q. "The Republic" of Plato is primarily a treatise on —
+A) Education *
+B) Warfare
+C) Economics
+D) Diplomacy
+Topic: Plato
 `,
   },
 
@@ -75,81 +108,25 @@ Asked in Dec 2023, June 2024. The examiner favours exact attributions here.
 `,
   },
 
-  mcq: {
-    title: "Untitled MCQ Booklet",
-    body: `Attempt all questions. Each question carries 2 marks. There is no negative marking.
+  universal: {
+    title: "Untitled Document",
+    body: `# Your Title
 
-## Section A — Political Theory
+A Universal document is the flexible, everything-goes canvas — essays, answer frameworks, syllabi, plans, glossaries. All of Markdown applies: headings, tables, callouts, images, footnotes, page breaks.
 
-Q. Who described political science as "the master science"?
-A) Plato
-B) Aristotle *
-C) Machiavelli
-D) Harold Laski
-Explanation: Aristotle called politics the master science because it determines what other sciences should be studied within the state.
-Topic: Greek Political Thought
-Source: UGC-NET Dec 2023
+## A Section
 
-Q. "The Republic" of Plato is primarily a treatise on —
-A) Education *
-B) Warfare
-C) Economics
-D) Diplomacy
-Explanation: Rousseau called The Republic "the finest treatise on education ever written" — its central concern is the education scheme for guardians.
-Topic: Plato
-Source: UGC-NET June 2024
-`,
-  },
+Write freely. **Bold** the key terms, ==highlight== the must-remember phrases.
 
-  pyq: {
-    title: "Untitled PYQ Collection",
-    body: `Previous-year questions with the correct answer and a worked solution under each one. Add \`Year:\` or \`Exam:\` to stamp the source badge.
+::: tip
+Use \`\\pagebreak\` on its own line whenever you want a fresh PDF page.
+:::
 
-## Indian Polity
+## Another Section
 
-Q. The concept of "Judicial Review" in the Indian Constitution is borrowed from —
-A) United Kingdom
-B) United States *
-C) Ireland
-D) Canada
-Answer: B
-Exam: UPSC CSE 2021
-Solution: Judicial review — the power of courts to test laws against the Constitution — is drawn from the **United States**. India adopts a moderated form: unlike the American "due process", Indian courts review under "procedure established by law" (Article 21).
-
-Q. Which schedule of the Constitution deals with the allocation of seats in the Rajya Sabha?
-A) Third Schedule
-B) Fourth Schedule *
-C) Fifth Schedule
-D) Sixth Schedule
-Answer: B
-Exam: SSC CGL 2022
-Solution: The **Fourth Schedule** allocates Rajya Sabha seats to states and union territories.
-
-| Schedule | Subject |
-|----------|---------|
-| Third | Forms of oaths and affirmations |
-| Fourth | Rajya Sabha seat allocation |
-| Fifth | Administration of Scheduled Areas |
-`,
-  },
-
-  flashcards: {
-    title: "Untitled Flash Cards",
-    body: `# Deck Title
-
-One line about what this deck covers.
-
-## Who called man "a political animal"?
-
-**Aristotle**, in *Politics* — society precedes the individual.
-
-## The Republic's subtitle?
-
-**"Concerning Justice"** — Plato's central question.
-
-## Grotius is the father of…
-
-**International law** — *De Jure Belli ac Pacis* (1625).
+- Bullet points
+- Tables, images and callouts
+- Everything from the Markdown guide (Help → Markdown guide)
 `,
   },
 };

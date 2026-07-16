@@ -534,8 +534,7 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
   const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
 
   const mcqIssues = useMemo(() => {
-    // PYQ shares the MCQ grammar, so it gets the same live validation.
-    if (doc.template !== "mcq" && doc.template !== "pyq") return [];
+    if (doc.template !== "questions") return [];
     return validateMcq(parseMcq(doc.body));
   }, [doc.template, doc.body]);
 
@@ -666,11 +665,12 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
       </div>
 
       <CollapsibleGroup title="Layout & PDF" storageKey="ps2:details:layout" defaultOpen={false}>
-        <Field label="Text density" hint="Body size and line spacing for the whole document.">
+        <Field label="Text density" hint="Spacing and rhythm for the whole document. Ultra packs the most onto each page — spacing, margins and layout tighten together, not just the font.">
           <Segmented
             value={doc.layout.density}
             onChange={(density) => layout({ density })}
             options={[
+              { value: "ultra", label: "Ultra" },
               { value: "compact", label: "Compact" },
               { value: "comfort", label: "Comfort" },
               { value: "relaxed", label: "Relaxed" },
@@ -691,13 +691,16 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
         {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
         <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
         {template.hasAnswers && (
-          <Field label="Answers & explanations">
+          <Field
+            label="Answers & solutions"
+            hint="Inline highlights the correct option (✓) with the solution under each question — the study layout. At the end collects a key + explanations at the back for practice tests. Hidden prints a clean question paper."
+          >
             <Segmented
               value={doc.layout.answers}
               onChange={(answers) => layout({ answers })}
               options={[
-                { value: "end", label: "At the end" },
                 { value: "inline", label: "Inline" },
+                { value: "end", label: "At the end" },
                 { value: "none", label: "Hidden" },
               ]}
             />

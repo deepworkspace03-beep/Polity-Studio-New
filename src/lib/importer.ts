@@ -369,16 +369,14 @@ type Toast = (message: string, tone?: "ok" | "error" | "info") => void;
 /** Q1./Q2. style numbered questions are the one format specific enough
     to guess safely — question papers, PYQs and quiz exports converted
     from Word/PDF almost always keep that numbering. Everything else
-    (notes vs. revision vs. flashcards) is a stylistic choice the author
+    (notes vs. revision vs. universal) is a stylistic choice the author
     makes in the Import Review picker, not something worth guessing. */
 function guessTemplate(body: string): TemplateId {
   const hits = body.match(/^\s{0,3}Q\s*\d*[.):]\s+\S/gim)?.length ?? 0;
-  if (hits < 2) return "notes";
-  // A solved bank (worked solutions and/or an exam/year stamp) is best
-  // read as a PYQ collection — solution under each question. A bare quiz
-  // with no solutions is an MCQ booklet (answers to a back-of-book key).
-  const solved = /^\s*(?:Solution|Detailed Solution|Explanation)\s*:/im.test(body) || /^\s*(?:Source|Exam|Year)\s*:/im.test(body);
-  return solved ? "pyq" : "mcq";
+  // PYQs, MCQs and practice sets all land in the unified Question Bank;
+  // the answers mode (inline by default) decides how much each card
+  // reveals, not the template.
+  return hits < 2 ? "notes" : "questions";
 }
 
 export interface StagedDoc {

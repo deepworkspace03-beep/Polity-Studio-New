@@ -39,8 +39,9 @@ and how to extend it.
 5. **Configuration over hardcoding.** Branding (names, links, colors,
    exams, watermark text) is data in IndexedDB, edited in Settings, and
    flows into print CSS as `--c-*` variables. Per-document layout
-   (cover style, TOC, watermark, page size, density, MCQ answers
-   placement) is data on the document. A global "document reading
+   (cover style, TOC, watermark, page size, density — including the
+   layout-level Ultra Compact — question-bank answers placement) is
+   data on the document. A global "document reading
    theme" (Settings → Appearance) re-derives the whole `--c-*` palette
    for a dark, eye-friendly rendering that flows through previews, PDF
    and HTML exports alike — brand hues are lightened with `color-mix`
@@ -113,8 +114,11 @@ src/
 │  ├─ renderer.ts        markdown-it pipeline: callouts, footnotes, task
 │  │                     lists, mark/ins/sub/sup, anchors, \pagebreak,
 │  │                     standalone-image → <figure> (caption + {width/align}),
+│  │                     cross-references ("Question 42" / "Table 3" /
+│  │                     "Figure 2" / "Note 15" → internal xref links;
+│  │                     tables/figures get document-order ids),
 │  │                     data-line source mapping, TOC extraction
-│  └─ mcq.ts             MCQ text parser + validation (plain TS, no deps)
+│  └─ mcq.ts             question text parser + validation (plain TS, no deps)
 ├─ templates/
 │  ├─ meta.ts            id, name, icon, starter, option flags (UI-safe,
 │  │                     no markdown engine in the initial bundle)
@@ -137,9 +141,10 @@ src/
 │  │                     fonts (fontkit subset + CSS face matching) ·
 │  │                     gradient · svg · materialize (pseudo-elements) ·
 │  │                     geometry
-│  └─ styles/            print-base.css (foundation) · covers.css ·
-│                        notes/revision/mcq/flashcards.css · pyq.css
-│                        (layered on mcq.css: solved-question cards)
+│  └─ styles/            print-base.css (foundation, incl. the Ultra
+│                        Compact density rules) · covers.css ·
+│                        notes/questions/revision/universal.css
+│                        (one per document type)
 ├─ components/           Icon, Button, Modal, Toggle, Segmented, Toast,
 │                        file-drop hook/overlay, CommandPalette (Ctrl+K:
 │                        global search + actions), StudioNav (Home /
@@ -204,7 +209,10 @@ typing is never clobbered.
 
 - **New template** — add starter + entry in `templates/meta.ts`, a body
   builder + print CSS entry in `templates/index.ts`. Everything else
-  (picker, details options, preview, publish) picks it up.
+  (picker, details options, preview, publish) picks it up. Retiring one
+  gets a mapping in `LEGACY_TEMPLATES` (`lib/store.ts`) so stored
+  documents and backups migrate on load — that is how the old
+  mcq/pyq/flashcards types became Question Bank and Universal.
 - **New cover style** — add a `.cover--<id>` block in
   `pdf/styles/covers.css`, a pattern entry in `COVER_PATTERNS`
   (`pdf/document.ts`) and an entry in the `COVER_STYLES` list in
@@ -250,8 +258,9 @@ When pasted/imported text looks like an exam paper (`lib/questionText.ts`,
 normalizer instead of the plain-text tidy: it rebuilds the clean question
 dialect (`markdown/mcq.ts`) — the reliable win for the plain-text path,
 since even HTML paste keeps tables but never the *question* grammar (those
-are ordinary paragraphs in the source). It defaults such imports to the
-**PYQ** template when worked solutions or exam tags are present, else MCQ.
+are ordinary paragraphs in the source). Such imports land as a
+**Question Bank**; the answers mode (inline by default) decides how much
+each card reveals.
 Flattened Google-Docs/Word tables in the plain-text path become clean
 bullet lists (lossless); true tables survive only via HTML paste, so the
 existing `tableToMd` still owns real table reconstruction.
@@ -289,7 +298,27 @@ Two representations of the same typefaces ship, both offline:
   WOFF2-reconstructed glyph tables. These are fetched only on export and
   re-subset to the glyphs actually used.
 
+## Internal PDF navigation
+
+Everything anchor-based rides one mechanism end to end: the renderer
+emits ids (headings via markdown-it-anchor, `q-N` on question cards,
+`table-N`/`fig-N` in document order, `fnN` from footnotes) and turns
+plain-text cross-references ("Question 42", "Q7", "Table 3",
+"Figure/Diagram 2", "Note 15") into `<a class="xref" href="#…">` links.
+Both previews scroll such links in place; the PDF engine resolves every
+`#` link to a real PDF `Dest` annotation (`resolveLinks` in
+`engine/transcribe.ts`) and builds the bookmark outline from h1/h2 —
+no browser hacks, works in Chrome, Adobe Reader, Edge and standard
+readers. A reference whose target doesn't exist degrades to plain text
+in the PDF (the engine drops unresolvable links).
+
 ## Performance notes
+
+See `docs/perf-inside-pages.md` for the inside-page cost review — what
+was optimized in v4.0 (redundant paper-on-paper fills, chip-free
+question headers), what was deliberately kept (per-page watermark and
+footer chrome), and the documented baseline for the upcoming 1000-page
+optimization session.
 
 - Initial route loads no editor code: CodeMirror, markdown-it and the
   editor views are separate lazy chunks. The PDF engine (`pdf-lib` +

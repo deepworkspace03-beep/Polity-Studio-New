@@ -105,6 +105,9 @@ export function Library() {
       body: demo.body,
       subtitle: demo.subtitle,
       paper: demo.paper,
+      // Question Bank demos pin the answers mode they were written to
+      // show off (inline study layout vs back-of-book key).
+      ...(demo.answers ? { layout: { ...settings.newDocLayout, answers: demo.answers } } : {}),
     });
     setExamplesOpen(false);
     navigate({ edit: doc.id });

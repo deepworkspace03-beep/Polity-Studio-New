@@ -42,7 +42,10 @@ export const DEFAULT_LAYOUT: DocLayout = {
   watermark: true,
   pageSize: "a4",
   density: "comfort",
-  answers: "end",
+  // "inline" is the Question Bank's professional exam-book default: the
+  // correct option is highlighted with a ✓ and the solution sits under
+  // each question. "end" (back-of-book key) remains for practice tests.
+  answers: "inline",
 };
 
 /* ── Cover Designer seeds ─────────────────────────────────────────────

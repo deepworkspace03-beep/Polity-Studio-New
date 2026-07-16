@@ -54,9 +54,19 @@ describe("buildDocumentHtml", () => {
     const noToc = buildDocumentHtml(baseDoc({ layout: { ...DEFAULT_LAYOUT, toc: false } }), DEFAULT_BRAND, { mode: "flow" });
     expect(noToc).not.toContain('class="toc"');
 
-    // MCQ template never has a TOC, regardless of the layout flag.
-    const mcq = buildDocumentHtml(baseDoc({ template: "mcq", body: "Q. Test?\nA) a\nB) b *" }), DEFAULT_BRAND, { mode: "flow" });
-    expect(mcq).not.toContain('class="toc"');
+    // The Question Bank never has a TOC, regardless of the layout flag.
+    const qb = buildDocumentHtml(baseDoc({ template: "questions", body: "Q. Test?\nA) a\nB) b *" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(qb).not.toContain('class="toc"');
+  });
+
+  it("emits the density class and the tighter Ultra Compact page margins", () => {
+    const comfort = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "paged" });
+    expect(comfort).toContain("density-comfort");
+    expect(comfort).toContain("margin: 21mm 15mm 23mm 15mm");
+
+    const ultra = buildDocumentHtml(baseDoc({ layout: { ...DEFAULT_LAYOUT, density: "ultra" } }), DEFAULT_BRAND, { mode: "paged" });
+    expect(ultra).toContain("density-ultra");
+    expect(ultra).toContain("margin: 17mm 12mm 19mm 12mm");
   });
 
   it("reflects layout.watermark in the data-watermark attribute", () => {
@@ -221,7 +231,7 @@ describe("buildDocumentHtml", () => {
 describe("buildShellKey", () => {
   it("changes when the template, page size, density, language or theme changes", () => {
     const key = buildShellKey(baseDoc(), DEFAULT_BRAND, "light");
-    expect(buildShellKey(baseDoc({ template: "mcq" }), DEFAULT_BRAND, "light")).not.toBe(key);
+    expect(buildShellKey(baseDoc({ template: "questions" }), DEFAULT_BRAND, "light")).not.toBe(key);
     expect(buildShellKey(baseDoc({ layout: { ...DEFAULT_LAYOUT, pageSize: "a5" } }), DEFAULT_BRAND, "light")).not.toBe(key);
     expect(buildShellKey(baseDoc({ layout: { ...DEFAULT_LAYOUT, density: "compact" } }), DEFAULT_BRAND, "light")).not.toBe(key);
     expect(buildShellKey(baseDoc({ lang: "hi" }), DEFAULT_BRAND, "light")).not.toBe(key);

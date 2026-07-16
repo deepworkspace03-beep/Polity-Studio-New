@@ -677,6 +677,65 @@ body.mode-flow .toc__item a::after { content: none; }
   background: color-mix(in srgb, var(--c-gold) 24%, transparent);
 }
 
+/* Cross-references ("Question 42", "Table 3", "Note 15"…) — quiet
+   internal links: readable as plain text on paper, clickable in the
+   previews, the exported PDF and the HTML export. */
+a.xref {
+  color: var(--c-accent);
+  font-weight: 600;
+  border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ULTRA COMPACT DENSITY
+   Layout-level tightening, not merely a smaller font: vertical rhythm,
+   headings, lists, callouts, tables, figures and code all close ranks
+   while keeping the same typographic hierarchy. The body size/leading
+   and the reduced page margins come from the document builder; these
+   rules do the per-element work. Template-specific tightening (the
+   question card) lives in that template's own stylesheet.
+   ═══════════════════════════════════════════════════════════════════ */
+
+body.density-ultra p { margin-bottom: 0.55em; }
+
+body.density-ultra h1 { margin: 1.15em 0 0.5em; padding-top: 0.35em; }
+body.density-ultra h1::before { height: 3pt; margin-bottom: 0.4em; }
+body.density-ultra h2 { margin: 1.05em 0 0.4em; }
+body.density-ultra h3 { margin: 0.9em 0 0.3em; }
+body.density-ultra h4 { margin: 0.8em 0 0.25em; }
+
+body.density-ultra ul, body.density-ultra ol { margin-bottom: 0.6em; padding-left: 1.3em; }
+body.density-ultra li { margin-bottom: 0.16em; }
+body.density-ultra li > ul, body.density-ultra li > ol { margin: 0.16em 0 0.2em; }
+
+body.density-ultra .callout { margin: 0.8em 0; padding: 0.5em 0.75em 0.55em; }
+body.density-ultra .callout__head { margin-bottom: 0.25em; }
+
+body.density-ultra blockquote { margin: 0.85em 0.2em; padding: 0.4em 0.9em 0.4em 1em; }
+
+body.density-ultra table { margin: 0.8em 0 0.95em; font-size: 0.9em; }
+body.density-ultra th { padding: 4pt 6.5pt; }
+body.density-ultra td { padding: 3.4pt 6.5pt; }
+
+body.density-ultra pre { padding: 0.6em 0.8em; margin: 0.75em 0 0.9em; line-height: 1.42; }
+body.density-ultra hr { margin: 1.1em 0; }
+
+body.density-ultra .md-figure { margin: 0.85em 0; }
+body.density-ultra .md-figure figcaption { margin-top: 0.3em; }
+body.density-ultra .md-fig--gap-md { margin-block: 0.85em; }
+body.density-ultra .md-fig--gap-lg { margin-block: 1.3em; }
+
+body.density-ultra .footnotes { margin-top: 1.3em; padding-top: 0.7em; }
+
+body.density-ultra .toc__item a { padding: 0.14em 0; }
+body.density-ultra .toc__item--l1:not(:first-child) { margin-top: 0.4em; }
+
+/* The page's own breathing room narrows with the frame. */
+body.density-ultra .pagedjs_page:not(.pagedjs_cover_page) .pagedjs_page_content {
+  padding-top: 4mm;
+  padding-bottom: 3.5mm;
+}
+
 /* Generic centered block titles (Answer Key, Explanations…) */
 .block-title {
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;

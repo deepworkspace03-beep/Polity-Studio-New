@@ -246,7 +246,7 @@ export const HARNESS_JS = String.raw`(function () {
     afterPageLayout(pageElement) {
       var topicBox = pageElement.querySelector(".pagedjs_margin-top-center .run-head-topic");
       if (topicBox) topicBox.textContent = shortTopic(curChap || curSect);
-      var heads = pageElement.querySelectorAll(".doc h1, .doc h2, .mcq h1, .mcq h2, .deck h1, .deck h2");
+      var heads = pageElement.querySelectorAll(".doc h1, .doc h2, .mcq h1, .mcq h2");
       for (var i = 0; i < heads.length; i++) {
         var t = (heads[i].textContent || "").trim();
         if (!t) continue;

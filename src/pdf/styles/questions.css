@@ -1,6 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════
-   PYQ / MCQ BOOKLET — template-specific print styles
-   Coaching-institute grade question cards.
+   QUESTION BANK — template-specific print styles
+   One examination-book card for PYQs, MCQs, mixed banks and practice
+   sets. Header row is label-free: number · topic · source. The card is
+   deliberately light to render — text-only header (no chip boxes) and
+   no background fill (the page already provides the paper), so a
+   thousand cards cost the PDF a thousand fewer paint operations.
    ═══════════════════════════════════════════════════════════════════ */
 
 .mcq-preamble {
@@ -46,14 +50,15 @@
   border-radius: 7pt;
   padding: 0.75em 0.95em 0.8em;
   margin: 0 0 0.85em;
-  background: var(--c-mix, white);
 }
+
+/* Header row — number (left) · topic (center) · source (right).
+   No "Topic:" / "Source:" labels: the content itself is sufficient. */
 .q__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.8em;
-  margin-bottom: 0.45em;
+  margin-bottom: 0.5em;
 }
 .q__num {
   font-family: "Manrope", sans-serif;
@@ -67,21 +72,37 @@
   border-radius: 4pt;
   padding: 1.2pt 6pt 1.6pt;
   letter-spacing: 0.04em;
+  flex: none;
 }
-.q__chips { display: flex; gap: 3pt; flex-wrap: wrap; justify-content: flex-end; }
-.qchip {
+.q__topic {
+  flex: 1;
+  text-align: center;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-size: 6.9pt;
+  font-size: 0.8em;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--c-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.q__src {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.7em;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 0.76em;
+  font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--c-muted);
-  border: 0.6pt solid var(--c-edge);
-  border-radius: 99pt;
-  padding: 1pt 5pt;
-  background: var(--c-band);
+  color: var(--c-gold);
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.qchip--source   { color: var(--c-accent); border-color: color-mix(in srgb, var(--c-accent) 35%, var(--c-mix, white)); background: var(--c-accentSoft); }
+.q__marks { font-weight: 700; color: var(--c-muted); text-transform: none; letter-spacing: 0.02em; }
 
 .q__text { font-weight: 500; }
 .q__text p { margin-bottom: 0.5em; }
@@ -123,28 +144,45 @@
 }
 .q__opt-text { font-size: 0.97em; }
 
-/* Study mode: correct option is softly highlighted. */
+/* The correct option carries the answer: a subtle green wash, a green
+   key and a ✓ — no separate "Correct Answer" line anywhere. */
 .q__opt--correct { background: color-mix(in srgb, var(--c-good) 8%, var(--c-mix, white)); }
 .q__opt--correct .q__key { color: white; background: var(--c-good); border-color: var(--c-good); }
-
-.q__answer {
-  margin-top: 0.6em;
-  border-top: 0.8pt dashed var(--c-edge);
-  padding-top: 0.55em;
-  font-size: 0.93em;
-}
-.q__answer-label {
-  font-family: "Manrope", sans-serif;
-  font-weight: 700;
-  font-size: 0.88em;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.q__tick {
+  flex: none;
+  margin-left: auto;
+  padding-left: 0.4em;
   color: var(--c-good);
-  margin-bottom: 0.25em;
+  display: inline-flex;
+  align-self: center;
 }
-.q__answer-body p:last-child { margin-bottom: 0; }
+.q__tick svg { width: 0.85em; height: 0.85em; display: block; }
 
-/* ── Answer key ──────────────────────────────────────────────────── */
+/* Worked solution — rendered only when one exists; absent solutions
+   reserve no space at all. */
+.q__sol {
+  margin-top: 0.6em;
+  border-top: 0.7pt solid var(--c-edge);
+  padding-top: 0.55em;
+  font-size: 0.94em;
+}
+.q__sol-label {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 0.74em;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  margin-bottom: 0.35em;
+}
+.q__sol-body > :first-child { margin-top: 0; }
+.q__sol-body > :last-child { margin-bottom: 0; }
+/* Solution tables read tighter than body tables. */
+.q__sol-body table { font-size: 0.86em; margin: 0.7em 0; }
+.q__sol-body th { padding: 4pt 6pt; }
+.q__sol-body td { padding: 3.5pt 6pt; }
+
+/* ── Answer key (practice mode: answers at the end) ──────────────── */
 
 .answer-key { break-before: page; }
 .key {
@@ -159,7 +197,6 @@
   border: 0.7pt solid var(--c-edge);
   border-radius: 4pt;
   padding: 3pt 7pt;
-  background: var(--c-mix, white);
   break-inside: avoid;
 }
 .key__q { font-family: "Manrope", sans-serif; font-weight: 600; font-size: 0.86em; color: var(--c-muted); }
@@ -188,6 +225,7 @@
   font-weight: 800;
   color: var(--c-accent);
 }
+.exp__num a { color: inherit; border-bottom: none; }
 .exp__answer {
   font-family: "Manrope", sans-serif;
   font-size: 0.82em;
@@ -198,3 +236,17 @@
 }
 .exp__answer strong { color: var(--c-good); }
 .exp__body p:last-child { margin-bottom: 0; }
+
+/* ── Ultra Compact — question-bank-specific tightening ───────────── */
+
+body.density-ultra .q { padding: 0.55em 0.75em 0.6em; margin-bottom: 0.55em; border-radius: 5pt; }
+body.density-ultra .q__head { margin-bottom: 0.35em; gap: 0.6em; }
+body.density-ultra .q__text p { margin-bottom: 0.35em; }
+body.density-ultra .q__options { gap: 1.5pt 8pt; margin-top: 0.25em; }
+body.density-ultra .q__opt { padding: 1pt 2pt; }
+body.density-ultra .q__sol { margin-top: 0.45em; padding-top: 0.4em; }
+body.density-ultra .q__sol-label { margin-bottom: 0.25em; }
+body.density-ultra .mcq-section { margin: 1.1em 0 0.7em; }
+body.density-ultra .mcq-section__intro { margin-bottom: 0.7em; }
+body.density-ultra .mcq-preamble { margin-bottom: 1em; padding: 0.65em 0.85em; }
+body.density-ultra .exp { padding: 0.45em 0.75em 0.5em; margin-bottom: 0.5em; }
