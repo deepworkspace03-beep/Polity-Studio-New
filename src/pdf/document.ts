@@ -192,8 +192,13 @@ function customCoverVars(d: CoverDesign): string {
 
 function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): string {
   if (!doc.layout.cover) return "";
-  const eyebrowParts = [doc.exam, doc.paper, doc.session].filter(Boolean);
+  // Exam / paper stay on the eyebrow; the Session moves up to the meta row
+  // (where the edition used to sit) and the Edition becomes a small corner
+  // badge — see cv-session / cv-edition below.
+  const eyebrowParts = [doc.exam, doc.paper].filter(Boolean);
   const eyebrow = eyebrowParts.length ? `<p class="cv-eyebrow">${escapeHtml(eyebrowParts.join("  ·  "))}</p>` : "";
+  const session = doc.session.trim() ? `<span class="cv-session">${escapeHtml(doc.session.trim())}</span>` : "";
+  const edition = doc.edition.trim() ? `<span class="cv-edition">${escapeHtml(doc.edition.trim())}</span>` : "";
   const author = doc.author || brand.author;
   const institute = doc.institute?.trim() || brand.name;
   // Cover language badge — cover page only, never touches content. Four
@@ -238,6 +243,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
   ${pattern ? coverPatternSvg(pattern.kind, geo.w, geo.h, pattern.color, { density: pattern.density, size: pattern.size }) : ""}
   <div class="cv-shade" aria-hidden="true"></div>
   ${emblem}
+  ${edition}
   <header class="cv-top">
     <div class="cv-pub">
       ${mark}
@@ -248,7 +254,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
     </div>
     <div class="cv-top__meta">
       ${langLabel}
-      ${doc.edition.trim() ? `<span class="cv-edition">${escapeHtml(doc.edition.trim())}</span>` : ""}
+      ${session}
     </div>
   </header>
   <div class="cv-body">

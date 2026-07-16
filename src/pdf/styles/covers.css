@@ -99,22 +99,46 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
   border: 0.8pt solid var(--cv-line);
 }
 .cv-lang--hi { font-family: "Noto Sans Devanagari", "Manrope", sans-serif; font-size: 10.5pt; }
-.cv-edition {
+/* Session pill — sits in the top-right meta row (the slot the edition
+   badge used to occupy). Quiet outlined metadata, matching the language
+   badge's weight so the two read as a set. */
+.cv-session {
   flex: none;
-  font-family: "Manrope", sans-serif;
-  font-weight: 800;
-  font-size: 12pt;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 700;
+  font-size: 10pt;
   line-height: 1;
   letter-spacing: 0.01em;
-  min-width: 12mm;
-  height: 12mm;
   padding: 0 3.4mm;
+  height: 12mm;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 2.8mm;
+  color: var(--cv-ink);
+  border: 0.8pt solid var(--cv-line);
+}
+/* Edition badge — pinned to the extreme top-right corner of the cover,
+   above and to the right of the session pill. A small solid accent chip. */
+.cv-edition {
+  position: absolute;
+  top: 7mm;
+  right: 7mm;
+  z-index: 2;
+  font-family: "Manrope", sans-serif;
+  font-weight: 800;
+  font-size: 9.5pt;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  min-width: 8mm;
+  height: 8mm;
+  padding: 0 2.4mm;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2.6mm;
+  border-radius: 2mm;
   color: var(--cv-edition-tx);
   background: var(--cv-accent);
+  box-shadow: 0 0.5mm 1.5mm rgba(0, 0, 0, 0.18);
 }
 
 /* ── Hero + highlights (body) ────────────────────────────────────── */

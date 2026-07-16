@@ -6,6 +6,24 @@ import type { EditorView } from "@codemirror/view";
  * useful after the edit (so repeated formatting feels natural).
  */
 
+/** Splits a selection's surrounding whitespace out of an inline wrap so the
+    markers sit flush against visible text. markdown-it's inline rules
+    (`**`, `*`, `==`, `++`, `~~`) treat a marker that touches whitespace —
+    `== word ==` — as literal text, not formatting, so a selection that
+    happens to include a leading/trailing space (very common when
+    double-clicking or dragging) would otherwise render the raw markers
+    instead of the highlight. Wrapping only the trimmed core keeps the
+    applied formatting aligned exactly with the words the author picked.
+    Pure and side-effect-free so it can be unit-tested without a live view. */
+export function computeWrap(selected: string, before: string, after: string, placeholder: string): { insert: string; coreFrom: number; coreTo: number } {
+  const lead = selected.match(/^\s*/)![0];
+  const rest = selected.slice(lead.length);
+  const trail = rest.match(/\s*$/)![0];
+  const core = rest.slice(0, rest.length - trail.length) || placeholder;
+  const coreFrom = lead.length + before.length;
+  return { insert: lead + before + core + after + trail, coreFrom, coreTo: coreFrom + core.length };
+}
+
 /** Wraps the selection in markers; toggles them off when already applied. */
 export function wrapSelection(view: EditorView, before: string, after = before, placeholder = "text"): void {
   const r = view.state.selection.main;
@@ -14,7 +32,7 @@ export function wrapSelection(view: EditorView, before: string, after = before, 
   // Toggle off when the selection is already wrapped.
   const outerFrom = Math.max(0, r.from - before.length);
   const outerTo = Math.min(view.state.doc.length, r.to + after.length);
-  if (view.state.sliceDoc(outerFrom, r.from) === before && view.state.sliceDoc(r.to, outerTo) === after) {
+  if (selected && view.state.sliceDoc(outerFrom, r.from) === before && view.state.sliceDoc(r.to, outerTo) === after) {
     view.dispatch({
       changes: { from: outerFrom, to: outerTo, insert: selected },
       selection: { anchor: outerFrom, head: outerFrom + selected.length },
@@ -23,10 +41,10 @@ export function wrapSelection(view: EditorView, before: string, after = before, 
     return;
   }
 
-  const txt = selected || placeholder;
+  const { insert, coreFrom, coreTo } = computeWrap(selected, before, after, placeholder);
   view.dispatch({
-    changes: { from: r.from, to: r.to, insert: before + txt + after },
-    selection: { anchor: r.from + before.length, head: r.from + before.length + txt.length },
+    changes: { from: r.from, to: r.to, insert },
+    selection: { anchor: r.from + coreFrom, head: r.from + coreTo },
   });
   view.focus();
 }
@@ -116,6 +134,36 @@ export function clearFormatting(view: EditorView): void {
     selection: { anchor: r.from, head: r.from + cleaned.length },
   });
   view.focus();
+}
+
+/** Copies just the current selection to the clipboard (selection kept). */
+export async function copySelection(view: EditorView): Promise<boolean> {
+  const r = view.state.selection.main;
+  const text = view.state.sliceDoc(r.from, r.to);
+  if (!text) return false;
+  try {
+    await navigator.clipboard.writeText(text);
+    view.focus();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Cuts the current selection — copies it, then removes it, but only once
+    the copy has actually landed so a permission failure never loses text. */
+export async function cutSelection(view: EditorView): Promise<"empty" | "denied" | "ok"> {
+  const r = view.state.selection.main;
+  const text = view.state.sliceDoc(r.from, r.to);
+  if (!text) return "empty";
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    return "denied";
+  }
+  view.dispatch({ changes: { from: r.from, to: r.to, insert: "" }, selection: { anchor: r.from } });
+  view.focus();
+  return "ok";
 }
 
 /** Copies the entire document to the clipboard, leaving it untouched. */

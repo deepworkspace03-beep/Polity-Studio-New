@@ -7,6 +7,7 @@ import { IconButton, Segmented, useToast } from "../../components/ui";
 import { imageFileToDataUrl } from "../../lib/image";
 import { parseImageLine, patchImageLine, removeImageLine } from "./imageLine";
 import { ImageEditControls } from "./ImageEditControls";
+import { ScrollJump } from "./ScrollJump";
 
 type PreviewMode = "flow" | "pages";
 type ZoomMode = "fit-width" | "fit-page" | "custom";
@@ -41,6 +42,7 @@ export function Preview({
   onToggleFullscreen,
   onCollapse,
   getView,
+  scrollSyncRef,
 }: {
   doc: Doc;
   brand: BrandConfig;
@@ -62,6 +64,10 @@ export function Preview({
       image in the Flow preview be edited (resize/align/caption/replace/
       remove) in place, by patching the same Markdown source line. */
   getView?: () => EditorView | null;
+  /** The host stores a "scroll the preview to this 0–1 position" function
+      here so editor scrolling can drive the preview to the same spot
+      without re-rendering this component on every frame. */
+  scrollSyncRef?: React.MutableRefObject<((pct: number) => void) | null>;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
   const [srcDoc, setSrcDoc] = useState("");
@@ -201,6 +207,21 @@ export function Preview({
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  // Editor → preview position sync. The host calls this (from editor
+  // scrolling) with a 0–1 fraction; both iframe harnesses accept
+  // "scroll-to-pct" and map it onto the flow scroll height or the paged
+  // stack. Registered through a ref so a scroll never re-renders Preview.
+  useEffect(() => {
+    if (!scrollSyncRef) return;
+    scrollSyncRef.current = (pct: number) => {
+      if (!readyRef.current) return;
+      frameRef.current?.contentWindow?.postMessage({ type: "scroll-to-pct", pct }, "*");
+    };
+    return () => {
+      scrollSyncRef.current = null;
+    };
+  }, [scrollSyncRef]);
+
   function goTo(page: number) {
     if (!pages) return;
     const p = Math.max(1, Math.min(pages, page));
@@ -208,11 +229,18 @@ export function Preview({
     post({ type: "go-to-page", page: p });
   }
 
+  /** Jump the preview itself to the very top / bottom of the document. */
+  const jumpPreview = (pct: number) => post({ type: "scroll-to-pct", pct });
+
   const isPages = mode === "pages";
   const isDark = theme === "dark";
   const editorView = getView?.() ?? null;
   const selectedImage = !isPages && selectedImageLine != null && editorView ? parseImageLine(editorView, selectedImageLine) : null;
   const pagesPercent = pages ? Math.round((current / pages) * 100) : 0;
+  // Shared document position (0–1) for the Go-to-Top/Bottom buttons: the
+  // flow view reports a scroll fraction directly; the paged view maps the
+  // visible page onto first→last.
+  const previewPct = isPages ? (pages && pages > 1 ? (current - 1) / (pages - 1) : 0) : flowPct;
   const flowTotal = estimatedPages && estimatedPages > 1 ? estimatedPages : 0;
   const flowPage = flowTotal ? Math.min(flowTotal, Math.floor(flowPct * flowTotal) + 1) : 0;
   const flowPercent = Math.round(flowPct * 100);
@@ -291,6 +319,7 @@ export function Preview({
           className="h-full w-full border-0 bg-white"
           sandbox="allow-same-origin allow-scripts"
         />
+        <ScrollJump pct={previewPct} onTop={() => jumpPreview(0)} onBottom={() => jumpPreview(1)} side="left" />
         {selectedImage && (
           <div className="absolute left-1/2 top-2 z-10 flex max-w-[94%] -translate-x-1/2 items-start gap-1 rounded-xl border border-edge bg-surface px-3 py-2 shadow-xl">
             <ImageEditControls
