@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeWrap } from "./commands";
+import { buildWrappedBlock, computeWrap } from "./commands";
 import { renderMarkdown } from "../../markdown/renderer";
 
 describe("computeWrap — whitespace-aware inline wrapping", () => {
@@ -32,5 +32,25 @@ describe("computeWrap — whitespace-aware inline wrapping", () => {
     // this is exactly why computeWrap trims the surrounding whitespace.
     expect(renderMarkdown(computeWrap("word ", "==", "==", "text").insert)).toContain("<mark>");
     expect(renderMarkdown("==word ==")).not.toContain("<mark>");
+  });
+});
+
+describe("buildWrappedBlock — selection-aware block templates", () => {
+  it("wraps the selected text between the markers", () => {
+    expect(buildWrappedBlock("The key point.", "::: important", ":::", "", "")).toBe("::: important\nThe key point.\n:::");
+  });
+
+  it("pads with blank lines only against non-blank neighbours", () => {
+    expect(buildWrappedBlock("x", "```", "```", "prose above", "prose below")).toBe("\n```\nx\n```\n");
+    expect(buildWrappedBlock("x", "```", "```", "", "prose below")).toBe("```\nx\n```\n");
+    expect(buildWrappedBlock("x", "```", "```", "prose above", "")).toBe("\n```\nx\n```");
+  });
+
+  it("keeps multi-line selections intact and renders as one callout", () => {
+    const block = buildWrappedBlock("Line one.\nLine two.", "::: tip", ":::", "", "");
+    const html = renderMarkdown(block);
+    expect(html).toContain("callout--tip");
+    expect(html).toContain("Line one.");
+    expect(html).toContain("Line two.");
   });
 });

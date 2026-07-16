@@ -144,6 +144,9 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   // 0–1 position" function here; editor scrolling calls it. A ref (not
   // state) so a scroll never triggers a React re-render.
   const previewScrollRef = useRef<((pct: number) => void) | null>(null);
+  // Cover peek: while a cover/publication field in the settings pane has
+  // focus, the preview parks on the cover and returns afterwards.
+  const coverPeekRef = useRef<((active: boolean) => void) | null>(null);
   const [tab, setTab] = useState<Tab>("write");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -465,6 +468,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
                   onResetLayout={resetLayout}
                   onUndo={undoSettings}
                   canUndo={undoDepth > 0}
+                  onCoverEditing={(active) => coverPeekRef.current?.(active)}
                 />
               </div>
               <PaneResizer label="Resize settings panel" onDrag={resizeSettings} />
@@ -537,6 +541,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
             onCollapse={() => setPreviewCollapsed(true)}
             getView={() => viewRef.current}
             scrollSyncRef={previewScrollRef}
+            coverPeekRef={coverPeekRef}
           />
         </div>
         {!fullscreen && previewCollapsed && (

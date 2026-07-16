@@ -176,10 +176,24 @@ export const HARNESS_JS = String.raw`(function () {
     else if (d.type === "scroll-to-line") scrollToLine(d.line);
     else if (d.type === "scroll-to-pct" && typeof d.pct === "number") {
       // Editor → preview position sync for the paged view: map the document
-      // fraction onto the stack of laid-out pages.
+      // fraction onto the stack of laid-out pages. d.body starts the range
+      // at the first page with authored content ([data-line]) so the cover
+      // and TOC — generated pages the Markdown source knows nothing about —
+      // don't skew the mapping; the raw form still spans everything for the
+      // jump-to-top/bottom buttons.
       var se = document.scrollingElement || document.documentElement;
       var max = se.scrollHeight - se.clientHeight;
-      window.scrollTo(0, Math.max(0, Math.min(1, d.pct)) * max);
+      var start = 0;
+      if (d.body) {
+        var all = pageEls();
+        for (var i = 0; i < all.length; i++) {
+          if (all[i].querySelector("[data-line]")) {
+            start = Math.max(0, Math.min(max, all[i].getBoundingClientRect().top + se.scrollTop - 8));
+            break;
+          }
+        }
+      }
+      window.scrollTo(0, start + Math.max(0, Math.min(1, d.pct)) * (max - start));
     }
     else if (d.type === "print") {
       // Print at 1:1 — the preview zoom must not scale the paper.
@@ -485,10 +499,20 @@ export const PREVIEW_JS = String.raw`(function () {
       // Editor → preview position sync: place this continuous view at the
       // same document fraction the editor is scrolled to. Skip while an
       // inline edit is focused so it never yanks the caret away.
+      // d.body maps the fraction onto the *body content* only — the cover
+      // and TOC are generated pages the Markdown source knows nothing
+      // about, so the editor's 0% must land on the first authored block,
+      // not the cover. The raw (no-flag) form still spans the whole
+      // document for the jump-to-top/bottom buttons.
       if (editing) return;
       var doc = document.documentElement;
       var max = doc.scrollHeight - doc.clientHeight;
-      window.scrollTo(0, Math.max(0, Math.min(1, d.pct)) * max);
+      var start = 0;
+      if (d.body) {
+        var first = root.querySelector("[data-line]");
+        if (first) start = Math.max(0, Math.min(max, first.getBoundingClientRect().top + window.scrollY - 12));
+      }
+      window.scrollTo(0, start + Math.max(0, Math.min(1, d.pct)) * (max - start));
     }
   });
 

@@ -203,6 +203,10 @@ describe("buildDocumentHtml", () => {
   it("shows the language badge per the four cover-only states", () => {
     const en = buildDocumentHtml(baseDoc({ lang: "en" }), DEFAULT_BRAND, { mode: "flow" });
     expect(en).toContain(">English<");
+    // The badges live in the cover's bottom section (cv-langs), rendered
+    // after the body and immediately before the footer — not up top.
+    expect(en.indexOf('class="cv-langs"')).toBeGreaterThan(en.indexOf('class="cv-body"'));
+    expect(en.indexOf('class="cv-langs"')).toBeLessThan(en.indexOf('class="cv-foot"'));
     const hi = buildDocumentHtml(baseDoc({ lang: "hi" }), DEFAULT_BRAND, { mode: "flow" });
     expect(hi).toContain("हिन्दी");
     expect(hi).not.toContain(">English<");

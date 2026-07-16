@@ -9,7 +9,6 @@ import { tags } from "@lezer/highlight";
 import { insertLink, wrapSelection } from "./commands";
 import { smartPaste } from "../../lib/importer";
 import { EditorScrollbar } from "./EditorScrollbar";
-import { SelectionToolbar, type SelBox } from "./SelectionToolbar";
 import { searchHighlightField } from "./searchHighlight";
 
 /** Markdown syntax colors driven by the app theme variables, so the
@@ -110,11 +109,6 @@ export interface CodeMirrorProps {
 
 export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, onFind, estimatedPages, onScrollFraction, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  // Floating selection toolbar — its container-relative anchor, or null when
-  // there's no selection to attach to.
-  const [selBox, setSelBox] = useState<SelBox | null>(null);
-  const syncSelRef = useRef<() => void>(() => {});
   // The scroller element + a revision counter feed the custom scrollbar
   // overlay; revision bumps on doc changes so the thumb resizes as content
   // grows/shrinks (scroll and resize are observed directly by the overlay).
@@ -138,55 +132,8 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   onFindRef.current = onFind;
   onScrollFractionRef.current = onScrollFraction;
 
-  // Recompute the floating toolbar's anchor from the live selection. Kept in
-  // a ref so the (mount-once) CodeMirror listeners always call the latest
-  // version. Anchors above the selection, flipping below when there isn't
-  // room, and hides when the selection is empty or scrolled out of view.
-  syncSelRef.current = () => {
-    const view = viewRef.current;
-    const container = containerRef.current;
-    if (!view || !container || !view.hasFocus) return setSelBox(null);
-    const sel = view.state.selection.main;
-    if (sel.empty) return setSelBox(null);
-    const start = view.coordsAtPos(sel.from);
-    const end = view.coordsAtPos(sel.to);
-    if (!start || !end) return setSelBox(null);
-    const c = container.getBoundingClientRect();
-    const selTop = Math.min(start.top, end.top);
-    const selBottom = Math.max(start.bottom, end.bottom);
-    if (selBottom < c.top + 4 || selTop > c.bottom - 4) return setSelBox(null); // scrolled out
-    const sameLine = Math.abs(start.top - end.top) < 4;
-    const anchorX = sameLine ? (start.left + end.right) / 2 : start.left;
-    const half = 130;
-    const left = Math.min(c.width - half, Math.max(half, anchorX - c.left));
-    const below = selTop - c.top < 52;
-    const top = below ? selBottom - c.top : selTop - c.top;
-    setSelBox((prev) => (prev && prev.left === left && prev.top === top && prev.below === below ? prev : { left, top, below }));
-  };
-
-  // Dismiss the toolbar on a pointer down anywhere outside the editor pane
-  // (a genuine "click outside"); a click inside that collapses the selection
-  // is already handled by the empty-selection check in syncSelRef.
-  useEffect(() => {
-    if (!selBox) return;
-    const onDown = (e: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setSelBox(null);
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [selBox]);
-
   useEffect(() => {
     if (!hostRef.current) return;
-    // rAF-deduped reposition of the selection toolbar — coordsAtPos is only
-    // reliable after the layout the change caused, so never measure inline.
-    let selRaf = 0;
-    const scheduleSel = () => {
-      if (!selRaf) selRaf = requestAnimationFrame(() => {
-        selRaf = 0;
-        syncSelRef.current();
-      });
-    };
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
@@ -259,9 +206,7 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
             if (u.selectionSet || u.docChanged) {
               lastCursorTsRef.current = performance.now();
               onCursorRef.current?.(u.state.doc.lineAt(u.state.selection.main.head).number);
-              scheduleSel(); // keep the floating selection toolbar attached
             }
-            if (u.focusChanged) scheduleSel();
           }),
         ],
       }),
@@ -291,7 +236,6 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
     };
     const onScroll = () => {
       if (!scrollRaf) scrollRaf = requestAnimationFrame(reportScroll);
-      scheduleSel(); // keep the floating toolbar pinned to the selection
     };
     view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
 
@@ -300,7 +244,6 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
       setScroller(null);
       view.scrollDOM.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(scrollRaf);
-      cancelAnimationFrame(selRaf);
       view.destroy();
     };
     // The view owns the document after mount; external value changes are
@@ -319,10 +262,9 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   }, [value, viewRef]);
 
   return (
-    <div ref={containerRef} className="relative h-full min-h-0">
+    <div className="relative h-full min-h-0">
       <div ref={hostRef} className="h-full min-h-0" />
       <EditorScrollbar scroller={scroller} revision={revision} estimatedPages={estimatedPages} />
-      {selBox && <SelectionToolbar box={selBox} getView={() => viewRef.current} />}
     </div>
   );
 }

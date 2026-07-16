@@ -90,6 +90,41 @@ export function setHeading(view: EditorView, level: number): void {
   view.focus();
 }
 
+/** Assembles a container block around already-line-expanded selected text,
+    adding the blank-line padding Markdown block syntax needs on whichever
+    sides have non-blank neighbours. Pure, so the padding rules are unit-
+    testable without a live editor view. */
+export function buildWrappedBlock(selected: string, open: string, close: string, prevLine: string, nextLine: string): string {
+  let block = `${open}\n${selected}\n${close}`;
+  if (prevLine.trim()) block = "\n" + block;
+  if (nextLine.trim()) block = block + "\n";
+  return block;
+}
+
+/** The toolbar's block templates are selection-aware: with text selected,
+    the selected lines become the block's *content* (a paragraph turns into
+    the callout, the snippet becomes the code block) instead of dropping an
+    empty template next to it; with no selection it inserts the placeholder
+    template as before. */
+export function insertWrappedBlock(view: EditorView, open: string, close: string, placeholder: string): void {
+  const r = view.state.selection.main;
+  if (r.empty) return insertBlock(view, `${open}\n${placeholder}\n${close}`);
+  const fromLine = view.state.doc.lineAt(r.from);
+  let toLine = view.state.doc.lineAt(r.to);
+  // A whole-line selection usually ends at the *start* of the next line —
+  // that line isn't part of what the author selected, so don't wrap it.
+  if (r.to === toLine.from && toLine.number > fromLine.number) toLine = view.state.doc.line(toLine.number - 1);
+  const selected = view.state.sliceDoc(fromLine.from, toLine.to);
+  const prev = fromLine.number > 1 ? view.state.doc.line(fromLine.number - 1).text : "";
+  const next = toLine.number < view.state.doc.lines ? view.state.doc.line(toLine.number + 1).text : "";
+  const insert = buildWrappedBlock(selected, open, close, prev, next);
+  view.dispatch({
+    changes: { from: fromLine.from, to: toLine.to, insert },
+    selection: { anchor: fromLine.from + insert.length },
+  });
+  view.focus();
+}
+
 /** Inserts a block after the current line, with a blank line around it. */
 export function insertBlock(view: EditorView, block: string): void {
   const line = view.state.doc.lineAt(view.state.selection.main.from);
@@ -134,36 +169,6 @@ export function clearFormatting(view: EditorView): void {
     selection: { anchor: r.from, head: r.from + cleaned.length },
   });
   view.focus();
-}
-
-/** Copies just the current selection to the clipboard (selection kept). */
-export async function copySelection(view: EditorView): Promise<boolean> {
-  const r = view.state.selection.main;
-  const text = view.state.sliceDoc(r.from, r.to);
-  if (!text) return false;
-  try {
-    await navigator.clipboard.writeText(text);
-    view.focus();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Cuts the current selection — copies it, then removes it, but only once
-    the copy has actually landed so a permission failure never loses text. */
-export async function cutSelection(view: EditorView): Promise<"empty" | "denied" | "ok"> {
-  const r = view.state.selection.main;
-  const text = view.state.sliceDoc(r.from, r.to);
-  if (!text) return "empty";
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    return "denied";
-  }
-  view.dispatch({ changes: { from: r.from, to: r.to, insert: "" }, selection: { anchor: r.from } });
-  view.focus();
-  return "ok";
 }
 
 /** Copies the entire document to the clipboard, leaving it untouched. */
@@ -231,5 +236,3 @@ export const TABLE_SNIPPET = `| Column 1 | Column 2 | Column 3 |
 |---|---|---|
 | Cell | Cell | Cell |
 | Cell | Cell | Cell |`;
-
-export const CODE_SNIPPET = "```\ncode\n```";

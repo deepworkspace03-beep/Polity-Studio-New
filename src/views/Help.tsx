@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "3.4";
+const STUDIO_VERSION = "3.5";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -370,8 +370,9 @@ ${FLASHCARD_PROMPT}
 ## Editor features worth knowing
 
 - The toolbar keeps everyday tools visible; the More (⋯) menu holds the rest (text styles, tables, page breaks, whole-document copy/cut/paste/replace).
-- Select text and a floating selection toolbar appears over it: Copy, Cut, Replace-with-clipboard, Bold, Highlight, plus More (the remaining text styles and lists) and Insert (a heading, the callouts, a page break or a divider). It only applies the Markdown described above — no AI.
-- Scrolling the editor keeps the preview at the same document position; Go-to-Top / Go-to-Bottom buttons appear in both once you've scrolled.
+- The toolbar is selection-aware: with text selected, a callout or the code block wraps the selected text, headings/lists/quote transform the selected lines, inline styles wrap the exact selection, and the clipboard paste replaces it. With nothing selected the same buttons insert their usual templates.
+- Scrolling the editor keeps the preview at the same body position (the generated cover/contents pages don't skew the mapping); small Go-to-Top / Go-to-Bottom buttons fade in on each pane once you've scrolled.
+- Editing a Publication or Cover field peeks the preview at the cover, then returns to where you were.
 - Inserting or tapping an image shows a toolbar for its layout (left/center/right/full), size, spacing, border, rounded corners, shadow and caption — the same controls appear right in the Flow preview, updating the document live.
 - "Replace with clipboard" (in the More menu) swaps the whole document for the clipboard's text, with a confirmation if the document isn't empty — separate from a normal paste at the cursor.
 - Ctrl/Cmd+F opens the Search Navigator — an in-document find/replace whose results are grouped by heading and estimated page; click any result to jump straight to it. Ctrl/Cmd+K opens universal search and commands across every document.
@@ -400,18 +401,20 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Editor workflow & navigation)`} intro="A workflow pass on the editor: a shared way to move through long documents, a floating selection toolbar, a cleaner settings pane and a tidier cover.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Refinement pass)`} intro="A stability-first polish of the last update: a selection-aware toolbar built for tablets, smarter scroll sync, a more balanced cover and a proper full-height highlight.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Selection toolbar</b> — select text and a compact toolbar appears over it (Google-Docs style): Copy, Cut, Replace-with-clipboard, Bold and Highlight on the first row, with <b>More</b> (the rest of the text styles and lists) and <b>Insert</b> (headings, callouts, page break, divider) alongside. It stays put while you work and only leaves when the selection is cleared or the action lands.</li>
-            <li><b>Shared document navigation</b> — scrolling the Markdown editor now moves the preview to the same place, so the two panes stay together. Small <b>Go to Top / Go to Bottom</b> buttons appear in the editor and the preview once you've scrolled, and slip away again near each end.</li>
-            <li><b>Sharper highlight</b> — <code className="font-mono text-xs">==highlight==</code> now lines up exactly with the words you picked, even when your selection includes a stray leading or trailing space.</li>
-            <li><b>Simpler settings pane</b> — reorganised into four groups: <b>Publication · Cover · Layout &amp; PDF · Advanced</b>. Everything cover-related — brand/institute, session, edition, language, highlights and the cover design — now lives together under Cover; the studio-wide PDF colors, reading theme and filename pattern moved to Advanced.</li>
-            <li><b>Tidier cover</b> — the Session now sits as a pill in the cover's top-right, with the Edition as a small badge tucked into the extreme corner above it.</li>
+            <li><b>Selection-aware toolbar</b> — the floating selection menu is gone (it fought Android's own selection popup). Instead the main toolbar acts on your selection: pick a callout (Definition, Important, Tip…) or the code block and it wraps the <em>selected text</em> rather than inserting an empty template; headings, lists and quote transform the selected lines; the clipboard paste button replaces the selection.</li>
+            <li><b>Smarter scroll sync</b> — editor scrolling now maps onto the <em>document body</em>, skipping the generated cover and contents pages, so the editor and preview point at the same logical position even in very long documents.</li>
+            <li><b>Cover peek</b> — while you're editing cover or publication fields in the settings pane, the preview shows the cover so you see the change land, then returns to where you were reading.</li>
+            <li><b>Balanced cover</b> — the publisher lockup and session sit a step below the page edge, only the edition badge owns the extreme top-right corner, and the language badge moved to the bottom of the cover, just above the footer rule.</li>
+            <li><b>Quieter navigation buttons</b> — the Go-to-Top/Bottom buttons are smaller, translucent and fade in and out; each pane's pair scrolls only itself.</li>
+            <li><b>Full-height highlight</b> — <code className="font-mono text-xs">==highlight==</code> now paints a clean full-height wash behind the text (identical in previews, PDF and HTML export) instead of the old half-height band.</li>
           </ul>
         </Section>
 
         <Section title="Previously — Covers, Images & the dark PDF" intro="Still current from the last few updates.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>Four-group settings pane</b> — Publication · Cover · Layout &amp; PDF · Advanced, with everything cover-related together under Cover.</li>
             <li><b>Cover Designer</b> — hairline frames (Single, Double or Accent), a title box (Outline, Filled or Premium), nine patterns with opacity/density/size, your own uploaded logo, and per-style color overrides.</li>
             <li><b>Any image size</b> — the image toolbar has a width slider (down to 10% of the column) alongside XS/S/M/L; wrapped text stops cleanly, so headings, tables, callouts and lists always start clear of a floated image.</li>
             <li><b>Search Navigator</b> — Ctrl/Cmd+F opens a find/replace whose results are grouped by heading and estimated page; click a result to jump straight to it, highlighted in place.</li>
@@ -594,8 +597,8 @@ export function Help() {
         <Section title="Working efficiently" intro="The workspace has a few features worth knowing about.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li>The formatting toolbar keeps everyday tools visible; the <b>More (⋯)</b> menu holds text styles, tables, page breaks, and whole-document copy/cut/paste/replace. Every icon shows its name on hover (desktop) or long-press (touch).</li>
-            <li><b>Selection toolbar</b> — select any text and a compact toolbar floats over it with Copy, Cut, Replace-with-clipboard, Bold and Highlight, plus <b>More</b> (italic, underline, strikethrough, super/subscript, inline code, link, lists, quote, clear formatting) and <b>Insert</b> (a heading, the eight callouts, a page break or a divider). It just applies the Studio's existing Markdown — no AI — and stays until you clear the selection or the action completes.</li>
-            <li><b>Shared navigation</b> — scrolling the editor keeps the preview at roughly the same document position, and both the editor and the preview show <b>Go to Top / Go to Bottom</b> buttons once you've scrolled (they hide again near each end). The editor scrollbar and both previews also show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
+            <li><b>The toolbar is selection-aware</b> — select text first, then tap a callout (Definition, Important, Tip…) or the code block to wrap the <em>selected text</em> in it; headings, bullet/numbered/check lists and quote transform the selected lines; bold/italic/highlight wrap the exact selection; the clipboard paste button replaces it. With nothing selected the same buttons insert their usual templates.</li>
+            <li><b>Shared navigation</b> — scrolling the editor keeps the preview at the same <em>body</em> position (the generated cover and contents pages don't skew the mapping). Small <b>Go to Top / Go to Bottom</b> buttons fade in on each pane once you've scrolled — each pair scrolls only its own pane — and fade away near the ends. The editor scrollbar and both previews also show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
             <li><b>Replace with clipboard</b> (in the More menu) swaps the entire document for your clipboard's text — asks first if the document isn't empty. Different from a normal paste, which inserts at the cursor.</li>
             <li><b>Download Guide (.md)</b> (top of this page) exports the complete Markdown reference — syntax, templates, AI prompts, common mistakes — as one file, kept in sync with this page.</li>
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
@@ -615,7 +618,8 @@ export function Help() {
         <Section title="The Settings pane, covers & the dark reading theme" intro="The editor's Settings pane (the sliders icon) is organised into four groups: Publication · Cover · Layout & PDF · Advanced.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Publication</b> holds the document's identity — subtitle, exam, paper/unit and author.</li>
-            <li><b>Cover</b> holds everything on the cover page in one place: the brand/institute name, session (a pill in the top-right), edition (a small badge in the extreme top-right corner, e.g. 1e/2e), the language badge (English · हिन्दी · Both · None — cover badge only, it never changes your content), highlight lines, and the cover design. Each preset style accepts optional background, heading and accent color overrides; <b>Custom — design your own</b> opens the Cover Designer (background gradient, colors, a vector pattern with opacity/density/size, title font and size, alignment, a hairline frame, a title box, the temple emblem and your own logo), previewing live.</li>
+            <li><b>Cover</b> holds everything on the cover page in one place: the brand/institute name, session (a pill in the cover's top-right), edition (a small badge in the extreme top-right corner, e.g. 1e/2e), the language badge (English · हिन्दी · Both · None — shown at the bottom of the cover just above the footer; it never changes your content), highlight lines, and the cover design. Each preset style accepts optional background, heading and accent color overrides; <b>Custom — design your own</b> opens the Cover Designer (background gradient, colors, a vector pattern with opacity/density/size, title font and size, alignment, a hairline frame, a title box, the temple emblem and your own logo), previewing live.</li>
+            <li>While any Publication or Cover field has focus, the preview <b>peeks at the cover</b> so you watch your edit land, then returns to where you were.</li>
             <li><b>Layout &amp; PDF</b> covers text density, page size, table of contents, watermark, (for question booklets) the answers position, and named layout presets you can save, apply, rename, duplicate or reset.</li>
             <li><b>Advanced</b> holds the document reading theme, the studio-wide PDF colors, and the PDF filename pattern. The full Branding page (names, links, watermark text) stays in Studio Settings.</li>
             <li>The <b>document reading theme</b> (light/dark) renders previews, PDFs and HTML exports on an eye-friendly dark palette that typesets like a professional dark publication — the preview toolbar's sun/moon icon toggles it without leaving the editor. Covers keep their own design.</li>

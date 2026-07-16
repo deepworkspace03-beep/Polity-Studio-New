@@ -43,6 +43,7 @@ export function Preview({
   onCollapse,
   getView,
   scrollSyncRef,
+  coverPeekRef,
 }: {
   doc: Doc;
   brand: BrandConfig;
@@ -68,6 +69,10 @@ export function Preview({
       here so editor scrolling can drive the preview to the same spot
       without re-rendering this component on every frame. */
   scrollSyncRef?: React.MutableRefObject<((pct: number) => void) | null>;
+  /** Cover peek — the host stores a function here that the settings pane
+      calls with true while a cover/publication field has focus: the
+      preview shows the cover, then returns to where the reader was. */
+  coverPeekRef?: React.MutableRefObject<((active: boolean) => void) | null>;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
   const [srcDoc, setSrcDoc] = useState("");
@@ -98,8 +103,31 @@ export function Preview({
   // zoom before paged-done fires, which would clobber zoomCmdRef itself —
   // this frozen copy survives that.
   const pendingZoomRestoreRef = useRef<ZoomMode | number | null>(null);
+  // Cover peek — while a cover/publication field is focused the preview
+  // parks on the cover; the position the reader was at is restored when
+  // focus moves on. Refs, not state: peeking must never re-render.
+  const peekingRef = useRef(false);
+  const peekReturnRef = useRef<number | null>(null); // flow pct or page number
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
+
+  // Cover peek — (re)assigned every render so the closure always sees the
+  // live mode and position (the same pattern as the refs above).
+  if (coverPeekRef) {
+    coverPeekRef.current = (active: boolean) => {
+      if (active === peekingRef.current) return;
+      peekingRef.current = active;
+      if (active) {
+        peekReturnRef.current = mode === "pages" ? current : flowPct;
+        post(mode === "pages" ? { type: "go-to-page", page: 1 } : { type: "scroll-to-pct", pct: 0 });
+      } else {
+        const back = peekReturnRef.current;
+        peekReturnRef.current = null;
+        if (back == null) return;
+        post(mode === "pages" ? { type: "go-to-page", page: Math.max(1, Math.round(back)) } : { type: "scroll-to-pct", pct: back });
+      }
+    };
+  }
 
   // Content pipeline — full shell rebuild only when the shell itself
   // (fonts, page geometry, template CSS, mode) changes.
@@ -144,9 +172,9 @@ export function Preview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, brand, mode, theme]);
 
-  // Cursor follows the editor into the preview.
+  // Cursor follows the editor into the preview (paused during cover peek).
   useEffect(() => {
-    if (!readyRef.current || cursorLine <= 0) return;
+    if (!readyRef.current || cursorLine <= 0 || peekingRef.current) return;
     const timer = setTimeout(() => post({ type: "scroll-to-line", line: cursorLine }), CURSOR_DEBOUNCE);
     return () => clearTimeout(timer);
   }, [cursorLine]);
@@ -166,7 +194,9 @@ export function Preview({
       const d = e.data || {};
       if (d.type === "preview-ready") {
         readyRef.current = true;
-        if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
+        // While peeking at the cover, a fresh iframe already sits on it —
+        // following the cursor would immediately scroll away again.
+        if (cursorRef.current > 1 && !peekingRef.current) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "paged-done") {
         readyRef.current = true;
         setPaginating(false);
@@ -177,7 +207,8 @@ export function Preview({
           post({ type: "set-zoom", zoom: pendingZoomRestoreRef.current });
           pendingZoomRestoreRef.current = null;
         }
-        if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
+        if (peekingRef.current) post({ type: "go-to-page", page: 1 });
+        else if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "page-visible") {
         setCurrent(d.page);
       } else if (d.type === "flow-scroll" && typeof d.pct === "number") {
@@ -209,13 +240,15 @@ export function Preview({
 
   // Editor → preview position sync. The host calls this (from editor
   // scrolling) with a 0–1 fraction; both iframe harnesses accept
-  // "scroll-to-pct" and map it onto the flow scroll height or the paged
-  // stack. Registered through a ref so a scroll never re-renders Preview.
+  // "scroll-to-pct" and — with the body flag — map it onto the *authored
+  // content* only, skipping the generated cover/TOC pages, so the editor
+  // and preview represent the same logical document position. Registered
+  // through a ref so a scroll never re-renders Preview.
   useEffect(() => {
     if (!scrollSyncRef) return;
     scrollSyncRef.current = (pct: number) => {
-      if (!readyRef.current) return;
-      frameRef.current?.contentWindow?.postMessage({ type: "scroll-to-pct", pct }, "*");
+      if (!readyRef.current || peekingRef.current) return;
+      frameRef.current?.contentWindow?.postMessage({ type: "scroll-to-pct", pct, body: true }, "*");
     };
     return () => {
       scrollSyncRef.current = null;
@@ -319,7 +352,7 @@ export function Preview({
           className="h-full w-full border-0 bg-white"
           sandbox="allow-same-origin allow-scripts"
         />
-        <ScrollJump pct={previewPct} onTop={() => jumpPreview(0)} onBottom={() => jumpPreview(1)} side="left" />
+        <ScrollJump pct={previewPct} onTop={() => jumpPreview(0)} onBottom={() => jumpPreview(1)} />
         {selectedImage && (
           <div className="absolute left-1/2 top-2 z-10 flex max-w-[94%] -translate-x-1/2 items-start gap-1 rounded-xl border border-edge bg-surface px-3 py-2 shadow-xl">
             <ImageEditControls
