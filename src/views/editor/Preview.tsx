@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import type { BrandConfig, Doc, DocTheme } from "../../lib/types";
-import { buildDocContent, buildDocumentHtml, buildShellKey } from "../../pdf/document";
+import { buildDocContent, buildDocumentHtml, buildShellKey, pageFactKey } from "../../pdf/document";
 import { saveSettings } from "../../lib/store";
 import { IconButton, Segmented, useToast } from "../../components/ui";
 import { imageFileToDataUrl } from "../../lib/image";
@@ -36,6 +36,8 @@ export function Preview({
   theme,
   cursorLine,
   estimatedPages,
+  pagesExact,
+  onPagesKnown,
   onInlineEdit,
   onFocusLine,
   fullscreen,
@@ -50,8 +52,14 @@ export function Preview({
   /** Reading theme for the rendered document (Settings → Appearance). */
   theme: DocTheme;
   cursorLine: number;
-  /** Estimated total pages for the flow view's navigation readout. */
+  /** Total pages for the flow view's navigation readout — exact when a
+      real pagination has run for this content, else the estimate. */
   estimatedPages?: number;
+  pagesExact?: boolean;
+  /** Reports every completed Paged.js layout (pages + the body/geometry
+      it was laid out for) so the host can make it the workspace-wide
+      authoritative page count. */
+  onPagesKnown?: (pages: number, body: string, factKey: string) => void;
   onInlineEdit: (edit: InlineEdit) => void;
   /** Preview → editor: the reader clicked a sourced element. `focusEditor`
       is false for elements that are themselves inline-editable (moving
@@ -81,7 +89,6 @@ export function Preview({
   const [flowPct, setFlowPct] = useState(0);
   const [paginating, setPaginating] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const [selectedImageLine, setSelectedImageLine] = useState<number | null>(null);
   const toast = useToast();
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -95,6 +102,12 @@ export function Preview({
   onEditRef.current = onInlineEdit;
   const onFocusLineRef = useRef(onFocusLine);
   onFocusLineRef.current = onFocusLine;
+  const onPagesKnownRef = useRef(onPagesKnown);
+  onPagesKnownRef.current = onPagesKnown;
+  // Snapshot of what the current paged srcDoc was built from, so a
+  // paged-done can be attributed to exactly that body + geometry even if
+  // the reader kept typing while Paged.js was laying out.
+  const builtForRef = useRef<{ body: string; factKey: string } | null>(null);
   // The zoom the reader last chose — reapplied after every repagination
   // rebuild, which otherwise silently reset it back to fit-width.
   const zoomCmdRef = useRef<ZoomMode | number | null>(null);
@@ -150,6 +163,7 @@ export function Preview({
           shellKeyRef.current = shellKey;
           readyRef.current = false;
           pendingZoomRestoreRef.current = zoomCmdRef.current;
+          builtForRef.current = { body: doc.body, factKey: pageFactKey(doc, brand, theme) };
           setSrcDoc(buildDocumentHtml(doc, brand, { mode: "paged", purpose: "preview", theme }));
         } else if (rebuild) {
           shellKeyRef.current = shellKey;
@@ -200,7 +214,11 @@ export function Preview({
       } else if (d.type === "paged-done") {
         readyRef.current = true;
         setPaginating(false);
-        setPages(typeof d.pages === "number" && d.pages > 0 ? d.pages : null);
+        const count = typeof d.pages === "number" && d.pages > 0 ? d.pages : null;
+        setPages(count);
+        if (count && !d.error && builtForRef.current) {
+          onPagesKnownRef.current?.(count, builtForRef.current.body, builtForRef.current.factKey);
+        }
         // Repagination reloads the iframe from scratch, which resets its
         // zoom to fit-width — restore whatever the reader last chose.
         if (pendingZoomRestoreRef.current !== null) {
@@ -215,8 +233,7 @@ export function Preview({
         setFlowPct(d.pct);
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
         setZoom(d.zoom);
-        const nextMode = d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom";
-        setZoomMode(nextMode);
+        const nextMode: ZoomMode = d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom";
         zoomCmdRef.current = nextMode === "custom" ? d.zoom : nextMode;
       } else if (d.type === "edit-focus") {
         editingRef.current = true;
@@ -280,42 +297,49 @@ export function Preview({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-b border-edge bg-surface px-2 py-1">
+      {/* One compact row, matching the editor toolbar's height and rhythm.
+          Fit-width/fit-page live on in the harness (double-tap toggles
+          fit ⇄ 100%, pinch/± zoom freely) — the two buttons were redundant. */}
+      <div className="flex items-center gap-1 overflow-hidden border-b border-edge bg-surface px-1.5 py-1">
         <Segmented
           size="sm"
           value={mode}
           onChange={setMode}
           options={[
             { value: "flow", label: "Flow", hint: "Continuous live view — click or tap any line to edit it inline, updates instantly as you type." },
-            { value: "pages", label: "Pages", hint: "Exact paginated view with running headers, footers and watermark — this is what you'll publish. Pinch or use +/− to zoom." },
+            { value: "pages", label: "Pages", hint: "Exact paginated view with running headers, footers and watermark — this is what you'll publish. Pinch, double-tap or use +/− to zoom." },
           ]}
         />
 
         {isPages && pages ? (
           <>
-            <div className="hidden items-center gap-0.5 rounded-lg border border-edge p-0.5 md:flex" role="group" aria-label="Zoom">
+            <div className="hidden items-center gap-0 md:flex" role="group" aria-label="Zoom">
               <IconButton label="Zoom out" name="zoomOut" size={14} onClick={() => post({ type: "zoom-by", factor: 0.9 })} />
-              <span className="min-w-10 text-center text-[11px] font-semibold tabular-nums text-ink-2">{Math.round(zoom * 100)}%</span>
+              <button
+                type="button"
+                title="Reset zoom to fit width"
+                className="min-w-9 text-center text-[11px] font-semibold tabular-nums text-ink-2"
+                onClick={() => post({ type: "set-zoom", zoom: "fit-width" })}
+              >
+                {Math.round(zoom * 100)}%
+              </button>
               <IconButton label="Zoom in" name="zoomIn" size={14} onClick={() => post({ type: "zoom-by", factor: 1.1 })} />
-              <span className="mx-0.5 h-4 w-px bg-edge" />
-              <IconButton label="Fit width" name="fitWidth" size={14} active={zoomMode === "fit-width"} onClick={() => post({ type: "set-zoom", zoom: "fit-width" })} />
-              <IconButton label="Fit page" name="fitPage" size={14} active={zoomMode === "fit-page"} onClick={() => post({ type: "set-zoom", zoom: "fit-page" })} />
             </div>
-            <div className="flex items-center gap-0.5" role="group" aria-label="Page navigation">
+            <div className="flex min-w-0 items-center gap-0" role="group" aria-label="Page navigation">
               <IconButton label="Previous page" name="chevronLeft" size={14} onClick={() => goTo(current - 1)} />
-              <span className="min-w-12 text-center text-[11px] font-semibold tabular-nums text-ink-2">{current} / {pages}</span>
+              <span className="min-w-11 text-center text-[11px] font-semibold tabular-nums text-ink-2">{current} / {pages}</span>
               <IconButton label="Next page" name="chevronRight" size={14} onClick={() => goTo(current + 1)} />
-              <span className="ml-0.5 min-w-9 text-center text-[11px] font-semibold tabular-nums text-faint">{pagesPercent}%</span>
+              <span className="hidden min-w-8 text-center text-[11px] font-semibold tabular-nums text-faint sm:inline">{pagesPercent}%</span>
             </div>
           </>
         ) : !isPages ? (
           <span
-            className="text-[11px] tabular-nums text-ink-2"
+            className="min-w-0 truncate text-[11px] tabular-nums text-ink-2"
             aria-live="polite"
-            title="Estimated position — exact pages appear in the Pages view"
+            title={pagesExact ? "Exact pages — from the latest full layout" : "Estimated position — exact pages appear in the Pages view"}
           >
             {flowTotal ? (
-              <><span className="font-semibold">≈ Page {flowPage} / {flowTotal}</span> <span className="text-faint">· {flowPercent}%</span></>
+              <><span className="font-semibold">{pagesExact ? "" : "≈ "}Page {flowPage} / {flowTotal}</span> <span className="text-faint">· {flowPercent}%</span></>
             ) : (
               <span className="text-faint">Live preview · tap a title to edit</span>
             )}
@@ -330,7 +354,7 @@ export function Preview({
           label={isDark ? "Switch document to light reading theme" : "Switch document to dark reading theme"}
           name={isDark ? "sun" : "moon"}
           size={15}
-          className="ml-auto"
+          className="ml-auto flex-none"
           onClick={() => saveSettings({ docTheme: isDark ? "light" : "dark" })}
         />
         <IconButton
@@ -338,10 +362,11 @@ export function Preview({
           name={fullscreen ? "collapse" : "expand"}
           size={15}
           active={fullscreen}
+          className="flex-none"
           onClick={onToggleFullscreen}
         />
         {onCollapse && !fullscreen && (
-          <IconButton label="Collapse preview panel" name="chevronRight" size={15} className="hidden md:inline-flex" onClick={onCollapse} />
+          <IconButton label="Collapse preview panel" name="chevronRight" size={15} className="hidden flex-none md:inline-flex" onClick={onCollapse} />
         )}
       </div>
       <div className="relative min-h-0 flex-1">

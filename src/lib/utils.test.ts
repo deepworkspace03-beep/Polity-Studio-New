@@ -27,3 +27,15 @@ describe("contentStats", () => {
     expect(contentStats("hi").readingMinutes).toBe(1);
   });
 });
+
+describe("estimatePages", () => {
+  it("accounts for structure (headings, chapter and manual breaks), cover and TOC", async () => {
+    const { estimatePages } = await import("./utils");
+    const plain = estimatePages({ words: 4100, headings: 0, h1s: 0, pagebreaks: 0 }, "comfort", false, false);
+    expect(plain).toBe(10);
+    const structured = estimatePages({ words: 4100, headings: 36, h1s: 5, pagebreaks: 4 }, "comfort", true, true);
+    // 10 body pages + 2 heading pages + 2 chapter-break pages + 2 manual-break pages + cover + toc
+    expect(structured).toBeGreaterThan(plain + 5);
+    expect(estimatePages({ words: 100, headings: 0, h1s: 0, pagebreaks: 0 }, "ultra", false, false)).toBe(1);
+  });
+});

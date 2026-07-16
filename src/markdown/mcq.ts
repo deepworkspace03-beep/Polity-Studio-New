@@ -60,6 +60,25 @@ export interface McqDocument {
 
 const QUESTION_RE = /^Q\s*(\d+)?\s*[.):]\s*(.*)$/i;
 const OPTION_RE = /^\(?([A-Ea-e1-5])[).:]\s+(.*)$/;
+
+/* AI chats habitually bold the structural markers — "**Q1.** …",
+   "**A)** …", "**Answer:** B", or a whole "**Q1. Question?**" line —
+   even when the prompt says not to. Strip the emphasis from the marker
+   itself (never from bold inside the text, which should render) so
+   AI-generated banks parse without manual fixes. */
+const BOLD_WRAP_RE = /^\*\*([^*]+)\*\*$/;
+const MARKER_START_RE = /^(Q\s*\d*\s*[.):]|\(?[A-Ea-e1-5][).:]\s|(Correct Answer|Correct Option|Answer|Ans|Detailed Solution|Explanation|Solution|Exp|Sol|Topic|Source|Marks|Year|Exam)\s*[:：])/i;
+function unboldMarker(line: string): string {
+  const whole = BOLD_WRAP_RE.exec(line);
+  if (whole && MARKER_START_RE.test(whole[1].trim())) return whole[1].trim();
+  return line
+    .replace(/^\*\*\s*(Q\s*\d*\s*[.):])\s*\*\*\s*/i, "$1 ")
+    .replace(/^\*\*\s*(\(?[A-Ea-e1-5][).:])\s*\*\*\s*/, "$1 ")
+    .replace(
+      /^\*\*\s*(Correct Answer|Correct Option|Answer|Ans|Detailed Solution|Explanation|Solution|Exp|Sol|Topic|Source|Marks|Year|Exam)\s*(?::\s*\*\*|\*\*\s*[:：])\s*/i,
+      "$1: ",
+    );
+}
 // Metadata labels recognized after a question. Real papers (and PYQ
 // banks pasted from PDFs) use many spellings for the same three ideas —
 // the answer, the worked solution, and where the question came from —
@@ -112,7 +131,7 @@ export function parseMcq(body: string): McqDocument {
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trimEnd();
+    const line = unboldMarker(lines[i].trimEnd());
     const lineNo = i + 1;
 
     const sec = line.match(SECTION_RE);

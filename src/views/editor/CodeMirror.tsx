@@ -115,15 +115,17 @@ export interface CodeMirrorProps {
   /** Ctrl/⌘+F — opens the host's Search Navigator instead of CodeMirror's
       own find panel (which stays available through the rest of searchKeymap). */
   onFind?: () => void;
-  /** Estimated total pages for the scrollbar's position readout. */
+  /** Total pages for the scrollbar's position readout — exact when a real
+      pagination has run for the current content, else an estimate. */
   estimatedPages?: number;
+  pagesExact?: boolean;
   /** Fires (rAF-throttled) with the scroll position as a 0–1 fraction so
       the host can sync the preview to the same document position. */
   onScrollFraction?: (pct: number) => void;
   viewRef: React.MutableRefObject<EditorView | null>;
 }
 
-export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, onFind, estimatedPages, onScrollFraction, viewRef }: CodeMirrorProps) {
+export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSmartPaste, onImageFiles, onFind, estimatedPages, pagesExact, onScrollFraction, viewRef }: CodeMirrorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   // The scroller element + a revision counter feed the custom scrollbar
   // overlay; revision bumps on doc changes so the thumb resizes as content
@@ -299,7 +301,7 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   return (
     <div className="relative h-full min-h-0">
       <div ref={hostRef} className="h-full min-h-0" />
-      <EditorScrollbar scroller={scroller} revision={revision} estimatedPages={estimatedPages} />
+      <EditorScrollbar scroller={scroller} revision={revision} estimatedPages={estimatedPages} pagesExact={pagesExact} />
       {IS_COARSE_POINTER && (
         <button
           type="button"

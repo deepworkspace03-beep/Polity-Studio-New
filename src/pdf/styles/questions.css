@@ -47,18 +47,22 @@
 .q {
   break-inside: avoid;
   border: 0.7pt solid var(--c-edge);
-  border-radius: 7pt;
-  padding: 0.75em 0.95em 0.8em;
-  margin: 0 0 0.85em;
+  /* A restrained spine gives the card its textbook identity without a
+     fill — one extra stroke per card, nothing more. */
+  border-left: 2pt solid color-mix(in srgb, var(--c-primary) 38%, var(--c-edge));
+  border-radius: 5pt;
+  padding: 0.7em 0.9em 0.75em;
+  margin: 0 0 0.8em;
 }
 
-/* Header row — number (left) · topic (center) · source (right).
-   No "Topic:" / "Source:" labels: the content itself is sufficient. */
+/* Header row — number · topic reading left, source anchored right, a
+   dotted leader bridging the two so the line always spans the card
+   (classic exam-book rhythm; no dead center gap, no "Topic:" labels). */
 .q__head {
   display: flex;
-  align-items: center;
-  gap: 0.8em;
-  margin-bottom: 0.5em;
+  align-items: baseline;
+  gap: 0.55em;
+  margin-bottom: 0.45em;
 }
 .q__num {
   font-family: "Manrope", sans-serif;
@@ -69,32 +73,40 @@
      tint) — so the badge stays legible in both. */
   color: var(--c-th-ink, white);
   background: var(--c-primary);
-  border-radius: 4pt;
+  border-radius: 3.5pt;
   padding: 1.2pt 6pt 1.6pt;
   letter-spacing: 0.04em;
   flex: none;
+  align-self: center;
 }
 .q__topic {
-  flex: 1;
-  text-align: center;
+  flex: none;
+  max-width: 52%;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-size: 0.8em;
+  font-size: 0.78em;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--c-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--c-primarySoft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.q__lead {
+  flex: 1;
+  min-width: 1.2em;
+  border-bottom: 0.7pt dotted color-mix(in srgb, var(--c-edge) 80%, var(--c-muted));
+  transform: translateY(-0.3em);
 }
 .q__src {
   flex: none;
   display: inline-flex;
   align-items: baseline;
-  gap: 0.7em;
+  gap: 0.6em;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-size: 0.76em;
+  font-size: 0.74em;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--c-gold);
   max-width: 45%;

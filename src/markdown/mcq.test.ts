@@ -103,3 +103,32 @@ describe("validateMcq", () => {
     expect(validateMcq(doc)).toHaveLength(0);
   });
 });
+
+describe("AI-flavored bold markers", () => {
+  it("parses **Q1.** / **A)** / **Answer:** markers that AI chats emit", () => {
+    const doc = parseMcq(
+      "**Q1.** Who wrote The Republic?\n**A)** Aristotle\n**B)** Plato\n**C)** Cicero\n**D)** Locke\n**Answer:** B\n**Solution:** Plato's masterwork.\n**Topic:** Greek Thought\n**Source:** UGC-NET 2024",
+    );
+    expect(doc.total).toBe(1);
+    const q = doc.sections[0].questions[0];
+    expect(q.text).toBe("Who wrote The Republic?");
+    expect(q.options.map((o) => o.key)).toEqual(["A", "B", "C", "D"]);
+    expect(q.answer).toBe("B");
+    expect(q.explanation).toBe("Plato's masterwork.");
+    expect(q.topic).toBe("Greek Thought");
+    expect(q.source).toBe("UGC-NET 2024");
+  });
+
+  it("unwraps a fully-bolded question line", () => {
+    const doc = parseMcq("**Q. Which article defines the State?**\nA) 10\nB) 12 *");
+    expect(doc.total).toBe(1);
+    expect(doc.sections[0].questions[0].text).toBe("Which article defines the State?");
+  });
+
+  it("leaves bold inside question and option text untouched", () => {
+    const doc = parseMcq("Q. The **basic structure** doctrine came from —\nA) **Kesavananda Bharati** *\nB) Golaknath");
+    const q = doc.sections[0].questions[0];
+    expect(q.text).toContain("**basic structure**");
+    expect(q.options[0].text).toBe("**Kesavananda Bharati**");
+  });
+});

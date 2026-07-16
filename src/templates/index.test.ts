@@ -92,3 +92,49 @@ describe("universalBody", () => {
     expect(html).toContain("Definition B");
   });
 });
+
+describe("AI-generated markdown renders across all four types", () => {
+  const AI_BODY = `# Title
+
+Intro with **bold**, ==highlight==, x^2^, a link [site](https://example.com), and see Table 1.
+
+## Section
+
+::: exam Angle
+Callout body.
+:::
+
+| A | B |
+|---|---|
+| 1 | 2 |
+
+1. one
+2. two
+
+\\pagebreak
+
+> Quote[^1]
+
+[^1]: Footnote.`;
+
+  it.each(["notes", "revision", "universal"] as const)("%s renders full syntax without loss", (tpl) => {
+    const doc = baseDoc({ template: tpl, body: AI_BODY });
+    const { html } = TEMPLATE_RENDERERS[tpl].buildBody(doc);
+    for (const marker of ["<strong>", "<mark>", "<sup>", 'class="callout callout--exam"', "<table", 'class="page-break"', "footnote", 'class="xref"']) {
+      expect(html).toContain(marker);
+    }
+  });
+
+  it("questions renders an AI bank with bolded markers end to end", () => {
+    const doc = baseDoc({
+      template: "questions",
+      body: "## Unit 1\n\n**Q1.** Pick one?\n**A)** First\n**B)** Second\n**Answer:** B\n**Solution:** Because **reasons** hold.\n**Source:** UGC-NET 2025",
+      layout: { ...DEFAULT_LAYOUT, answers: "inline" },
+    });
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).toContain("q__opt--correct");
+    expect(html).toContain("UGC-NET 2025");
+    expect(html).toContain("<strong>reasons</strong>");
+    expect(html).toContain("q__lead");
+  });
+});

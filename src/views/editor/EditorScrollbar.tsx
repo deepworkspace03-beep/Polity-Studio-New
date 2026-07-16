@@ -21,7 +21,7 @@ import { ScrollJump } from "./ScrollJump";
  * position — "Page 18 / 46 · 39%" — using a word-count estimate the host
  * computes; the scrollbar itself only maps its scroll fraction onto it.
  */
-export function EditorScrollbar({ scroller, revision, estimatedPages }: { scroller: HTMLElement | null; revision: number; estimatedPages?: number }) {
+export function EditorScrollbar({ scroller, revision, estimatedPages, pagesExact }: { scroller: HTMLElement | null; revision: number; estimatedPages?: number; pagesExact?: boolean }) {
   const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
   const [pct, setPct] = useState(0);
   const [active, setActive] = useState(false); // dragging or hovering — shows the readout
@@ -127,7 +127,7 @@ export function EditorScrollbar({ scroller, revision, estimatedPages }: { scroll
           style={{ top: thumb.top + thumb.height / 2 }}
         >
           {estimatedPages && estimatedPages > 1 && (
-            <span className="block">Page {Math.min(estimatedPages, Math.floor(pct * estimatedPages) + 1)} / {estimatedPages}</span>
+            <span className="block">{pagesExact ? "" : "≈ "}Page {Math.min(estimatedPages, Math.floor(pct * estimatedPages) + 1)} / {estimatedPages}</span>
           )}
           {Math.round(pct * 100)}%
         </span>
