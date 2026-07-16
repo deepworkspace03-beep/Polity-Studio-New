@@ -2,16 +2,18 @@ import { cx } from "../../lib/utils";
 import { Icon } from "../../components/Icon";
 
 /**
- * Minimal, unobtrusive "Go to Top / Go to Bottom" affordance shared by the
- * Markdown editor and the preview so both panes navigate a long document
- * the same way.
+ * Minimal "Go to Top / Go to Bottom" affordance shared by the Markdown
+ * editor and the preview — each pane gets its own pair, scrolling only
+ * itself, so the two never interfere.
  *
- * The buttons only appear once the reader has scrolled meaningfully away
- * from the top, and each one hides as its own end comes into view — Top
- * disappears near the top, Bottom near the bottom — so at rest the control
- * is invisible and never competes with the content.
+ * Nothing shows until the reader has scrolled meaningfully away from the
+ * top; each button then fades away as its own end comes into view (Top
+ * near the top, Bottom near the bottom). The buttons stay mounted and
+ * animate opacity so both appearing and disappearing are smooth, and
+ * they're deliberately small and translucent so they never read as
+ * covering the content beneath them.
  *
- * `pct` is the document position (0 = top, 1 = bottom). It's the same
+ * `pct` is the document position (0 = top, 1 = bottom) — the same
  * fraction the editor scrollbar and the preview position readout already
  * track, so the whole workspace shares one notion of "where am I".
  */
@@ -31,38 +33,41 @@ export function ScrollJump({
   side?: "left" | "right";
   className?: string;
 }) {
-  // "Appear only after meaningful scrolling": nothing shows until the reader
-  // is past the near-top band. Then Top is offered everywhere except the top,
-  // Bottom everywhere except the bottom.
   const scrolled = pct > NEAR_TOP;
   const showTop = scrolled;
   const showBottom = scrolled && pct < NEAR_BOTTOM;
-  if (!showTop && !showBottom) return null;
 
   return (
     <div
       className={cx(
-        "pointer-events-none absolute bottom-3 z-20 flex flex-col gap-1.5",
-        side === "right" ? "right-3" : "left-3",
+        // right-5 keeps the buttons clear of both the editor's fat overlay
+        // scrollbar and the preview iframe's own native scrollbar.
+        "pointer-events-none absolute bottom-2.5 z-20 flex flex-col gap-1",
+        side === "right" ? "right-5" : "left-5",
         className,
       )}
     >
-      {showTop && <JumpButton icon="toTop" label="Go to top" onClick={onTop} />}
-      {showBottom && <JumpButton icon="toBottom" label="Go to bottom" onClick={onBottom} />}
+      <JumpButton show={showTop} icon="toTop" label="Go to top" onClick={onTop} />
+      <JumpButton show={showBottom} icon="toBottom" label="Go to bottom" onClick={onBottom} />
     </div>
   );
 }
 
-function JumpButton({ icon, label, onClick }: { icon: "toTop" | "toBottom"; label: string; onClick: () => void }) {
+function JumpButton({ show, icon, label, onClick }: { show: boolean; icon: "toTop" | "toBottom"; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       title={label}
       aria-label={label}
+      aria-hidden={!show}
+      tabIndex={show ? 0 : -1}
       onClick={onClick}
-      className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-edge bg-surface/90 text-ink-2 shadow-md backdrop-blur transition-colors hover:border-accent hover:text-accent"
+      className={cx(
+        "flex h-7 w-7 items-center justify-center rounded-full border border-edge/60 bg-surface/70 text-faint shadow-sm backdrop-blur-sm transition-opacity duration-300 hover:border-accent/60 hover:text-accent",
+        show ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+      )}
     >
-      <Icon name={icon} size={15} />
+      <Icon name={icon} size={13} />
     </button>
   );
 }

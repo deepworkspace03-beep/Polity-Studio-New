@@ -521,8 +521,13 @@ const BRAND_COLOR_LABELS: Record<keyof BrandConfig["colors"], string> = {
     until needed. Every cover-related control — brand/institute, session,
     edition, language, highlights and the cover design — lives under Cover;
     the studio-wide PDF colors, reading theme and filename pattern sit in
-    Advanced. */
-function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
+    Advanced.
+
+    `onCoverEditing` fires with true while focus is anywhere inside the
+    Publication/Cover groups (every field there appears on the cover) and
+    false when it leaves — the host uses it to peek the preview at the
+    cover so the author sees their edit land, then restores the position. */
+function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: (patch: Partial<Doc>) => void; onCoverEditing?: (active: boolean) => void }) {
   const { brand, settings } = useApp();
   const toast = useToast();
   const template = TEMPLATE_META[doc.template];
@@ -536,6 +541,19 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
 
   return (
     <div className="space-y-4">
+      {/* Focus anywhere in these two groups = the author is working on the
+          cover; focusout to somewhere still inside keeps the peek alive. */}
+      <div
+        className="space-y-4"
+        onFocusCapture={onCoverEditing ? () => onCoverEditing(true) : undefined}
+        onBlurCapture={
+          onCoverEditing
+            ? (e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onCoverEditing(false);
+              }
+            : undefined
+        }
+      >
       <CollapsibleGroup title="Publication" storageKey="ps2:details:publication" defaultOpen>
         <Field label="Subtitle">
           <input className={inputClass} value={doc.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} placeholder="Shown under the title on the cover" />
@@ -645,6 +663,7 @@ function DetailsFields({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           </>
         )}
       </CollapsibleGroup>
+      </div>
 
       <CollapsibleGroup title="Layout & PDF" storageKey="ps2:details:layout" defaultOpen={false}>
         <Field label="Text density" hint="Body size and line spacing for the whole document.">
@@ -825,6 +844,7 @@ export function DetailsPane({
   onResetLayout,
   onUndo,
   canUndo,
+  onCoverEditing,
 }: {
   doc: Doc;
   onChange: (patch: Partial<Doc>) => void;
@@ -832,6 +852,9 @@ export function DetailsPane({
   onResetLayout?: () => void;
   onUndo?: () => void;
   canUndo?: boolean;
+  /** Cover peek — see DetailsFields. Desktop pane only: the mobile modal
+      covers the preview anyway, so peeking there would be invisible. */
+  onCoverEditing?: (active: boolean) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
@@ -848,7 +871,7 @@ export function DetailsPane({
         </div>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <DetailsFields doc={doc} onChange={onChange} />
+        <DetailsFields doc={doc} onChange={onChange} onCoverEditing={onCoverEditing} />
       </div>
     </div>
   );

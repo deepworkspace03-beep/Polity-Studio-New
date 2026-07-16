@@ -64,7 +64,9 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
 .cv-top, .cv-body, .cv-foot { position: relative; z-index: 1; }
 
 /* ── Publisher lockup (top) ──────────────────────────────────────── */
-.cv-top { display: flex; align-items: center; justify-content: space-between; gap: 6mm; }
+/* The lockup + session sit a step below the page edge so the header
+   breathes; only the small edition badge owns the extreme corner. */
+.cv-top { display: flex; align-items: center; justify-content: space-between; gap: 6mm; margin-top: 7mm; }
 .cv-pub { display: flex; align-items: center; gap: 4mm; }
 .cv-pub .cv-mark { flex: none; display: block; color: var(--cv-accent); opacity: 0.92; }
 .cv-pub__words { display: flex; flex-direction: column; line-height: 1.18; }
@@ -84,21 +86,22 @@ body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
 }
 .cv-top__meta { display: flex; align-items: center; gap: 3mm; flex: none; }
 /* Language badge — cover page only. English / हिन्दी / both / none. A
-   quiet outlined pill so it reads as metadata, not a selling point. */
+   quiet outlined pill so it reads as metadata, not a selling point;
+   rendered in the bottom section (.cv-langs), just above the footer rule. */
 .cv-lang {
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-weight: 600;
-  font-size: 10pt;
+  font-size: 9pt;
   line-height: 1;
   padding: 0 3mm;
-  height: 12mm;
+  height: 8.5mm;
   display: inline-flex;
   align-items: center;
-  border-radius: 2.8mm;
-  color: var(--cv-ink);
-  border: 0.8pt solid var(--cv-line);
+  border-radius: 2.2mm;
+  color: var(--cv-soft);
+  border: 0.7pt solid var(--cv-line);
 }
-.cv-lang--hi { font-family: "Noto Sans Devanagari", "Manrope", sans-serif; font-size: 10.5pt; }
+.cv-lang--hi { font-family: "Noto Sans Devanagari", "Manrope", sans-serif; font-size: 9.5pt; }
 /* Session pill — sits in the top-right meta row (the slot the edition
    badge used to occupy). Quiet outlined metadata, matching the language
    badge's weight so the two read as a set. */
@@ -196,6 +199,16 @@ body.mode-paged .cv-guide--empty { display: none; }
 }
 
 /* ── Footer ──────────────────────────────────────────────────────── */
+/* Language badge(s) close the content column, sitting just above the
+   footer's separator rule — metadata at the end, not shouting up top. */
+.cv-langs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2.5mm;
+  margin-bottom: 4mm;
+}
 .cv-foot {
   display: flex;
   align-items: center;

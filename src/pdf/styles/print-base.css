@@ -285,11 +285,20 @@ a {
 
 strong { color: var(--c-primary); font-weight: 700; }
 
-/* ==highlight== */
+/* ==highlight== — a full-height wash (not the old half-height underline
+   gradient) so the mark covers ascenders and descenders and sits evenly
+   on the baseline. The vertical padding enlarges only the painted box,
+   never the line height (inline padding doesn't grow line boxes), and
+   box-decoration-break keeps the pads on every fragment when a highlight
+   wraps across lines. */
 mark {
-  background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--c-gold) 38%, transparent) 45%);
+  background: color-mix(in srgb, var(--c-gold) 32%, transparent);
   color: inherit;
-  padding: 0 1pt;
+  padding: 1pt 2pt;
+  margin: 0 -0.5pt;
+  border-radius: 1.4pt;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 /* ++underline++ */
@@ -662,9 +671,10 @@ body.mode-flow .toc__item a::after { content: none; }
 /* Figure shadows need real darkness to lift off a dark page. */
 .doc-dark .md-fig--shadow img { box-shadow: 0 3pt 12pt rgba(0, 0, 0, 0.55); }
 
-/* Highlight strokes over dark paper: a touch more presence. */
+/* Highlight over dark paper: same full-height wash, slightly dimmer so
+   it reads as a marker stroke rather than a glare band. */
 .doc-dark mark {
-  background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--c-gold) 30%, transparent) 45%);
+  background: color-mix(in srgb, var(--c-gold) 24%, transparent);
 }
 
 /* Generic centered block titles (Answer Key, Explanations…) */

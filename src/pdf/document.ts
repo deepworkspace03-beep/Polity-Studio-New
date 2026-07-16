@@ -253,7 +253,6 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
       </div>
     </div>
     <div class="cv-top__meta">
-      ${langLabel}
       ${session}
     </div>
   </header>
@@ -267,6 +266,7 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
       ${coverLines.map((h) => `<li>${escapeHtml(h)}</li>`).join("\n      ")}
     </ul>` : ""}
   </div>
+  ${langLabel ? `<div class="cv-langs">${langLabel}</div>` : ""}
   <div class="cv-foot">
     <a class="cv-foot__site" href="${escapeHtml(brand.website)}">${escapeHtml(brand.website.replace(/^https?:\/\//, ""))}</a>
     <div class="cv-foot__jrf"><span>${escapeHtml(author)}</span></div>

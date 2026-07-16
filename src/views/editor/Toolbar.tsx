@@ -9,13 +9,13 @@ import { IMPORT_ACCEPT } from "../../lib/importer";
 import { imageFileToMarkdown } from "../../lib/image";
 import { stageAndReviewForInsert } from "../../components/ImportReview";
 import {
-  CODE_SNIPPET,
   TABLE_SNIPPET,
   clearFormatting,
   copyAll,
   cutAll,
   insertBlock,
   insertLink,
+  insertWrappedBlock,
   pasteFromClipboard,
   replaceAllFromClipboard,
   setHeading,
@@ -29,6 +29,12 @@ import { smartPaste } from "../../lib/importer";
  * else lives behind the More (⋯) menu so the bar stays scannable on a
  * tablet. Every action is a thin call into commands.ts so the same
  * operations back the keyboard shortcuts.
+ *
+ * The toolbar is selection-aware rather than shipping a floating
+ * selection menu (which fought Android's native selection UI): with text
+ * selected, callouts and the code block wrap the selected lines, headings/
+ * lists/quote transform them, inline styles wrap the exact selection, and
+ * the clipboard paste replaces it.
  */
 
 interface Action {
@@ -91,7 +97,7 @@ const MORE_GROUPS: { title: string; items: Action[] }[] = [
     title: "Insert",
     items: [
       { id: "table", icon: "table", label: "Insert table", run: (v) => insertBlock(v, TABLE_SNIPPET) },
-      { id: "codeBlock", icon: "file", label: "Code block", run: (v) => insertBlock(v, CODE_SNIPPET) },
+      { id: "codeBlock", icon: "file", label: "Code block — wraps the selection", run: (v) => insertWrappedBlock(v, "```", "```", "code") },
     ],
   },
 ];
@@ -187,7 +193,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           })}
         />
         <IconButton
-          label="Paste from clipboard at cursor"
+          label="Paste clipboard — replaces the selected text, or inserts at the cursor"
           name="clipboard"
           onClick={withView(async (v) => {
             const result = await pasteFromClipboard(v, (text) => smartPaste("", text)?.markdown ?? null);
@@ -201,8 +207,8 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
       <span className="mx-1 h-5 w-px flex-none bg-edge" />
       <div className="relative" ref={menuRef}>
         <button
-          title="Insert callout box"
-          aria-label="Insert callout box"
+          title="Callout box — wraps the selected text, or inserts a template"
+          aria-label="Callout box — wraps the selected text, or inserts a template"
           aria-expanded={calloutsOpen}
           onClick={() => setCalloutsOpen((v) => !v)}
           className="relative flex items-center gap-1 rounded-lg p-2 text-ink-2 transition-colors hover:bg-raised hover:text-ink"
@@ -210,7 +216,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
         >
           <Icon name="callout" size={16} />
           <Icon name="chevronDown" size={11} />
-          <HintBubble show={calloutHint.show} text="Insert callout box" />
+          <HintBubble show={calloutHint.show} text="Callout box — wraps the selection" />
         </button>
         {calloutsOpen && (
           <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-edge bg-surface py-1 shadow-xl">
@@ -219,7 +225,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
                 key={type}
                 onClick={() => {
                   setCalloutsOpen(false);
-                  withView((v) => insertBlock(v, `::: ${type}\nYour text here.\n:::`))();
+                  withView((v) => insertWrappedBlock(v, `::: ${type}`, ":::", "Your text here."))();
                 }}
                 className="flex w-full items-start gap-2.5 px-3 py-2 text-left hover:bg-raised"
               >
