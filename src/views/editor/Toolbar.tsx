@@ -7,6 +7,7 @@ import { Icon, type IconName } from "../../components/Icon";
 import { CALLOUTS } from "../../markdown/renderer";
 import { IMPORT_ACCEPT } from "../../lib/importer";
 import { imageFileToMarkdown } from "../../lib/image";
+import { cx } from "../../lib/utils";
 import { stageAndReviewForInsert } from "../../components/ImportReview";
 import {
   TABLE_SNIPPET,
@@ -42,65 +43,124 @@ interface Action {
   icon: IconName;
   label: string;
   run: (view: EditorView) => void;
+  /** Whether this starts out pinned to the always-visible bar. The author
+      can flip any action's pin state from the More menu; the override
+      persists in localStorage (see `usePinnedActions` below). */
+  defaultPinned: boolean;
 }
 
-/** Always-visible groups — the tools used on nearly every document. */
-const GROUPS: Action[][] = [
-  [
-    { id: "undo", icon: "undo", label: "Undo (Ctrl+Z)", run: (v) => void undo(v) },
-    { id: "redo", icon: "redo", label: "Redo (Ctrl+Y)", run: (v) => void redo(v) },
-  ],
-  [
-    { id: "h1", icon: "h1", label: "Chapter heading", run: (v) => setHeading(v, 1) },
-    { id: "h2", icon: "h2", label: "Section heading", run: (v) => setHeading(v, 2) },
-    { id: "h3", icon: "h3", label: "Subsection heading", run: (v) => setHeading(v, 3) },
-  ],
-  [
-    { id: "bold", icon: "bold", label: "Bold (Ctrl+B)", run: (v) => wrapSelection(v, "**") },
-    { id: "italic", icon: "italic", label: "Italic (Ctrl+I)", run: (v) => wrapSelection(v, "*") },
-    { id: "highlight", icon: "highlighter", label: "Highlight (Ctrl+Shift+H)", run: (v) => wrapSelection(v, "==") },
-  ],
-  [
-    { id: "list", icon: "list", label: "Bullet list", run: (v) => toggleLinePrefix(v, "- ") },
-    { id: "listOrdered", icon: "listOrdered", label: "Numbered list", run: (v) => toggleLinePrefix(v, "", true) },
-  ],
-  [{ id: "link", icon: "link", label: "Link (Ctrl+K)", run: insertLink }],
-  [
-    { id: "hr", icon: "minus", label: "Divider line", run: (v) => insertBlock(v, "---") },
-    { id: "pagebreak", icon: "pagebreak", label: "Page break (starts a new PDF page)", run: (v) => insertBlock(v, "\\pagebreak") },
-  ],
-  [{ id: "findReplace", icon: "replace", label: "Find & replace (Ctrl+F) — leave “Replace” blank to find & delete", run: (v) => void openSearchPanel(v) }],
+interface ActionGroup {
+  title: string;
+  items: Action[];
+}
+
+/** Undo/redo aren't part of the customizable set — they're not a
+    "formatting preference," they're baseline editing controls every
+    author needs, so they stay fixed at the head of the bar. */
+const HISTORY_ACTIONS: Action[] = [
+  { id: "undo", icon: "undo", label: "Undo (Ctrl+Z)", run: (v) => void undo(v), defaultPinned: true },
+  { id: "redo", icon: "redo", label: "Redo (Ctrl+Y)", run: (v) => void redo(v), defaultPinned: true },
 ];
 
-/** Overflow menu, grouped under small headings — everything reachable,
-    nothing crowding the bar. */
-const MORE_GROUPS: { title: string; items: Action[] }[] = [
+/** Every formatting action, grouped for both the bar's separators and the
+    More menu's headings. `defaultPinned` reproduces today's toolbar/More
+    split exactly; from here on it's just the starting point — pin/unpin
+    (in More) is what actually decides what shows in the bar. */
+const ACTION_GROUPS: ActionGroup[] = [
   {
-    title: "Text style",
+    title: "Headings",
     items: [
-      { id: "underline", icon: "underline", label: "Underline (Ctrl+U)", run: (v) => wrapSelection(v, "++") },
-      { id: "strike", icon: "strikethrough", label: "Strikethrough", run: (v) => wrapSelection(v, "~~") },
-      { id: "sup", icon: "superscript", label: "Superscript — x^2^", run: (v) => wrapSelection(v, "^", "^", "2") },
-      { id: "sub", icon: "subscript", label: "Subscript — H~2~O", run: (v) => wrapSelection(v, "~", "~", "2") },
-      { id: "codeInline", icon: "code", label: "Inline code", run: (v) => wrapSelection(v, "`") },
-      { id: "clear", icon: "eraser", label: "Clear formatting from selection", run: clearFormatting },
+      { id: "h1", icon: "h1", label: "Chapter heading", run: (v) => setHeading(v, 1), defaultPinned: true },
+      { id: "h2", icon: "h2", label: "Section heading", run: (v) => setHeading(v, 2), defaultPinned: true },
+      { id: "h3", icon: "h3", label: "Subsection heading", run: (v) => setHeading(v, 3), defaultPinned: true },
+    ],
+  },
+  {
+    title: "Emphasis",
+    items: [
+      { id: "bold", icon: "bold", label: "Bold (Ctrl+B)", run: (v) => wrapSelection(v, "**"), defaultPinned: true },
+      { id: "italic", icon: "italic", label: "Italic (Ctrl+I)", run: (v) => wrapSelection(v, "*"), defaultPinned: true },
+      { id: "highlight", icon: "highlighter", label: "Highlight (Ctrl+Shift+H)", run: (v) => wrapSelection(v, "=="), defaultPinned: true },
+      { id: "underline", icon: "underline", label: "Underline (Ctrl+U)", run: (v) => wrapSelection(v, "++"), defaultPinned: false },
+      { id: "strike", icon: "strikethrough", label: "Strikethrough", run: (v) => wrapSelection(v, "~~"), defaultPinned: false },
+      { id: "sup", icon: "superscript", label: "Superscript — x^2^", run: (v) => wrapSelection(v, "^", "^", "2"), defaultPinned: false },
+      { id: "sub", icon: "subscript", label: "Subscript — H~2~O", run: (v) => wrapSelection(v, "~", "~", "2"), defaultPinned: false },
+      { id: "codeInline", icon: "code", label: "Inline code", run: (v) => wrapSelection(v, "`"), defaultPinned: false },
+      { id: "clear", icon: "eraser", label: "Clear formatting from selection", run: clearFormatting, defaultPinned: false },
     ],
   },
   {
     title: "Lists",
     items: [
-      { id: "checklist", icon: "checklist", label: "Checklist", run: (v) => toggleLinePrefix(v, "- [ ] ") },
-      { id: "quote", icon: "quote", label: "Quote", run: (v) => toggleLinePrefix(v, "> ") },
+      { id: "list", icon: "list", label: "Bullet list", run: (v) => toggleLinePrefix(v, "- "), defaultPinned: true },
+      { id: "listOrdered", icon: "listOrdered", label: "Numbered list", run: (v) => toggleLinePrefix(v, "", true), defaultPinned: true },
+      { id: "checklist", icon: "checklist", label: "Checklist", run: (v) => toggleLinePrefix(v, "- [ ] "), defaultPinned: false },
+      { id: "quote", icon: "quote", label: "Quote", run: (v) => toggleLinePrefix(v, "> "), defaultPinned: false },
     ],
+  },
+  {
+    title: "Link",
+    items: [{ id: "link", icon: "link", label: "Link (Ctrl+K)", run: insertLink, defaultPinned: true }],
   },
   {
     title: "Insert",
     items: [
-      { id: "table", icon: "table", label: "Insert table", run: (v) => insertBlock(v, TABLE_SNIPPET) },
-      { id: "codeBlock", icon: "file", label: "Code block — wraps the selection", run: (v) => insertWrappedBlock(v, "```", "```", "code") },
+      { id: "hr", icon: "minus", label: "Divider line", run: (v) => insertBlock(v, "---"), defaultPinned: true },
+      { id: "pagebreak", icon: "pagebreak", label: "Page break (starts a new PDF page)", run: (v) => insertBlock(v, "\\pagebreak"), defaultPinned: true },
+      { id: "table", icon: "table", label: "Insert table", run: (v) => insertBlock(v, TABLE_SNIPPET), defaultPinned: false },
+      { id: "codeBlock", icon: "file", label: "Code block — wraps the selection", run: (v) => insertWrappedBlock(v, "```", "```", "code"), defaultPinned: false },
+    ],
+  },
+  {
+    title: "Find & replace",
+    items: [
+      {
+        id: "findReplace",
+        icon: "replace",
+        label: "Find & replace (Ctrl+F) — leave “Replace” blank to find & delete",
+        run: (v) => void openSearchPanel(v),
+        defaultPinned: true,
+      },
     ],
   },
 ];
+
+const PIN_OVERRIDES_KEY = "ps2:toolbar:pinOverrides";
+
+/** Pin state is stored as overrides against `defaultPinned` (not a full
+    list) so a future new action just falls back to its own default
+    instead of needing a migration. Lightweight — a single small JSON
+    object in localStorage, no drag-and-drop, no reordering. */
+function loadPinOverrides(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(PIN_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function usePinnedActions() {
+  const [overrides, setOverrides] = useState<Record<string, boolean>>(() => loadPinOverrides());
+
+  const isPinned = (a: Action) => overrides[a.id] ?? a.defaultPinned;
+
+  const togglePin = (a: Action) => {
+    setOverrides((prev) => {
+      const next = { ...prev, [a.id]: !isPinned(a) };
+      try {
+        localStorage.setItem(PIN_OVERRIDES_KEY, JSON.stringify(next));
+      } catch {
+        /* private mode — pin still works for this session */
+      }
+      return next;
+    });
+  };
+
+  const visibleGroups = ACTION_GROUPS.map((g) => ({ title: g.title, items: g.items.filter(isPinned) })).filter((g) => g.items.length > 0);
+
+  return { isPinned, togglePin, visibleGroups };
+}
 
 export function Toolbar({ getView }: { getView: () => EditorView | null }) {
   const [calloutsOpen, setCalloutsOpen] = useState(false);
@@ -113,6 +173,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
   const toast = useToast();
   const calloutHint = useLongPressHint();
   const moreHint = useLongPressHint();
+  const { isPinned, togglePin, visibleGroups } = usePinnedActions();
 
   useEffect(() => {
     if (!calloutsOpen && !moreOpen) return;
@@ -165,10 +226,14 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           anything that opens a dropdown below it. Everything that does
           (callouts, More) lives outside this div, pinned and always reachable. */}
       <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
-        {GROUPS.map((group, gi) => (
-          <Fragment key={gi}>
+        {HISTORY_ACTIONS.map((a) => (
+          <IconButton key={a.id} label={a.label} name={a.icon} onClick={withView(a.run)} />
+        ))}
+        {visibleGroups.length > 0 && <span className="mx-1 h-5 w-px flex-none bg-edge" />}
+        {visibleGroups.map((group, gi) => (
+          <Fragment key={group.title}>
             {gi > 0 && <span className="mx-1 h-5 w-px flex-none bg-edge" />}
-            {group.map((a) => (
+            {group.items.map((a) => (
               <IconButton key={a.id} label={a.label} name={a.icon} onClick={withView(a.run)} />
             ))}
           </Fragment>
@@ -260,23 +325,40 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
           <HintBubble show={moreHint.show} text="More tools" />
         </button>
         {moreOpen && (
-          <div className="absolute right-0 top-full z-30 mt-1 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-edge bg-surface py-1.5 shadow-xl">
-            {MORE_GROUPS.map((group) => (
+          <div className="absolute right-0 top-full z-30 mt-1 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-edge bg-surface py-1.5 shadow-xl">
+            <p className="px-3 pb-1.5 text-[11px] leading-snug text-faint">Tap an action to run it, or tap the pin to add/remove it from the toolbar.</p>
+            {ACTION_GROUPS.map((group) => (
               <div key={group.title} className="border-b border-edge py-1 last:border-0">
                 <span className="block px-3 py-1 text-[10.5px] font-bold uppercase tracking-wide text-faint">{group.title}</span>
-                {group.items.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => {
-                      setMoreOpen(false);
-                      withView(a.run)();
-                    }}
-                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
-                  >
-                    <Icon name={a.icon} size={15} className="flex-none" />
-                    {a.label}
-                  </button>
-                ))}
+                {group.items.map((a) => {
+                  const pinned = isPinned(a);
+                  return (
+                    <div key={a.id} className="flex items-center gap-1 pr-1.5">
+                      <button
+                        onClick={() => {
+                          setMoreOpen(false);
+                          withView(a.run)();
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-1.5 text-left text-sm text-ink-2 hover:bg-raised hover:text-ink"
+                      >
+                        <Icon name={a.icon} size={15} className="flex-none" />
+                        <span className="truncate">{a.label}</span>
+                      </button>
+                      <button
+                        onClick={() => togglePin(a)}
+                        title={pinned ? "Remove from Toolbar" : "Pin to Toolbar"}
+                        aria-label={`${a.label} — ${pinned ? "Remove from Toolbar" : "Pin to Toolbar"}`}
+                        aria-pressed={pinned}
+                        className={cx(
+                          "flex-none rounded-lg p-1.5 transition-colors",
+                          pinned ? "text-accent hover:bg-accent/10" : "text-faint hover:bg-raised hover:text-ink-2",
+                        )}
+                      >
+                        <Icon name="pin" size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             ))}
             <div className="border-b border-edge py-1 last:border-0">

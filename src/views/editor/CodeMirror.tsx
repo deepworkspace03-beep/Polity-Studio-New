@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { EditorView, keymap, placeholder, type ViewUpdate } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
@@ -10,6 +10,22 @@ import { insertLink, wrapSelection } from "./commands";
 import { smartPaste } from "../../lib/importer";
 import { EditorScrollbar } from "./EditorScrollbar";
 import { searchHighlightField } from "./searchHighlight";
+import { Icon } from "../../components/Icon";
+import { cx } from "../../lib/utils";
+
+/** True on touch-primary devices (Android/iOS tablets & phones) — where
+    focusing the editor's contenteditable summons the on-screen keyboard.
+    Read once; a device's primary pointer doesn't change mid-session. */
+const IS_COARSE_POINTER = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+
+/** `inputmode="none"` on the content element tells the browser not to pop
+    the virtual keyboard when it gains focus, without affecting caret
+    placement, selection or a physical keyboard — exactly what's needed to
+    let taps/selection/toolbar formatting (which all briefly (re)focus the
+    view) stay keyboard-free until the author explicitly asks to type. */
+function contentAttrs(typingMode: boolean) {
+  return EditorView.contentAttributes.of(typingMode ? {} : { inputmode: "none" });
+}
 
 /** Markdown syntax colors driven by the app theme variables, so the
     editor follows dark/light mode automatically. */
@@ -114,6 +130,10 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   // grows/shrinks (scroll and resize are observed directly by the overlay).
   const [scroller, setScroller] = useState<HTMLElement | null>(null);
   const [revision, setRevision] = useState(0);
+  // Touch devices start in "nav mode" (no soft keyboard on focus); desktop
+  // has no keyboard-popup problem, so it starts unrestricted.
+  const [typingMode, setTypingMode] = useState(() => !IS_COARSE_POINTER);
+  const inputModeCompartment = useRef(new Compartment()).current;
   const onChangeRef = useRef(onChange);
   const onCursorRef = useRef(onCursorLine);
   const onSaveRef = useRef(onSaveShortcut);
@@ -140,6 +160,7 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
         doc: value,
         extensions: [
           history(),
+          inputModeCompartment.of(contentAttrs(typingMode)),
           keymap.of([
             {
               key: "Mod-s",
@@ -261,10 +282,40 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
     }
   }, [value, viewRef]);
 
+  /** Explicit "start/stop typing" toggle for touch devices — turning it on
+      lifts the `inputmode="none"` restriction and focuses the view (which
+      now does summon the keyboard); turning it off restores the
+      restriction and blurs if still focused, so the keyboard drops
+      immediately instead of lingering until the next tap elsewhere. */
+  const setTyping = (next: boolean) => {
+    setTypingMode(next);
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: inputModeCompartment.reconfigure(contentAttrs(next)) });
+    if (next) view.focus();
+    else if (view.hasFocus) view.contentDOM.blur();
+  };
+
   return (
     <div className="relative h-full min-h-0">
       <div ref={hostRef} className="h-full min-h-0" />
       <EditorScrollbar scroller={scroller} revision={revision} estimatedPages={estimatedPages} />
+      {IS_COARSE_POINTER && (
+        <button
+          type="button"
+          onClick={() => setTyping(!typingMode)}
+          title={typingMode ? "Typing mode is on — tap to hide the keyboard" : "Tap to start typing (shows the keyboard)"}
+          aria-label={typingMode ? "Exit typing mode" : "Enter typing mode"}
+          aria-pressed={typingMode}
+          className={cx(
+            "absolute bottom-2.5 left-2 z-20 flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm backdrop-blur-sm transition-colors",
+            typingMode ? "border-accent/60 bg-accent/15 text-accent" : "border-edge/60 bg-surface/80 text-faint hover:text-ink-2",
+          )}
+        >
+          <Icon name="keyboard" size={13} />
+          {typingMode ? "Typing" : "Tap to type"}
+        </button>
+      )}
     </div>
   );
 }

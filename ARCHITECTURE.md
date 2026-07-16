@@ -224,8 +224,12 @@ typing is never clobbered.
   plus a `.callout--<type>` color rule in `pdf/styles/print-base.css`.
 - **New example** — one entry in `templates/demos.ts`.
 - **New toolbar action** — a command in `views/editor/commands.ts` and
-  an entry in the `GROUPS` list in `views/editor/Toolbar.tsx` (add a
-  keyboard binding in `CodeMirror.tsx` if it deserves one).
+  an entry in the `ACTION_GROUPS` registry in `views/editor/Toolbar.tsx`
+  (add a keyboard binding in `CodeMirror.tsx` if it deserves one). Each
+  entry's `defaultPinned` decides whether it starts in the always-visible
+  bar or in More — the author can move it either way from the More menu's
+  per-action pin toggle (persisted in localStorage), so `defaultPinned`
+  is only the starting point, not a strict split.
 
 ## Import & universal search
 
