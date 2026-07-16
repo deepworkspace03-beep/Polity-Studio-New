@@ -298,6 +298,18 @@ Two representations of the same typefaces ship, both offline:
   WOFF2-reconstructed glyph tables. These are fetched only on export and
   re-subset to the glyphs actually used.
 
+## Page-count authority chain
+
+The Pages preview, Publish and the PDF all share one Paged.js pipeline,
+so their counts always agree by construction. The editor scrollbar and
+the Flow readout can't paginate, so they follow a three-tier authority
+chain (`Editor.tsx`): the **exact** count from the last completed layout
+(Pages or Publish) while body + geometry (`pageFactKey`, `pdf/document.ts`)
+are unchanged → a **calibrated** count (last exact × word ratio) while
+only the body has changed → the structural **heuristic**
+(`estimatePages`, `lib/utils.ts`) when nothing has paginated yet.
+Only the non-exact tiers are prefixed "≈".
+
 ## Internal PDF navigation
 
 Everything anchor-based rides one mechanism end to end: the renderer

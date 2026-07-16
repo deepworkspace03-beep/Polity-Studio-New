@@ -47,13 +47,16 @@ export function ScrollJump({
         className,
       )}
     >
-      <JumpButton show={showTop} icon="toTop" label="Go to top" onClick={onTop} />
-      <JumpButton show={showBottom} icon="toBottom" label="Go to bottom" onClick={onBottom} />
+      <JumpButton show={showTop} icon="chevronUp" label="Go to top" onClick={onTop} />
+      <JumpButton show={showBottom} icon="chevronDown" label="Go to bottom" onClick={onBottom} />
     </div>
   );
 }
 
-function JumpButton({ show, icon, label, onClick }: { show: boolean; icon: "toTop" | "toBottom"; label: string; onClick: () => void }) {
+/** Deliberately featherweight: a bare chevron on a barely-there disc —
+    no border, no shadow — so it reads as an affordance, never as chrome
+    covering the document. */
+function JumpButton({ show, icon, label, onClick }: { show: boolean; icon: "chevronUp" | "chevronDown"; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -63,11 +66,11 @@ function JumpButton({ show, icon, label, onClick }: { show: boolean; icon: "toTo
       tabIndex={show ? 0 : -1}
       onClick={onClick}
       className={cx(
-        "flex h-7 w-7 items-center justify-center rounded-full border border-edge/60 bg-surface/70 text-faint shadow-sm backdrop-blur-sm transition-opacity duration-300 hover:border-accent/60 hover:text-accent",
-        show ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+        "flex h-6 w-6 items-center justify-center rounded-full bg-surface/45 text-faint/80 backdrop-blur-[2px] transition-opacity duration-300 hover:bg-surface/80 hover:text-accent",
+        show ? "pointer-events-auto opacity-70 hover:opacity-100" : "pointer-events-none opacity-0",
       )}
     >
-      <Icon name={icon} size={13} />
+      <Icon name={icon} size={14} />
     </button>
   );
 }

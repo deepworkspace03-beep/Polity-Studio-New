@@ -1,8 +1,9 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { navigate } from "../lib/router";
-import { flushSaves, updateDoc, useApp } from "../lib/store";
+import { flushSaves, saveSettings, updateDoc, useApp } from "../lib/store";
 import { contentStats, cx, estimatePages } from "../lib/utils";
+import { pageFactKey } from "../pdf/document";
 import { imageFileToMarkdown, isImageFile } from "../lib/image";
 import type { Doc } from "../lib/types";
 import { Button, DropOverlay, IconButton, Segmented, useFileDrop, useToast } from "../components/ui";
@@ -380,10 +381,35 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   // a keystroke on very large documents.
   const deferredBody = useDeferredValue(doc?.body ?? "");
   const stats = useMemo(() => contentStats(deferredBody), [deferredBody]);
-  const estPages = useMemo(
-    () => estimatePages(stats.words, doc?.layout.density ?? "comfort", !!doc?.layout.cover, !!(doc?.layout.toc && stats.headings > 0)),
-    [stats.words, stats.headings, doc?.layout.density, doc?.layout.cover, doc?.layout.toc],
-  );
+
+  /* ── Page-count authority chain ──────────────────────────────────────
+     One number for the whole workspace (editor scrollbar, flow readout,
+     search navigator), so it can never disagree with the Pages view:
+       1. exact      — Paged.js laid out this very body+shell (Pages view
+                       or Publish); its count IS the PDF's count.
+       2. calibrated — same shell, body has changed since: scale the last
+                       real count by the word ratio (self-corrects for
+                       content style, which no words-per-page constant can).
+       3. heuristic  — nothing paginated yet: the structural estimate. */
+  const [pagedFact, setPagedFact] = useState<{ pages: number; body: string; shellKey: string; words: number } | null>(null);
+  const onPagesKnown = useCallback((pages: number, body: string, shellKey: string) => {
+    setPagedFact({ pages, body, shellKey, words: contentStats(body).words });
+  }, []);
+  const shellKey = doc ? pageFactKey(doc, brand, settings.docTheme) : "";
+  const { estPages, pagesExact } = useMemo(() => {
+    if (doc && pagedFact && pagedFact.shellKey === shellKey) {
+      if (pagedFact.body === doc.body) return { estPages: pagedFact.pages, pagesExact: true };
+      const scaled = Math.round(pagedFact.pages * (Math.max(1, stats.words) / Math.max(1, pagedFact.words)));
+      return { estPages: Math.max(1, scaled), pagesExact: false };
+    }
+    return {
+      estPages: estimatePages(stats, doc?.layout.density ?? "comfort", !!doc?.layout.cover, !!(doc?.layout.toc && stats.headings > 0)),
+      pagesExact: false,
+    };
+  }, [doc, pagedFact, shellKey, stats]);
+
+  // App (UI) theme for the header toggle — same resolution the Library uses.
+  const uiDark = settings.theme === "dark" || (settings.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
 
   if (!doc) {
     return (
@@ -409,7 +435,15 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         />
         <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
         <IconButton label="Find in this document (Ctrl+F) — search the Markdown editor" name="search" size={17} onClick={searchInEditor} />
-        <IconButton label="Markdown guide" name="help" size={17} onClick={() => navigate("help")} />
+        {/* Lower-priority actions yield first when the row gets tight on
+            phones — the guide lives one tap away via Ctrl+K / Library. */}
+        <IconButton label="Markdown guide" name="help" size={17} className="hidden sm:inline-flex" onClick={() => navigate("help")} />
+        <IconButton
+          label={uiDark ? "Switch to light theme" : "Switch to dark theme"}
+          name={uiDark ? "sun" : "moon"}
+          size={17}
+          onClick={() => saveSettings({ theme: uiDark ? "light" : "dark" })}
+        />
         <IconButton
           label="Document details & layout"
           name="sliders"
@@ -423,6 +457,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           label={focusMode ? "Exit Full Workspace mode" : "Full Workspace mode — hides the toolbar, settings pane and browser chrome for distraction-free writing"}
           name="focus"
           active={focusMode}
+          className="hidden sm:inline-flex"
           onClick={toggleFocusMode}
         />
         <Button
@@ -510,6 +545,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
                 setSearchOpen(true);
               }}
               estimatedPages={estPages}
+              pagesExact={pagesExact}
               onScrollFraction={(pct) => previewScrollRef.current?.(pct)}
               viewRef={viewRef}
             />
@@ -534,6 +570,8 @@ export function Editor({ id, line }: { id: string; line?: number }) {
             theme={settings.docTheme}
             cursorLine={cursorLine}
             estimatedPages={estPages}
+            pagesExact={pagesExact}
+            onPagesKnown={onPagesKnown}
             onInlineEdit={onInlineEdit}
             onFocusLine={onFocusLine}
             fullscreen={fullscreen}
@@ -558,7 +596,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         canUndo={undoDepth > 0}
       />
 
-      {publishOpen && <Publish doc={doc} brand={brand} settings={settings} onClose={() => setPublishOpen(false)} />}
+      {publishOpen && <Publish doc={doc} brand={brand} settings={settings} onPagesKnown={onPagesKnown} onClose={() => setPublishOpen(false)} />}
     </div>
   );
 }

@@ -74,8 +74,11 @@ const TICK_SVG =
 
 function questionCard(q: McqQuestion, reveal: boolean): string {
   const marks = q.marks ? `<span class="q__marks">${escapeHtml(q.marks)} marks</span>` : "";
-  const topic = q.topic ? `<span class="q__topic">${renderInline(q.topic)}</span>` : `<span class="q__topic"></span>`;
+  const topic = q.topic ? `<span class="q__topic">${renderInline(q.topic)}</span>` : "";
   const source = q.source || marks ? `<span class="q__src">${q.source ? escapeHtml(q.source) : ""}${marks}</span>` : "";
+  // The dotted leader soaks up whatever width topic + source leave over,
+  // so the header always spans the full card — book-style, never gappy.
+  const lead = `<span class="q__lead" aria-hidden="true"></span>`;
 
   const options = q.options
     .map((o) => {
@@ -91,7 +94,7 @@ function questionCard(q: McqQuestion, reveal: boolean): string {
       : "";
 
   return `<article class="q" id="q-${q.number}" data-line="${q.line}">
-  <header class="q__head"><span class="q__num">Q${q.number}</span>${topic}${source}</header>
+  <header class="q__head"><span class="q__num">Q${q.number}</span>${topic}${lead}${source}</header>
   <div class="q__text">${renderMarkdown(q.text, { refIds: false })}</div>
   <ol class="q__options">${options}</ol>
   ${solution}

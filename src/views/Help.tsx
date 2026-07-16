@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.0";
+const STUDIO_VERSION = "4.1";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -181,7 +181,7 @@ Solution: optional worked explanation ("Explanation:" also works)
 
 AVOID
 - Raw HTML, YAML front matter (--- blocks), images from the web.
-- Bold question numbers like "**Q1.**" — write "Q1." plainly.
+- Bold question numbers like "**Q1.**" — write "Q1." plainly (tolerated if it happens, but plain markers are cleanest).
 - Code fences unless showing actual code.`;
 
 const QUESTIONS_EXAMPLE = `## Unit 1 — Greek Political Thought
@@ -395,26 +395,22 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Document architecture upgrade)`} intro="Four clean document types, a professional Question Bank layout, an Ultra Compact density and clickable navigation inside the PDF.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Refinement pass)`} intro="Polish on the four-type architecture: a finer Question Bank header, one honest page count everywhere, and lighter workspace chrome.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Four document types</b> — <b>Theory Notes</b>, <b>Question Bank</b>, <b>Quick Revision</b> and <b>Universal</b>. Your existing documents migrated automatically: MCQ Booklets and PYQ Collections are now Question Banks (PYQs keep their inline solutions), and Flash Card decks became Universal documents — nothing was changed in their content.</li>
-            <li><b>Question Bank, redesigned</b> — an examination-book card: the header row reads <em>number · topic · source</em> with no labels, the correct option is highlighted in green with a ✓ right on the option (no separate "Correct Answer" line), and the worked solution renders under the question only when one exists. PYQs, standard MCQs, mixed banks and practice sets all use the same layout — the <em>Answers &amp; solutions</em> setting picks between the inline study layout, a back-of-book key, or a clean question paper.</li>
-            <li><b>Ultra Compact density</b> — a fourth density that tightens the whole layout (spacing, margins, callouts, tables, lists, question cards), not just the font. Roughly five question-only cards fit an A4 page; adapts intelligently to solutions of any length. Works across all four document types.</li>
-            <li><b>Clickable navigation inside the PDF</b> — plain-text cross-references like <code className="font-mono text-xs">Question 42</code>, <code className="font-mono text-xs">Table 3</code>, <code className="font-mono text-xs">Figure 2</code> or <code className="font-mono text-xs">Note 15</code> become internal links automatically — in both previews, the HTML export and the PDF (real PDF destinations that work in Chrome, Adobe Reader, Edge, Drive and other standard readers). The table of contents stays clickable and chapters/sections land in the PDF bookmark outline as before.</li>
-            <li><b>Lighter pages</b> — question cards and key cells dropped redundant background paint, so large banks preview and export faster with byte-for-byte identical output.</li>
+            <li><b>Question Bank header, refined</b> — number and topic read left, the source anchors right, and a fine dotted leader bridges them so every card header spans the full width, book-style. A subtle spine on the card's left edge replaces the old empty-center look.</li>
+            <li><b>One page count everywhere</b> — once the Pages view (or Publish) has laid your document out, that <em>exact</em> count drives the editor scrollbar and Flow readouts too; until then they show a structural estimate marked <code className="font-mono text-xs">≈</code>. Editing after a layout scales the last real count instead of guessing from scratch.</li>
+            <li><b>Light/Dark app toggle in the editor header</b> — the same toggle the Library has, now always at hand (the document reading theme keeps its own sun/moon in the preview toolbar).</li>
+            <li><b>Quieter chrome</b> — the Pages toolbar is one compact row (zoom % taps back to fit-width; double-tap and pinch still zoom), and the Go-to-Top/Bottom buttons are now featherweight chevrons that fade away near the ends.</li>
+            <li><b>AI-proof question markers</b> — bolded markers that AI chats love (<code className="font-mono text-xs">**Q1.**</code>, <code className="font-mono text-xs">**A)**</code>, <code className="font-mono text-xs">**Answer:** B</code>) now parse automatically; bold inside your question text still renders as bold.</li>
           </ul>
         </Section>
 
-        <Section title="Previously — Tablet workflow & selection-aware toolbar" intro="Still current from the last few updates.">
+        <Section title="Version 4.0 — the document architecture" intro="The foundation this release polishes.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>No more surprise keyboard</b> — on touch devices the editor starts in a keyboard-free mode; the <b>Tap to type</b> pill switches into typing mode and back.</li>
-            <li><b>Customizable toolbar</b> — every formatting button in <b>More (⋯)</b> has a pin toggle; your layout is remembered per browser.</li>
-            <li><b>Selection-aware toolbar</b> — callouts and the code block wrap the <em>selected text</em>; headings, lists and quote transform the selected lines; the clipboard paste button replaces the selection.</li>
-            <li><b>Smarter scroll sync</b> — editor scrolling maps onto the <em>document body</em>, skipping the generated cover and contents pages.</li>
-            <li><b>Cover peek</b> — editing cover or publication fields shows the cover in the preview, then returns to where you were.</li>
-            <li><b>Cover Designer</b> — hairline frames, title boxes, nine patterns with opacity/density/size, your own uploaded logo, and per-style color overrides.</li>
-            <li><b>Search Navigator</b> — Ctrl/Cmd+F opens find/replace grouped by heading and estimated page.</li>
-            <li><b>Premium dark PDF</b> — the dark reading theme typesets tables, callouts, blockquotes and highlights like a professionally printed dark publication.</li>
+            <li><b>Four document types</b> — Theory Notes, Question Bank, Quick Revision, Universal. Older MCQ/PYQ/Flash-Card documents migrated automatically with their content untouched.</li>
+            <li><b>Question Bank</b> — one examination-book card for PYQs, MCQs and practice sets: label-free header, ✓ on the correct option, optional inline solution; the <em>Answers &amp; solutions</em> setting switches study / practice / plain-paper layouts.</li>
+            <li><b>Ultra Compact density</b> — tightens the whole layout (spacing, margins, tables, cards), not just the font, across all four types.</li>
+            <li><b>Clickable PDF navigation</b> — cross-references like <code className="font-mono text-xs">Question 42</code> / <code className="font-mono text-xs">Table 3</code> / <code className="font-mono text-xs">Note 15</code> become real internal PDF links, alongside the clickable contents and bookmark outline.</li>
           </ul>
         </Section>
 
@@ -576,7 +572,7 @@ export function Help() {
         <Section title="Common mistakes" intro="The handful of things that trip up imported content — all easy to avoid.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>The whole reply wrapped in a code fence</b> — some chat UIs copy Markdown inside ``` fences. Delete the fence lines; otherwise the document renders as one code block.</li>
-            <li><b>Bold question numbers</b> (<code className="font-mono text-xs">**Q1.**</code>) — the question parser needs a plain <code className="font-mono text-xs">Q1.</code> at the start of the line.</li>
+            <li><b>Bold question numbers</b> (<code className="font-mono text-xs">**Q1.**</code>, <code className="font-mono text-xs">**A)**</code>, <code className="font-mono text-xs">**Answer:** B</code>) — tolerated: the parser strips the bold from the marker automatically. Plain markers are still the cleanest habit.</li>
             <li><b>Two options on one line</b> (<code className="font-mono text-xs">A) x B) y</code>) — Smart Import repairs this when you paste a real exam paper, but ask your AI for one option per line to be safe.</li>
             <li><b>No correct answer marked</b> — without a trailing <code className="font-mono text-xs">*</code> or an <code className="font-mono text-xs">Answer:</code> line, the question prints with nothing highlighted and no key entry. The Booklet check in the settings pane flags these.</li>
             <li><b>Raw HTML</b> (<code className="font-mono text-xs">&lt;br&gt;</code>, <code className="font-mono text-xs">&lt;table&gt;</code>) — ignored by design; use Markdown tables and blank lines instead.</li>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrandConfig, Doc, Settings } from "../../lib/types";
-import { buildDocumentHtml } from "../../pdf/document";
+import { buildDocumentHtml, pageFactKey } from "../../pdf/document";
 import { downloadFile } from "../../lib/utils";
 import { Button, IconButton, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -29,11 +29,15 @@ export function Publish({
   doc,
   brand,
   settings,
+  onPagesKnown,
   onClose,
 }: {
   doc: Doc;
   brand: BrandConfig;
   settings: Settings;
+  /** Reports the completed layout so the editor's page readouts adopt
+      the exact count (see Editor.tsx's page-count authority chain). */
+  onPagesKnown?: (pages: number, body: string, factKey: string) => void;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -67,6 +71,7 @@ export function Publish({
         } else {
           setPhase("ready");
           setPages(d.pages);
+          onPagesKnown?.(d.pages, doc.body, pageFactKey(doc, brand, settings.docTheme));
         }
       } else if (d?.type === "page-visible") {
         setCurrent(d.page);

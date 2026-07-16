@@ -412,6 +412,16 @@ export function buildShellKey(doc: Doc, brand: BrandConfig, theme: "light" | "da
   ].join("|");
 }
 
+/** Identity of a document's *pagination geometry* — everything that can
+    change the real page count. When a Paged.js layout completes, its
+    exact count is stored under this key (see Editor.tsx's page-count
+    authority chain); any change here invalidates it. Body text is
+    tracked separately so an unchanged-body match can report the count
+    as exact rather than calibrated. */
+export function pageFactKey(doc: Doc, brand: BrandConfig, theme: "light" | "dark" = "light"): string {
+  return [doc.id, buildShellKey(doc, brand, theme), doc.layout.cover, doc.layout.toc, doc.layout.answers].join("|");
+}
+
 export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOptions): string {
   const { mode, purpose = "preview", theme = "light" } = options;
   doc = { ...doc, body: stripFrontMatter(doc.body) };
