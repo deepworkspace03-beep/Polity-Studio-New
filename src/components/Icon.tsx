@@ -68,6 +68,8 @@ const PATHS = {
   moreHorizontal: "M5 12h.01M12 12h.01M19 12h.01",
   toTop: "M5 4h14M12 20V9M7 13l5-5 5 5",
   toBottom: "M5 20h14M12 4v11M7 11l5 5 5-5",
+  keyboard: "M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM6 9h.01M9 9h.01M12 9h.01M15 9h.01M18 9h.01M6 12h.01M18 12h.01M8 16h8",
+  pin: "M12 2a6 6 0 0 0-6 6c0 4.5 6 12 6 12s6-7.5 6-12a6 6 0 0 0-6-6zM12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
 } as const;
 
 export type IconName = keyof typeof PATHS;

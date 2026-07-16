@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "3.5";
+const STUDIO_VERSION = "3.6";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -369,7 +369,8 @@ ${FLASHCARD_PROMPT}
 
 ## Editor features worth knowing
 
-- The toolbar keeps everyday tools visible; the More (⋯) menu holds the rest (text styles, tables, page breaks, whole-document copy/cut/paste/replace).
+- The toolbar keeps everyday tools visible; the More (⋯) menu holds the rest (text styles, tables, page breaks, whole-document copy/cut/paste/replace). Every action in More has a pin toggle — Pin to Toolbar / Remove from Toolbar — so you can build your own always-visible bar; the layout is remembered per browser.
+- On touch devices, the editor starts keyboard-free: tapping to place the cursor, selecting text and toolbar formatting all leave the on-screen keyboard closed. Tap the "Tap to type" pill in the editor's bottom-left corner to switch into typing mode (opens the keyboard) and back out again.
 - The toolbar is selection-aware: with text selected, a callout or the code block wraps the selected text, headings/lists/quote transform the selected lines, inline styles wrap the exact selection, and the clipboard paste replaces it. With nothing selected the same buttons insert their usual templates.
 - Scrolling the editor keeps the preview at the same body position (the generated cover/contents pages don't skew the mapping); small Go-to-Top / Go-to-Bottom buttons fade in on each pane once you've scrolled.
 - Editing a Publication or Cover field peeks the preview at the cover, then returns to where you were.
@@ -401,7 +402,14 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Refinement pass)`} intro="A stability-first polish of the last update: a selection-aware toolbar built for tablets, smarter scroll sync, a more balanced cover and a proper full-height highlight.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Tablet workflow refinement)`} intro="A focused pass on Android/Chrome tablet editing: the on-screen keyboard no longer pops up for selection, navigation or toolbar formatting, and the toolbar is now yours to arrange.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>No more surprise keyboard</b> — on touch devices the editor starts in a keyboard-free mode: tapping to place the cursor, selecting text, and every toolbar action (headings, callouts, highlight…) leave the on-screen keyboard closed. A small <b>Tap to type</b> pill in the bottom-left corner of the editor is the explicit switch into typing mode (which opens the keyboard) and back out again — desktop typing is unaffected.</li>
+            <li><b>Customizable toolbar</b> — every formatting button in <b>More (⋯)</b> now has its own pin toggle: <em>Pin to Toolbar</em> adds it to the always-visible bar, <em>Remove from Toolbar</em> sends it back to More. No drag-and-drop — just tap the pin. Your layout is remembered per browser.</li>
+          </ul>
+        </Section>
+
+        <Section title="Previously — Selection-aware toolbar, covers & scroll sync" intro="Still current from the last few updates.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Selection-aware toolbar</b> — the floating selection menu is gone (it fought Android's own selection popup). Instead the main toolbar acts on your selection: pick a callout (Definition, Important, Tip…) or the code block and it wraps the <em>selected text</em> rather than inserting an empty template; headings, lists and quote transform the selected lines; the clipboard paste button replaces the selection.</li>
             <li><b>Smarter scroll sync</b> — editor scrolling now maps onto the <em>document body</em>, skipping the generated cover and contents pages, so the editor and preview point at the same logical position even in very long documents.</li>
@@ -409,11 +417,6 @@ export function Help() {
             <li><b>Balanced cover</b> — the publisher lockup and session sit a step below the page edge, only the edition badge owns the extreme top-right corner, and the language badge moved to the bottom of the cover, just above the footer rule.</li>
             <li><b>Quieter navigation buttons</b> — the Go-to-Top/Bottom buttons are smaller, translucent and fade in and out; each pane's pair scrolls only itself.</li>
             <li><b>Full-height highlight</b> — <code className="font-mono text-xs">==highlight==</code> now paints a clean full-height wash behind the text (identical in previews, PDF and HTML export) instead of the old half-height band.</li>
-          </ul>
-        </Section>
-
-        <Section title="Previously — Covers, Images & the dark PDF" intro="Still current from the last few updates.">
-          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Four-group settings pane</b> — Publication · Cover · Layout &amp; PDF · Advanced, with everything cover-related together under Cover.</li>
             <li><b>Cover Designer</b> — hairline frames (Single, Double or Accent), a title box (Outline, Filled or Premium), nine patterns with opacity/density/size, your own uploaded logo, and per-style color overrides.</li>
             <li><b>Any image size</b> — the image toolbar has a width slider (down to 10% of the column) alongside XS/S/M/L; wrapped text stops cleanly, so headings, tables, callouts and lists always start clear of a floated image.</li>
@@ -596,7 +599,9 @@ export function Help() {
 
         <Section title="Working efficiently" intro="The workspace has a few features worth knowing about.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li>The formatting toolbar keeps everyday tools visible; the <b>More (⋯)</b> menu holds text styles, tables, page breaks, and whole-document copy/cut/paste/replace. Every icon shows its name on hover (desktop) or long-press (touch).</li>
+            <li>The formatting toolbar keeps everyday tools visible; the <b>More (⋯)</b> menu holds the rest. Every icon shows its name on hover (desktop) or long-press (touch).</li>
+            <li><b>Customizable toolbar</b> — every action listed in More has its own pin toggle: <b>Pin to Toolbar</b> moves it into the always-visible bar, <b>Remove from Toolbar</b> sends it back to More. No drag-and-drop, no reordering — just tap the pin next to any action. Your choices are remembered in this browser and survive a refresh.</li>
+            <li><b>Keyboard-free selection on tablets</b> — on a touch device the editor starts in a mode where tapping to place the cursor, selecting text and every toolbar formatting action never pop the on-screen keyboard. When you actually want to type, tap the <b>Tap to type</b> pill in the editor's bottom-left corner — it opens the keyboard and switches back to a plain keyboard icon you can tap again to hide it. Desktop editing is unchanged.</li>
             <li><b>The toolbar is selection-aware</b> — select text first, then tap a callout (Definition, Important, Tip…) or the code block to wrap the <em>selected text</em> in it; headings, bullet/numbered/check lists and quote transform the selected lines; bold/italic/highlight wrap the exact selection; the clipboard paste button replaces it. With nothing selected the same buttons insert their usual templates.</li>
             <li><b>Shared navigation</b> — scrolling the editor keeps the preview at the same <em>body</em> position (the generated cover and contents pages don't skew the mapping). Small <b>Go to Top / Go to Bottom</b> buttons fade in on each pane once you've scrolled — each pair scrolls only its own pane — and fade away near the ends. The editor scrollbar and both previews also show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
             <li><b>Replace with clipboard</b> (in the More menu) swaps the entire document for your clipboard's text — asks first if the document isn't empty. Different from a normal paste, which inserts at the cursor.</li>

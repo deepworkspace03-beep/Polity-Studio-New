@@ -200,7 +200,8 @@ reasoning; this is the quick-reference version:
 - **New callout type** → one entry in `CALLOUTS` (`markdown/renderer.ts`)
   + a `.callout--<type>` rule in `pdf/styles/print-base.css`.
 - **New toolbar action** → a command in `views/editor/commands.ts` +
-  an entry in `GROUPS` (`views/editor/Toolbar.tsx`).
+  an entry in `ACTION_GROUPS` (`views/editor/Toolbar.tsx`) with a
+  `defaultPinned` flag — authors can still pin/unpin it from More later.
 - **New optional `Doc`/`DocLayout` field** → add to the type in
   `lib/types.ts` **and** to `DOC_OPTIONAL_KEYS`/`LAYOUT_OPTIONAL_KEYS`
   in `lib/store.ts` (see Conventions above) — this is the one step that's
