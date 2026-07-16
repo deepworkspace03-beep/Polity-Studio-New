@@ -174,6 +174,13 @@ export const HARNESS_JS = String.raw`(function () {
     else if (d.type === "zoom-by") zoomAround(currentFactor() * d.factor, document.documentElement.clientWidth / 2, document.documentElement.clientHeight / 2);
     else if (d.type === "go-to-page") goToPage(d.page);
     else if (d.type === "scroll-to-line") scrollToLine(d.line);
+    else if (d.type === "scroll-to-pct" && typeof d.pct === "number") {
+      // Editor → preview position sync for the paged view: map the document
+      // fraction onto the stack of laid-out pages.
+      var se = document.scrollingElement || document.documentElement;
+      var max = se.scrollHeight - se.clientHeight;
+      window.scrollTo(0, Math.max(0, Math.min(1, d.pct)) * max);
+    }
     else if (d.type === "print") {
       // Print at 1:1 — the preview zoom must not scale the paper.
       var pages = document.querySelector(".pagedjs_pages");
@@ -474,6 +481,14 @@ export const PREVIEW_JS = String.raw`(function () {
       wireEditables();
     } else if (d.type === "scroll-to-line" && typeof d.line === "number") {
       if (!editing) scrollToLine(d.line);
+    } else if (d.type === "scroll-to-pct" && typeof d.pct === "number") {
+      // Editor → preview position sync: place this continuous view at the
+      // same document fraction the editor is scrolled to. Skip while an
+      // inline edit is focused so it never yanks the caret away.
+      if (editing) return;
+      var doc = document.documentElement;
+      var max = doc.scrollHeight - doc.clientHeight;
+      window.scrollTo(0, Math.max(0, Math.min(1, d.pct)) * max);
     }
   });
 

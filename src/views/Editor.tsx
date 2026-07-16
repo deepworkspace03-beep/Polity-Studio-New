@@ -140,6 +140,10 @@ export function Editor({ id, line }: { id: string; line?: number }) {
 
   const viewRef = useRef<EditorView | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Editor → preview scroll sync: Preview registers its "scroll to this
+  // 0–1 position" function here; editor scrolling calls it. A ref (not
+  // state) so a scroll never triggers a React re-render.
+  const previewScrollRef = useRef<((pct: number) => void) | null>(null);
   const [tab, setTab] = useState<Tab>("write");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -502,6 +506,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
                 setSearchOpen(true);
               }}
               estimatedPages={estPages}
+              onScrollFraction={(pct) => previewScrollRef.current?.(pct)}
               viewRef={viewRef}
             />
           </div>
@@ -531,6 +536,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
             onToggleFullscreen={() => setFullscreen((v) => !v)}
             onCollapse={() => setPreviewCollapsed(true)}
             getView={() => viewRef.current}
+            scrollSyncRef={previewScrollRef}
           />
         </div>
         {!fullscreen && previewCollapsed && (

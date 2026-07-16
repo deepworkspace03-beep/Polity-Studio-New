@@ -188,13 +188,16 @@ describe("buildDocumentHtml", () => {
     expect(html).toContain('class="cv-titlebox"');
   });
 
-  it("renders the edition badge from doc.edition and the session in the eyebrow", () => {
+  it("renders the edition corner badge and the session pill", () => {
     const html = buildDocumentHtml(baseDoc({ edition: "2e", session: "June 2026" }), DEFAULT_BRAND, { mode: "flow" });
-    expect(html).toContain('class="cv-edition">2e<');
-    expect(html).toContain("June 2026"); // in the eyebrow, not the badge
+    expect(html).toContain('class="cv-edition">2e<'); // extreme top-right corner badge
+    expect(html).toContain('class="cv-session">June 2026<'); // top-right meta pill
     // No edition set → no badge at all (no year fallback).
     const noBadge = buildDocumentHtml(baseDoc({ edition: "" }), DEFAULT_BRAND, { mode: "flow" });
     expect(noBadge).not.toContain('class="cv-edition"');
+    // No session set → no session pill.
+    const noSession = buildDocumentHtml(baseDoc({ session: "" }), DEFAULT_BRAND, { mode: "flow" });
+    expect(noSession).not.toContain('class="cv-session"');
   });
 
   it("shows the language badge per the four cover-only states", () => {

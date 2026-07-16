@@ -66,6 +66,8 @@ const PATHS = {
   clipboard:
     "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z",
   moreHorizontal: "M5 12h.01M12 12h.01M19 12h.01",
+  toTop: "M5 4h14M12 20V9M7 13l5-5 5 5",
+  toBottom: "M5 20h14M12 4v11M7 11l5 5 5-5",
 } as const;
 
 export type IconName = keyof typeof PATHS;

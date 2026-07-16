@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/utils";
+import { ScrollJump } from "./ScrollJump";
 
 /**
  * A fat, always-grabbable scrollbar overlaid on the editor's own scroller.
@@ -89,6 +90,12 @@ export function EditorScrollbar({ scroller, revision, estimatedPages }: { scroll
   };
 
   return (
+    <>
+    <ScrollJump
+      pct={pct}
+      onTop={() => scroller.scrollTo({ top: 0, behavior: "smooth" })}
+      onBottom={() => scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" })}
+    />
     <div
       ref={trackRef}
       onPointerDown={onTrackPointerDown}
@@ -126,5 +133,6 @@ export function EditorScrollbar({ scroller, revision, estimatedPages }: { scroll
         </span>
       )}
     </div>
+    </>
   );
 }
