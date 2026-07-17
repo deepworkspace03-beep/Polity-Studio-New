@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrandConfig, Doc, Settings } from "../../lib/types";
 import { buildDocumentHtml, pageFactKey } from "../../pdf/document";
+import { toPortableMarkdown } from "../../lib/image";
 import { downloadFile } from "../../lib/utils";
 import { Button, IconButton, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -131,7 +132,11 @@ export function Publish({
   }
 
   function downloadMarkdown() {
-    downloadFile(`${fileTitle}.md`, doc.body, "text/markdown");
+    // Portable Markdown: embedded images (data URIs) are preserved in full,
+    // but the Studio-only `{width=…}` figure attributes are stripped so the
+    // file renders cleanly in any Markdown editor. Full-fidelity round-trip
+    // (layout included) is the JSON backup's job, not the .md export's.
+    downloadFile(`${fileTitle}.md`, toPortableMarkdown(doc.body), "text/markdown");
     toast("Downloaded · plain-text source, portable to any Markdown editor", "ok");
   }
 

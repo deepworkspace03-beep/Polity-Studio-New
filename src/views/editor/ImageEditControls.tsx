@@ -78,7 +78,7 @@ export function ImageEditControls({
   const sliderMax = isWrap ? 60 : 100;
   const widthPct = /^(\d+)%$/.exec(info.width)?.[1];
   const sliderValue = widthPct
-    ? Math.min(sliderMax, Math.max(10, Number(widthPct)))
+    ? Math.min(sliderMax, Math.max(1, Number(widthPct)))
     : isWrap
       ? 42
       : 100;
@@ -102,12 +102,12 @@ export function ImageEditControls({
           ))}
           <input
             type="range"
-            min={10}
+            min={1}
             max={sliderMax}
             step={1}
             value={sliderValue}
             aria-label="Image width (% of the text column)"
-            title="Drag for any width"
+            title="Drag for any width, 1–100%"
             // focus:false — patching live while dragging must not move
             // focus to the editor, which would end the drag mid-gesture.
             onChange={(e) => onPatch({ width: `${e.target.value}%` }, { focus: false })}

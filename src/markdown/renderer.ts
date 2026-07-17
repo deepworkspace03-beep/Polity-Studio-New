@@ -373,8 +373,43 @@ export interface RenderOptions {
   refIds?: boolean;
 }
 
+/**
+ * Single-entry parse memo. `markdown-it`'s `render()` is `parse()` +
+ * `renderer.render()`, and `parse()` (running every core rule) is the
+ * expensive half. A document build parses the same body twice — once for
+ * the body HTML and once for the table of contents — and a flow edit is
+ * immediately followed by the paged rebuild on the same body. Caching the
+ * last (tokens, env) pair lets those back-to-back calls share one parse,
+ * roughly halving the Markdown cost of a prose+TOC rebuild on large
+ * documents. Size 1 on purpose: a huge document's token tree is large, so
+ * we never pin more than the current body's, and it is released the moment
+ * the body changes.
+ *
+ * Reuse is exact, not approximate: `render()` reads the very (tokens, env)
+ * that `parse()` produced (footnote/reference state lives on `env`), so
+ * replaying that pair reproduces byte-identical output — the same contract
+ * markdown-it relies on internally.
+ */
+interface ParsedBody {
+  body: string;
+  refIds: boolean;
+  tokens: ReturnType<MarkdownIt["parse"]>;
+  env: { refIds: boolean };
+}
+let lastParse: ParsedBody | null = null;
+
+function parseBody(body: string, refIds: boolean): ParsedBody {
+  if (lastParse && lastParse.body === body && lastParse.refIds === refIds) return lastParse;
+  const env = { refIds };
+  const tokens = getRenderer().parse(body, env);
+  lastParse = { body, refIds, tokens, env };
+  return lastParse;
+}
+
 export function renderMarkdown(body: string, opts: RenderOptions = {}): string {
-  return getRenderer().render(body, { refIds: opts.refIds !== false });
+  const { tokens, env } = parseBody(body, opts.refIds !== false);
+  const md = getRenderer();
+  return md.renderer.render(tokens, md.options, env);
 }
 
 export function renderInline(text: string): string {
@@ -390,7 +425,9 @@ export interface TocItem {
 }
 
 export function extractToc(body: string): TocItem[] {
-  const tokens = getRenderer().parse(body, {});
+  // Same refIds:true key the body render uses, so a build's render + TOC
+  // share one parse (see parseBody).
+  const { tokens } = parseBody(body, true);
   const toc: TocItem[] = [];
   const seen = new Map<string, number>();
   for (let i = 0; i < tokens.length; i++) {
