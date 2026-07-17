@@ -27,6 +27,32 @@ describe("extractToc", () => {
   });
 });
 
+describe("shared parse memo", () => {
+  // renderMarkdown and extractToc share a single parse of the same body
+  // (a build renders the body and extracts the TOC from it). These lock
+  // the reuse to byte-identical, side-effect-free output.
+  it("renders identically when the same body is rendered twice", () => {
+    const body = "# Title\n\nA line with a footnote.[^a]\n\n## Section\n\nSee Question 3.\n\n[^a]: The note.";
+    expect(renderMarkdown(body)).toBe(renderMarkdown(body));
+  });
+
+  it("keeps TOC ids in sync with the anchor ids the body render emits", () => {
+    const body = "# Alpha Beta\n\ntext\n\n## Gamma Delta\n\nmore";
+    const html = renderMarkdown(body);
+    for (const t of extractToc(body)) {
+      expect(html).toContain(`id="${t.id}"`);
+    }
+  });
+
+  it("renders footnotes correctly after a TOC extraction reused the parse", () => {
+    const body = "# H\n\nClaim.[^x]\n\n[^x]: Evidence.";
+    extractToc(body); // primes the memo
+    const html = renderMarkdown(body);
+    expect(html).toContain("footnote");
+    expect(html).toContain("Evidence.");
+  });
+});
+
 describe("renderMarkdown", () => {
   it("renders a callout container with its type class and label", () => {
     const html = renderMarkdown("::: definition Sovereignty\nSupreme authority.\n:::");

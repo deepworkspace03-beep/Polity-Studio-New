@@ -127,9 +127,10 @@ export function IconButton({
   name,
   size = 16,
   className,
+  iconClassName,
   active,
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; name: IconName; size?: number; active?: boolean }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; name: IconName; size?: number; active?: boolean; iconClassName?: string }) {
   const hint = useLongPressHint();
   return (
     <button
@@ -143,7 +144,7 @@ export function IconButton({
       {...hint.handlers}
       {...rest}
     >
-      <Icon name={name} size={size} />
+      <Icon name={name} size={size} className={iconClassName} />
       <HintBubble show={hint.show} text={label} />
     </button>
   );

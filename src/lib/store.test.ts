@@ -63,6 +63,7 @@ describe("withDefaults", () => {
       ...blankDoc,
       institute: "Custom Institute",
       coverLines: ["Line one", "Line two"],
+      favorite: true,
       layout: {
         ...DEFAULT_LAYOUT,
         coverColors: { bg: "#123456", ink: "#abcdef" },
@@ -75,6 +76,7 @@ describe("withDefaults", () => {
 
     expect(merged.institute).toBe("Custom Institute");
     expect(merged.coverLines).toEqual(["Line one", "Line two"]);
+    expect(merged.favorite).toBe(true);
     expect(merged.layout.coverColors).toEqual({ bg: "#123456", ink: "#abcdef" });
     expect((merged.layout.coverDesign as { bg1: string } | undefined)?.bg1).toBe("#000000");
   });

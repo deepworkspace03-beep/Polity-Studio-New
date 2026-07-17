@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { navigate } from "../lib/router";
-import { createDoc, deleteDoc, deleteDocs, duplicateDoc, mergeDocs, saveSettings, useApp } from "../lib/store";
+import { createDoc, deleteDoc, deleteDocs, duplicateDoc, mergeDocs, saveSettings, toggleFavorite, useApp } from "../lib/store";
 import { contentStats, cx, relativeDate } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import type { DemoDoc } from "../templates/demos";
-import type { TemplateId } from "../lib/types";
+import type { LibrarySort, TemplateId } from "../lib/types";
 import { searchDocs } from "../lib/search";
 import { pickAndImportFiles, stageAndReview } from "../components/ImportReview";
-import { Button, DropOverlay, IconButton, Modal, useFileDrop, useToast } from "../components/ui";
+import { Button, DropOverlay, IconButton, Modal, Segmented, useFileDrop, useToast } from "../components/ui";
 import { Icon, TempleMark } from "../components/Icon";
 import { openPalette } from "../components/CommandPalette";
 import { StudioNav } from "../components/StudioNav";
@@ -41,11 +41,20 @@ export function Library() {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   // Content-aware: matches body text as well as title/metadata, ranked.
+  // Search results keep their relevance ranking; otherwise the chosen
+  // sort applies — latest modified first, or first created (oldest
+  // first, reading a course front to back).
   const filtered = useMemo(() => {
     const q = query.trim();
     const base = q ? searchDocs(docs, q, 200).map((h) => h.doc) : docs;
-    return templateFilter === "all" ? base : base.filter((d) => d.template === templateFilter);
-  }, [docs, query, templateFilter]);
+    const typed = templateFilter === "all" ? base : base.filter((d) => d.template === templateFilter);
+    if (q) return typed;
+    return [...typed].sort((a, b) =>
+      settings.librarySort === "created" ? a.createdAt - b.createdAt : b.updatedAt - a.updatedAt,
+    );
+  }, [docs, query, templateFilter, settings.librarySort]);
+
+  const favorites = useMemo(() => docs.filter((d) => d.favorite).sort((a, b) => b.updatedAt - a.updatedAt), [docs]);
 
   // Only worth showing the type filter once the library actually mixes
   // document types — a single-type library has nothing to filter.
@@ -172,6 +181,42 @@ export function Library() {
         </div>
       )}
 
+      {/* Favourites — quick access to starred documents, one tap away. */}
+      {favorites.length > 0 && !query.trim() && !selectMode && (
+        <section className="mb-4">
+          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-faint">
+            <Icon name="star" size={12} className="fill-current text-warn" />
+            Favourites
+          </h2>
+          <div className="flex flex-wrap gap-1.5">
+            {favorites.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => navigate({ edit: d.id })}
+                className="inline-flex max-w-64 items-center gap-1.5 rounded-full border border-edge bg-surface px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors hover:border-accent hover:text-ink"
+              >
+                <TemplateGlyph id={d.template} className="h-3 w-3 flex-none" />
+                <span className="truncate">{d.title || "Untitled"}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {docs.length > 1 && (
+        <div className="mb-4 flex items-center justify-end gap-2" role="group" aria-label="Sort documents">
+          <Segmented
+            size="sm"
+            value={settings.librarySort}
+            onChange={(v: LibrarySort) => saveSettings({ librarySort: v })}
+            options={[
+              { value: "modified", label: "Latest modified", hint: "Most recently edited documents first." },
+              { value: "created", label: "First created", hint: "Oldest documents first — read a course front to back." },
+            ]}
+          />
+        </div>
+      )}
+
       {templatesInUse.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Filter by document type">
           <button
@@ -258,28 +303,57 @@ export function Library() {
                         <Icon name="check" size={12} />
                       </span>
                     ) : (
-                      <span className={cx("flex gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100", "opacity-100")}>
+                      /* pointer-fine (mouse/trackpad): actions reveal on hover
+                         or keyboard focus. Coarse pointers (Android tablets,
+                         phones) have no hover, so the actions stay visible —
+                         hiding them behind hover made Delete/Duplicate
+                         unreachable on touch devices. A starred document's
+                         star is always visible everywhere. */
+                      <span
+                        className={cx(
+                          "flex gap-0.5 transition-opacity",
+                          !doc.favorite && "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100",
+                        )}
+                      >
                         <IconButton
-                          label="Duplicate"
-                          name="copy"
+                          label={doc.favorite ? "Remove from favourites" : "Add to favourites"}
+                          name="star"
                           size={14}
-                          className="p-1.5"
+                          className={cx("p-1.5", doc.favorite ? "text-warn" : "hover:text-warn")}
+                          iconClassName={doc.favorite ? "fill-current" : undefined}
                           onClick={(e) => {
                             e.stopPropagation();
-                            const copy = duplicateDoc(doc.id);
-                            if (copy) toast("Duplicated", "ok");
+                            toggleFavorite(doc.id);
                           }}
                         />
-                        <IconButton
-                          label="Delete"
-                          name="trash"
-                          size={14}
-                          className="p-1.5 hover:text-danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDelete({ id: doc.id, title: doc.title });
-                          }}
-                        />
+                        <span
+                          className={cx(
+                            "flex gap-0.5 transition-opacity",
+                            doc.favorite && "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100",
+                          )}
+                        >
+                          <IconButton
+                            label="Duplicate"
+                            name="copy"
+                            size={14}
+                            className="p-1.5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const copy = duplicateDoc(doc.id);
+                              if (copy) toast("Duplicated", "ok");
+                            }}
+                          />
+                          <IconButton
+                            label="Delete"
+                            name="trash"
+                            size={14}
+                            className="p-1.5 hover:text-danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete({ id: doc.id, title: doc.title });
+                            }}
+                          />
+                        </span>
                       </span>
                     )}
                   </div>

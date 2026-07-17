@@ -607,8 +607,14 @@ ul, ol, .footnotes, .page-break,
   color: var(--c-text);
   padding: 0.22em 0;
 }
-.toc__item a::after {
-  content: target-counter(attr(href), page);
+/* Page numbers are real spans filled by the harness once layout is
+   complete — NOT CSS target-counter(). Paged.js resolves target-counter
+   by re-querying the whole accumulated document and walking every page
+   with getComputedStyle after *each* page it lays out, which turned
+   notes pagination O(pages²) (measured: ~70 → ~322 ms/page from 79 to
+   766 pages, while a TOC-less bank stayed flat). One pass at the end
+   costs milliseconds and produces identical numbers. */
+.toc__page {
   font-family: "Manrope", sans-serif;
   font-weight: 700;
   font-size: 0.9em;
@@ -630,7 +636,7 @@ ul, ol, .footnotes, .page-break,
 .toc__item--l3 { padding-left: 3.4em; font-size: 0.9em; color: var(--c-muted); }
 
 /* In the flow preview there are no page numbers to point at. */
-body.mode-flow .toc__item a::after { content: none; }
+body.mode-flow .toc__page { display: none; }
 
 /* ═══════════════════════════════════════════════════════════════════
    DARK READING THEME REFINEMENTS

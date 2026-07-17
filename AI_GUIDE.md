@@ -67,14 +67,16 @@ will drift apart.
   layer, ZIP reader, HTML→Markdown walker) exist because the alternative
   dependency wasn't worth its weight for what's needed here.
 - **Optional-field registration (schema-merge safety).** `Doc` and
-  `DocLayout` have optional fields (`institute?`, `coverColors?`, …).
-  `lib/store.ts`'s `withDefaults()` merges stored/backup data over
-  in-code defaults and **drops any key the defaults object doesn't know
-  about** — that's how removed features clean themselves up on load. A
-  *new* optional field must be added to `DOC_OPTIONAL_KEYS` or
-  `LAYOUT_OPTIONAL_KEYS` in `lib/store.ts`, or it will silently vanish on
-  the next reload/restore. `store.test.ts` has a regression test for
-  this exact mechanism — extend it when you add a field.
+  `DocLayout` have optional fields (`institute?`, `coverLines?`,
+  `favorite?`, `coverColors?`, …). `lib/store.ts`'s `withDefaults()`
+  merges stored/backup data over in-code defaults and **drops any key
+  the defaults object doesn't know about** — that's how removed features
+  clean themselves up on load. A *new* optional field must be added to
+  `DOC_OPTIONAL_KEYS` or `LAYOUT_OPTIONAL_KEYS` in `lib/store.ts`, or it
+  will silently vanish on the next reload/restore. `store.test.ts` has a
+  regression test for this exact mechanism — extend it when you add a
+  field. A new **required** `Settings` field just needs a default in
+  `DEFAULT_SETTINGS` (`brand/defaults.ts`) — the same merge keeps it.
 - **IconButton for icon-only controls** (not a bare `<button>`) — gives
   both the desktop `title` tooltip and the touch long-press hint for
   free. See `components/ui.tsx` header comment for why both are needed.
@@ -114,6 +116,15 @@ behavior. Verify it manually with the `verify` skill (`.claude/skills/verify/`)
 using the pre-installed Chromium + Playwright before shipping engine or
 harness changes; don't try to fake this with jsdom/happy-dom, it will
 give false confidence.
+
+**Performance changes need numbers.** `scripts/stress.mjs` (see its
+header, and `docs/performance.md` for the reference tables) drives the
+real production build in headless Chromium and measures pagination,
+responsiveness, DOM growth and PDF export at 100 → 1000 pages. Any
+change claiming a performance or reliability benefit should show a
+before/after from that harness, and any change touching pagination or
+the engine must at minimum keep page counts and export success identical
+across its scenarios.
 
 **No ESLint currently.** `typescript-eslint@8.x` crashes against
 TypeScript 7's restructured compiler internals as of this writing —
@@ -172,6 +183,21 @@ scripted Playwright pass if you want it automated for one session.
   without importing `regenerator-runtime/runtime.js` first, the *first*
   Devanagari glyph run throws and kills the whole export. See
   `pdf/engine/fonts.ts`'s top-of-file import.
+- **Never use CSS `target-counter()` for cross-page references.**
+  Paged.js resolves it in `afterPageLayout` by re-querying the whole
+  accumulated document and walking *every* laid-out page with
+  `getComputedStyle` — after **each** page. With a TOC that made notes
+  pagination O(pages²): measured ~70 → ~322 ms/page between 79 and 766
+  pages, while a TOC-less Question Bank stayed flat. The harness fills
+  real `.toc__page` spans in one pass after layout instead (identical
+  output, verified byte-identical PDFs). Any future cross-page
+  reference should follow the same one-pass post-layout pattern.
+- **Pagination waits for fonts.** `buildDocumentHtml` sets
+  `window.PagedConfig.before` to await `document.fonts.ready` (raced
+  with a 5 s timeout) so breaks are measured with the real fonts, not
+  `font-display: swap` fallbacks — Latin faces are warm from the app
+  shell, but Devanagari faces load on first use and would otherwise
+  race the first layout.
 - **Paged.js is a print polyfill — `@media print` rules apply to the
   paginated screen view too.** An `!important` zoom reset under
   `@media print` in `PAGED_PREVIEW_CSS` would permanently disable the

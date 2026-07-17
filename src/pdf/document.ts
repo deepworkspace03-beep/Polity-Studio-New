@@ -295,7 +295,7 @@ function tocHtml(doc: Doc): string {
     ${toc
       .map(
         (t) => `<li class="toc__item toc__item--l${t.level}">
-      <a href="#${t.id}"><span class="toc__text">${escapeHtml(t.text)}</span><span class="toc__dots"></span></a>
+      <a href="#${t.id}"><span class="toc__text">${escapeHtml(t.text)}</span><span class="toc__dots"></span><span class="toc__page"></span></a>
     </li>`,
       )
       .join("\n")}
@@ -350,6 +350,14 @@ body.purpose-preview .pagedjs_page {
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
   flex: none;
 }
+/* Laid-out pages (.p-settled, stamped by the harness) skip off-screen
+   rendering work entirely — style, layout and paint cost stay flat as the
+   document grows, which is what keeps a 1000-page preview scrollable on a
+   tablet. Every page keeps its explicit Paged.js size, so scrollbars, page
+   navigation and fit-zoom stay exact; geometry APIs still measure skipped
+   pages correctly (the PDF transcriber additionally forces each page
+   visible while walking it, see engine/transcribe.ts). */
+body.purpose-preview .pagedjs_page.p-settled { content-visibility: auto; }
 /* NOTE: Paged.js is a print polyfill — it applies @media print rules to
    the paginated screen document too, so an !important zoom reset here
    would permanently disable the preview's zoom controls. The harness
@@ -358,6 +366,9 @@ body.purpose-preview .pagedjs_page {
   body.purpose-preview { background: none; }
   body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; }
   body.purpose-preview .pagedjs_page { box-shadow: none; }
+  /* Chrome can skip content-visibility:auto subtrees when printing —
+     every page must render in the print fallback. */
+  body.purpose-preview .pagedjs_page.p-settled { content-visibility: visible; }
 }`;
 
 /** Cursor-follow highlight + inline-editing affordances (flow only). */
@@ -448,8 +459,19 @@ ${paged ? PAGED_PREVIEW_CSS : FLOW_PREVIEW_CSS}`;
   const watermarkTemplate = paged
     ? `<template id="watermark-template">${watermarkHtml(brand.watermarkText)}</template>`
     : "";
+  // Pagination must measure with the real fonts: the polyfill auto-starts
+  // at DOMContentLoaded, before font-display:swap faces finish, so breaks
+  // would otherwise be computed with fallback metrics and the count could
+  // drift run to run. In practice the app shell has already warmed every
+  // Latin face (same-origin memory cache), but Devanagari faces load only
+  // when a document first uses them — this makes that first layout
+  // deterministic too. The 5 s race keeps a failed font from stalling
+  // layout forever (fonts.ready resolves on failure, belt and braces).
   const scripts = paged
-    ? `<script src="/vendor/paged.polyfill.min.js"></script>
+    ? `<script>window.PagedConfig = { auto: true, before: function () {
+  return Promise.race([document.fonts.ready, new Promise(function (r) { setTimeout(r, 5000); })]);
+} };</script>
+<script src="/vendor/paged.polyfill.min.js"></script>
 <script>${HARNESS_JS}</script>`
     : `<script>${PREVIEW_JS}</script>`;
 

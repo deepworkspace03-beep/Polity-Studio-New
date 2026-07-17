@@ -86,5 +86,6 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   docTheme: "light",
   fileNamePattern: "{title} — {brand}",
+  librarySort: "modified",
   newDocLayout: DEFAULT_LAYOUT,
 };

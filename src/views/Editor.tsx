@@ -4,6 +4,7 @@ import { navigate } from "../lib/router";
 import { flushSaves, saveSettings, updateDoc, useApp } from "../lib/store";
 import { contentStats, cx, estimatePages } from "../lib/utils";
 import { pageFactKey } from "../pdf/document";
+import { TEMPLATE_META } from "../templates/meta";
 import { imageFileToMarkdown, isImageFile } from "../lib/image";
 import type { Doc } from "../lib/types";
 import { Button, DropOverlay, IconButton, Segmented, useFileDrop, useToast } from "../components/ui";
@@ -403,7 +404,13 @@ export function Editor({ id, line }: { id: string; line?: number }) {
       return { estPages: Math.max(1, scaled), pagesExact: false };
     }
     return {
-      estPages: estimatePages(stats, doc?.layout.density ?? "comfort", !!doc?.layout.cover, !!(doc?.layout.toc && stats.headings > 0)),
+      estPages: estimatePages(
+        stats,
+        doc?.layout.density ?? "comfort",
+        !!doc?.layout.cover,
+        !!(doc && TEMPLATE_META[doc.template].hasToc && doc.layout.toc && stats.headings > 0),
+        doc?.template,
+      ),
       pagesExact: false,
     };
   }, [doc, pagedFact, shellKey, stats]);
@@ -596,7 +603,16 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         canUndo={undoDepth > 0}
       />
 
-      {publishOpen && <Publish doc={doc} brand={brand} settings={settings} onPagesKnown={onPagesKnown} onClose={() => setPublishOpen(false)} />}
+      {publishOpen && (
+        <Publish
+          doc={doc}
+          brand={brand}
+          settings={settings}
+          estimatedPages={estPages}
+          onPagesKnown={onPagesKnown}
+          onClose={() => setPublishOpen(false)}
+        />
+      )}
     </div>
   );
 }
