@@ -1,10 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════
    QUESTION BANK — template-specific print styles
    One examination-book card for PYQs, MCQs, mixed banks and practice
-   sets. Header row is label-free: number · topic · source. The card is
-   deliberately light to render — text-only header (no chip boxes) and
-   no background fill (the page already provides the paper), so a
-   thousand cards cost the PDF a thousand fewer paint operations.
+   sets. Header row is label-free: number · topic · source, with topic
+   and source as quiet rounded badges. The card stays deliberately light
+   to render — no card background fill (the page already provides the
+   paper) and one paint operation per badge, benchmarked at ~1% of PDF
+   size on a 1500-question bank.
    ═══════════════════════════════════════════════════════════════════ */
 
 .mcq-preamble {
@@ -79,9 +80,13 @@
 }
 .q__sol[data-split-from] { border-top: none; margin-top: 0; padding-top: 0; }
 
-/* Header row — number · topic reading left, source anchored right, a
-   dotted leader bridging the two so the line always spans the card
-   (classic exam-book rhythm; no dead center gap, no "Topic:" labels). */
+/* Header row — one compact line: Q number · topic badge reading left,
+   source badge anchored right, a dotted leader bridging the two so the
+   line always spans the card (classic exam-book rhythm, no dead center
+   gap, no "Topic:" labels). Topic and source are quiet rounded badges —
+   one soft fill / one hairline each, so a thousand cards cost the PDF
+   two extra operations per card (measured: within noise on pagination
+   time and ~1% on file size). */
 .q__head {
   display: flex;
   align-items: baseline;
@@ -103,44 +108,63 @@
   flex: none;
   align-self: center;
 }
+/* Topic — a soft-filled pill: present but quieter than the number. */
 .q__topic {
   flex: none;
-  max-width: 52%;
+  max-width: 46%;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-size: 0.77em;
+  font-size: 0.72em;
   font-weight: 700;
-  letter-spacing: 0.055em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-primarySoft) 82%, var(--c-muted));
+  color: color-mix(in srgb, var(--c-primary) 72%, var(--c-text));
+  background: color-mix(in srgb, var(--c-primarySoft) 16%, var(--c-mix, white));
+  border-radius: 999pt;
+  padding: 1.7pt 6.5pt 2pt;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  align-self: center;
 }
+/* The leader is an empty span: align-self centers its zero-height box in
+   the row, so the dots bridge the badges at their vertical middle (the
+   old baseline + translateY trick drew them along the row's top edge
+   once the badges gained height). */
 .q__lead {
   flex: 1;
   min-width: 1.2em;
+  align-self: center;
   border-bottom: 0.6pt dotted color-mix(in srgb, var(--c-edge) 72%, var(--c-muted));
-  transform: translateY(-0.3em);
 }
+/* Source — a hairline-outlined pill in the brand gold: the provenance
+   mark, lightest of the three. */
 .q__src {
   flex: none;
   display: inline-flex;
   align-items: baseline;
   gap: 0.6em;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-size: 0.74em;
+  font-size: 0.7em;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--c-gold);
-  max-width: 45%;
+  border: 0.7pt solid color-mix(in srgb, var(--c-gold) 42%, var(--c-mix, white));
+  border-radius: 999pt;
+  padding: 1.4pt 6.5pt 1.7pt;
+  max-width: 42%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  align-self: center;
 }
 .q__marks { font-weight: 700; color: var(--c-muted); text-transform: none; letter-spacing: 0.02em; }
 
+/* The question itself is the visual focus: its opening line reads a
+   step stronger than the rest of the stem; options sit lighter still
+   (see .q__opt-text), so the hierarchy is obvious at a glance. */
 .q__text { font-weight: 500; }
+.q__text > p:first-child { font-weight: 600; }
 .q__text p { margin-bottom: 0.5em; }
 
 .q__options {
@@ -178,7 +202,7 @@
   flex: none;
   transform: translateY(-0.5pt);
 }
-.q__opt-text { font-size: 0.97em; }
+.q__opt-text { font-size: 0.97em; color: color-mix(in srgb, var(--c-text) 90%, var(--c-muted)); }
 
 /* The correct option carries the answer: a soft green wash, a green key
    and a ✓ — no separate "Correct Answer" line. Background + border only
@@ -299,10 +323,13 @@
 /* ── Ultra Compact — question-bank-specific tightening ───────────── */
 
 /* Ultra keeps every premium cue — the spine, the softened 6pt corners,
-   the framed correct option — and only tightens the spacing, so a dense
-   page still reads as a crafted book rather than a stripped-down list. */
+   the badges, the framed correct option — and only tightens the spacing,
+   so a dense page still reads as a crafted book rather than a
+   stripped-down list. */
 body.density-ultra .q { padding: 0.58em 0.8em 0.62em; margin-bottom: 0.6em; border-radius: 6pt; }
-body.density-ultra .q__head { margin-bottom: 0.35em; gap: 0.6em; }
+body.density-ultra .q__head { margin-bottom: 0.35em; gap: 0.5em; }
+body.density-ultra .q__topic { padding: 1.3pt 5.5pt 1.6pt; }
+body.density-ultra .q__src { padding: 1.1pt 5.5pt 1.4pt; }
 body.density-ultra .q__text p { margin-bottom: 0.35em; }
 body.density-ultra .q__options { gap: 1.5pt 8pt; margin-top: 0.25em; }
 body.density-ultra .q__opt { padding: 1.2pt 3pt; }

@@ -88,7 +88,7 @@ export async function restartStudio(): Promise<void> {
 /** Optional `Doc` fields (`institute?`, `coverLines?`) — the single place
     to register a new one. Typed `satisfies readonly (keyof Doc)[]` so a
     typo or a renamed/removed field fails `tsc`, not a user's reload. */
-export const DOC_OPTIONAL_KEYS = ["institute", "coverLines"] as const satisfies readonly (keyof Doc)[];
+export const DOC_OPTIONAL_KEYS = ["institute", "coverLines", "favorite"] as const satisfies readonly (keyof Doc)[];
 /** Optional `DocLayout` fields (`coverColors?`, `coverDesign?`) — same
     contract as DOC_OPTIONAL_KEYS, one level down. */
 export const LAYOUT_OPTIONAL_KEYS = ["coverColors", "coverDesign"] as const satisfies readonly (keyof DocLayout)[];
@@ -221,6 +221,19 @@ export function updateDoc(id: string, patch: Partial<Omit<Doc, "id">>): void {
   const idx = state.docs.findIndex((d) => d.id === id);
   if (idx < 0) return;
   const doc: Doc = { ...state.docs[idx], ...patch, updatedAt: Date.now() };
+  const docs = [...state.docs];
+  docs[idx] = doc;
+  setState({ ...state, docs });
+  schedulePersist(doc);
+}
+
+/** Star/unstar a document. Deliberately not updateDoc: favoriting is
+    curation, not editing, so it must never bump updatedAt (which would
+    shuffle the "Latest modified" ordering just for tapping a star). */
+export function toggleFavorite(id: string): void {
+  const idx = state.docs.findIndex((d) => d.id === id);
+  if (idx < 0) return;
+  const doc: Doc = { ...state.docs[idx], favorite: !state.docs[idx].favorite };
   const docs = [...state.docs];
   docs[idx] = doc;
   setState({ ...state, docs });

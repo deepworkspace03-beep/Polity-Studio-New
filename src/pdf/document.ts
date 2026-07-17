@@ -295,7 +295,7 @@ function tocHtml(doc: Doc): string {
     ${toc
       .map(
         (t) => `<li class="toc__item toc__item--l${t.level}">
-      <a href="#${t.id}"><span class="toc__text">${escapeHtml(t.text)}</span><span class="toc__dots"></span></a>
+      <a href="#${t.id}"><span class="toc__text">${escapeHtml(t.text)}</span><span class="toc__dots"></span><span class="toc__page"></span></a>
     </li>`,
       )
       .join("\n")}
@@ -459,8 +459,19 @@ ${paged ? PAGED_PREVIEW_CSS : FLOW_PREVIEW_CSS}`;
   const watermarkTemplate = paged
     ? `<template id="watermark-template">${watermarkHtml(brand.watermarkText)}</template>`
     : "";
+  // Pagination must measure with the real fonts: the polyfill auto-starts
+  // at DOMContentLoaded, before font-display:swap faces finish, so breaks
+  // would otherwise be computed with fallback metrics and the count could
+  // drift run to run. In practice the app shell has already warmed every
+  // Latin face (same-origin memory cache), but Devanagari faces load only
+  // when a document first uses them — this makes that first layout
+  // deterministic too. The 5 s race keeps a failed font from stalling
+  // layout forever (fonts.ready resolves on failure, belt and braces).
   const scripts = paged
-    ? `<script src="/vendor/paged.polyfill.min.js"></script>
+    ? `<script>window.PagedConfig = { auto: true, before: function () {
+  return Promise.race([document.fonts.ready, new Promise(function (r) { setTimeout(r, 5000); })]);
+} };</script>
+<script src="/vendor/paged.polyfill.min.js"></script>
 <script>${HARNESS_JS}</script>`
     : `<script>${PREVIEW_JS}</script>`;
 

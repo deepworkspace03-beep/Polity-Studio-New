@@ -1,5 +1,7 @@
 import { PDFDocument } from "pdf-lib";
-import { transcribePaginated } from "./transcribe";
+import { transcribePaginated, type ExportStage } from "./transcribe";
+
+export type { ExportStage };
 
 /**
  * The PDF export engine — public entry point.
@@ -27,7 +29,7 @@ export interface ExportResult {
 export async function exportPaginatedPdf(
   srcDoc: Document,
   meta: ExportMeta,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: (done: number, total: number, stage: ExportStage) => void,
 ): Promise<ExportResult> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(meta.title, { showInWindowTitleBar: true });
@@ -42,6 +44,10 @@ export async function exportPaginatedPdf(
   const { pages, warnings } = await transcribePaginated(srcDoc, pdf, onProgress);
   if (warnings.length) console.warn("[pdf] transcription warnings:", warnings);
 
+  // Serialization takes seconds on large documents — let the UI say so
+  // (and paint) before pdf.save blocks the thread.
+  onProgress?.(pages, pages, "assemble");
+  await new Promise((r) => setTimeout(r, 0));
   const bytes = await pdf.save({ useObjectStreams: true });
   const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
   return { blob, pages, bytes: bytes.length, warnings };

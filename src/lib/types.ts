@@ -123,6 +123,9 @@ export interface Doc {
       Absent = use the template's default selling points; an empty array
       hides them. Editable per document so every cover word is authorable. */
   coverLines?: string[];
+  /** Starred in the Library — pinned to the quick-access row. Toggling
+      it never bumps updatedAt (curation is not editing). */
+  favorite?: boolean;
   layout: DocLayout;
   createdAt: number;
   updatedAt: number;
@@ -161,6 +164,9 @@ export interface BrandConfig {
 
 export type UiTheme = "dark" | "light" | "system";
 export type DocTheme = "light" | "dark";
+/** Library ordering — latest-modified first (default) or oldest-created
+    first (reading a course front to back). */
+export type LibrarySort = "modified" | "created";
 
 export interface Settings {
   theme: UiTheme;
@@ -169,6 +175,8 @@ export interface Settings {
   docTheme: DocTheme;
   /** Filename pattern for exports; {title}, {brand} and {date} are replaced. */
   fileNamePattern: string;
+  /** Library document ordering. */
+  librarySort: LibrarySort;
   /** Layout applied to newly created documents. */
   newDocLayout: DocLayout;
 }

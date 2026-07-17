@@ -28,8 +28,28 @@ export const HARNESS_JS = String.raw`(function () {
   var isPreview = document.body.getAttribute("data-purpose") === "preview";
   var wmTemplate = document.getElementById("watermark-template");
 
+  // TOC page references, resolved in ONE pass after layout instead of CSS
+  // target-counter() — Paged.js resolves that by re-scanning the whole
+  // accumulated document (with getComputedStyle over every page) after
+  // every single page, which made large TOC'd documents O(pages²).
+  // data-page-number is Paged.js's own 1-based physical page index — the
+  // same number counter(page) prints in the header.
+  function fillTocPages() {
+    var links = document.querySelectorAll(".toc__item a[href^='#']");
+    for (var i = 0; i < links.length; i++) {
+      var span = links[i].querySelector(".toc__page");
+      if (!span) continue;
+      var id = decodeURIComponent((links[i].getAttribute("href") || "").slice(1));
+      var dest = null;
+      try { dest = id && document.getElementById(id); } catch (e) {}
+      var page = dest && dest.closest(".pagedjs_page");
+      if (page && page.getAttribute("data-page-number")) span.textContent = page.getAttribute("data-page-number");
+    }
+  }
+
   function report(pages, error) {
     if (window.__PAGED_DONE__) return; // first result wins — never double-report
+    try { fillTocPages(); } catch (e) {} // partial layouts still get the numbers that exist
     window.__PAGED_PAGES__ = pages || 0;
     window.__PAGED_DONE__ = true;
     if (error) window.__PAGED_ERROR__ = String(error);

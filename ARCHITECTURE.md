@@ -12,8 +12,10 @@ and how to extend it.
 2. **Paged.js typesets; a custom engine writes the PDF.** Paged.js runs
    in a same-origin iframe and produces the exact paginated DOM —
    running headers/footers (`position: running()`), `counter(pages)`,
-   TOC page references (`target-counter`), named full-bleed pages and a
-   per-page watermark. Instead of handing that to the browser's
+   TOC page references (real `.toc__page` spans the harness fills in one
+   pass after layout — *not* CSS `target-counter`, whose per-page
+   whole-document re-resolution made pagination O(pages²)), named
+   full-bleed pages and a per-page watermark. Instead of handing that to the browser's
    print-to-PDF (which forces a system dialog and cannot name the file),
    the engine in `src/pdf/engine/` **transcribes the laid-out DOM into a
    true vector PDF** with `pdf-lib` + `fontkit`: it walks the DOM in
@@ -131,8 +133,9 @@ src/
 │  │                     also buildDocContent/buildShellKey for the
 │  │                     incremental flow preview
 │  ├─ harness.ts         scripts inlined into the iframes: paged harness
-│  │                     (running topic, watermark, fit/pinch zoom, page
-│  │                     nav, cursor sync, completion signalling) and
+│  │                     (running topic, watermark, TOC page numbers,
+│  │                     fit/pinch zoom, page nav, cursor sync,
+│  │                     completion signalling) and
 │  │                     flow preview harness (in-place updates, cursor
 │  │                     sync, inline contenteditable → doc/markdown)
 │  ├─ engine/            the vector PDF engine (lazy chunk, loads on
@@ -153,8 +156,10 @@ src/
 │                        imports before they become a document or an
 │                        insert) — the latter two mounted once in App
 └─ views/
-   ├─ Library.tsx        home: hero, document grid, search, templates,
-   │                     Examples, theme toggle (no persistent nav chrome)
+   ├─ Library.tsx        home: hero, document grid (starred favourites
+   │                     quick-access row, latest-modified/first-created
+   │                     sorting), search, templates, Examples, theme
+   │                     toggle (no persistent nav chrome)
    ├─ Editor.tsx         header, three resizable panes (settings pane ·
    │                     editor · preview), mobile write/preview tabs,
    │                     focus mode (hides toolbar + settings pane)
@@ -309,10 +314,16 @@ are unchanged → a **calibrated** count (last exact × word ratio) while
 only the body has changed → the structural **heuristic**
 (`estimatePages`, `lib/utils.ts`) when nothing has paginated yet.
 Only the non-exact tiers are prefixed "≈". The heuristic has two models:
-prose (words-per-page + structural costs) and — for Question Banks — a
-card model (per-question fixed cost + word flow) calibrated against real
-Paged.js layouts, because cards carry layout cost no words-per-page
-constant can see (the words-only model ran ~50% short).
+prose (words-per-page plus grounded per-element costs for headings, list
+items, callouts and chapter breaks — verified within ±2% on real layouts
+at 79/193/384 pages; the words-only model ran ~23% short on structured
+notes) and — for Question Banks — a card model (per-question fixed cost
++ word flow) calibrated against real Paged.js layouts, because cards
+carry layout cost no words-per-page constant can see (the words-only
+model ran ~50% short). Absolute page counts can differ a few percent
+between browser engine versions (text shaping); the exact and calibrated
+tiers absorb that automatically because they come from real layouts on
+the reader's own browser.
 
 ## Internal PDF navigation
 
@@ -345,15 +356,20 @@ the system, in one paragraph each:
   ~0.2 s; `renderer.ts` keeps a single-entry token memo so the body
   render and the TOC extraction (and the flow → paged rebuild pair)
   share one markdown-it parse.
-- **Pagination is the wall — but a safe one.** Paged.js costs
-  ~55–70 ms/page, linear, main-thread. Since v4.3 it is *cooperative*:
-  the Studio handler yields on a time budget, posts live progress,
-  re-points Paged.js's rAF-driven queue at `setTimeout` (rAF is
-  suspended in background tabs — the historical "export hangs" root
-  cause), and a watchdog reports partial layouts instead of hanging.
-  Pages the handler has finished are stamped `.p-settled` and rendered
-  with `content-visibility: auto`, so preview scrolling and zooming stay
-  flat-cost at any document size.
+- **Pagination is the wall — but a linear, safe one.** Paged.js costs
+  ~50–60 ms/page, flat at every size since v4.4 (the TOC's CSS
+  `target-counter` used to re-scan the whole accumulated document after
+  every page — O(pages²), ~322 ms/page by page 766; the harness now
+  fills real `.toc__page` spans in one pass after layout, byte-identical
+  output). Since v4.3 it is *cooperative*: the Studio handler yields on
+  a time budget, posts live progress, re-points Paged.js's rAF-driven
+  queue at `setTimeout` (rAF is suspended in background tabs — the
+  historical "export hangs" root cause), and a watchdog reports partial
+  layouts instead of hanging. Layout waits for `document.fonts.ready`
+  (`PagedConfig.before`) so breaks are always measured with the real
+  fonts. Pages the handler has finished are stamped `.p-settled` and
+  rendered with `content-visibility: auto`, so preview scrolling and
+  zooming stay flat-cost at any document size.
 - **Adaptive debounces.** The flow preview re-renders in place ~200 ms
   after the last keystroke (in-place innerHTML swap, skipped when the
   HTML didn't change); the paged preview re-paginates ~1.2 s after the

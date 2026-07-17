@@ -350,7 +350,11 @@ export function Preview({
           </span>
         ) : (
           <span className="text-xs tabular-nums text-faint" aria-live="polite">
-            {paginating ? (layoutPages > 0 ? `Laying out pages… ${layoutPages}` : "Laying out pages…") : ""}
+            {paginating
+              ? layoutPages > 0
+                ? `Laying out pages… ${layoutPages}${estimatedPages && estimatedPages > 1 ? ` / ≈${estimatedPages}` : ""}`
+                : "Laying out pages…"
+              : ""}
           </span>
         )}
 

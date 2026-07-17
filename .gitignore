@@ -5,3 +5,5 @@ public/fonts/ttf/
 *.local
 .env
 .DS_Store
+pdfs/
+results.json

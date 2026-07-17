@@ -26,16 +26,56 @@ export function buildFileTitle(doc: Doc, brand: BrandConfig, settings: Settings)
 type Phase = "layout" | "ready" | "exporting" | "error";
 type ZoomMode = "fit-width" | "fit-page" | "custom";
 
+/** "1:23" / "0:07" — progress durations. */
+function fmtDur(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Elapsed / remaining time for a long operation. `done`/`total` drive
+    the ETA (cumulative-rate, so it stays smooth); a 1 s tick keeps the
+    clock moving between progress events. `key` restarts the clock when
+    the operation identity changes. */
+function useOperationClock(active: boolean, key: string, done: number, total: number): { elapsed: number; etaMs: number | null } {
+  const startRef = useRef(0);
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    startRef.current = Date.now();
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [active, key]);
+  if (!active) return { elapsed: 0, etaMs: null };
+  const elapsed = Math.max(0, now - startRef.current);
+  // An ETA from <3% progress or <2s of data is noise, not information.
+  const etaMs = total > 0 && done > Math.max(2, total * 0.03) && elapsed > 2000
+    ? (elapsed / done) * (total - done)
+    : null;
+  return { elapsed, etaMs };
+}
+
+const EXPORT_STAGE_LABEL: Record<string, string> = {
+  prepare: "Preparing pages & fonts",
+  pages: "Transcribing pages to vector PDF",
+  assemble: "Compressing & saving PDF",
+};
+
 export function Publish({
   doc,
   brand,
   settings,
+  estimatedPages,
   onPagesKnown,
   onClose,
 }: {
   doc: Doc;
   brand: BrandConfig;
   settings: Settings;
+  /** The workspace's current page estimate (authority chain) — used only
+      to give the typesetting phase an honest "≈" progress bar before the
+      real count exists. */
+  estimatedPages?: number;
   /** Reports the completed layout so the editor's page readouts adopt
       the exact count (see Editor.tsx's page-count authority chain). */
   onPagesKnown?: (pages: number, body: string, factKey: string) => void;
@@ -49,8 +89,12 @@ export function Publish({
   const [current, setCurrent] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
-  const [progress, setProgress] = useState(0);
+  const [exportProg, setExportProg] = useState<{ done: number; total: number; stage: string }>({ done: 0, total: 0, stage: "prepare" });
   const [layoutPages, setLayoutPages] = useState(0);
+
+  // Progress clocks — one per long-running phase.
+  const layoutClock = useOperationClock(phase === "layout", "layout", layoutPages, estimatedPages ?? 0);
+  const exportClock = useOperationClock(phase === "exporting", "export", exportProg.stage === "pages" ? exportProg.done : 0, exportProg.stage === "pages" ? exportProg.total : 0);
 
   const fileTitle = useMemo(() => buildFileTitle(doc, brand, settings), [doc, brand, settings]);
   // Snapshot at open — the overlay owns the screen, the doc can't change.
@@ -114,14 +158,14 @@ export function Publish({
     const srcDoc = win?.document;
     if (!srcDoc) return;
     setPhase("exporting");
-    setProgress(0);
+    setExportProg({ done: 0, total: 0, stage: "prepare" });
     try {
       // The PDF engine (pdf-lib + fontkit) loads only on first export.
       const { exportPaginatedPdf } = await import("../../pdf/engine");
       const result = await exportPaginatedPdf(
         srcDoc,
         { title: fileTitle, author: doc.author || brand.author, subject: doc.subtitle, lang: doc.lang === "hi" ? "hi" : "en" },
-        (done, total) => setProgress(total ? done / total : 0),
+        (done, total, stage) => setExportProg({ done, total, stage }),
       );
       downloadFile(`${fileTitle}.pdf`, result.blob, "application/pdf");
       toast(`Downloaded · ${result.pages} pages · ${(result.bytes / 1024).toFixed(0)} KB`, "ok");
@@ -163,13 +207,15 @@ export function Publish({
         <IconButton label="Back to editor" name="back" size={18} onClick={onClose} />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-bold leading-tight">{doc.title || "Untitled"}</h2>
-          <p className="truncate text-xs text-faint">
+          <p className="truncate text-xs tabular-nums text-faint">
             {phase === "layout"
               ? layoutPages > 0
-                ? `Typesetting pages… ${layoutPages}`
+                ? `Typesetting pages… ${layoutPages}${estimatedPages ? ` / ≈${estimatedPages}` : ""}`
                 : "Typesetting pages…"
               : phase === "exporting"
-                ? `Building vector PDF… ${Math.round(progress * 100)}%`
+                ? exportProg.stage === "pages" && exportProg.total
+                  ? `Building vector PDF… ${exportProg.done} / ${exportProg.total} · ${Math.round((exportProg.done / exportProg.total) * 100)}%`
+                  : EXPORT_STAGE_LABEL[exportProg.stage] ?? "Building vector PDF…"
                 : phase === "ready"
                   ? `${pages} page${pages === 1 ? "" : "s"} · vector PDF, opens instantly`
                   : "Layout failed"}
@@ -232,16 +278,57 @@ export function Publish({
           sandbox="allow-same-origin allow-scripts allow-modals"
         />
         {phase === "layout" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg/85">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-bg/85 px-6">
             <Icon name="loader" size={22} className="animate-spin text-accent" />
-            <p className="text-sm tabular-nums text-ink-2">
-              {layoutPages > 0 ? `Typesetting your pages… ${layoutPages}` : "Typesetting your pages…"}
-            </p>
+            <div className="w-full max-w-sm text-center">
+              <p className="text-sm font-semibold text-ink">Typesetting your pages</p>
+              <p className="mt-1 text-sm tabular-nums text-ink-2">
+                {layoutPages > 0 ? (
+                  <>
+                    Page {layoutPages}
+                    {estimatedPages ? ` of ≈${estimatedPages} · ≈${Math.min(99, Math.round((layoutPages / estimatedPages) * 100))}%` : ""}
+                  </>
+                ) : (
+                  "Preparing the layout engine…"
+                )}
+              </p>
+              <p className="mt-1 text-xs tabular-nums text-faint">
+                {fmtDur(layoutClock.elapsed)} elapsed
+                {layoutClock.etaMs !== null ? ` · ≈${fmtDur(layoutClock.etaMs)} left` : ""}
+              </p>
+              {estimatedPages ? (
+                <div className="mx-auto mt-3 h-1.5 w-full overflow-hidden rounded-full bg-edge">
+                  <div
+                    className="h-full rounded-full bg-accent transition-[width] duration-300"
+                    style={{ width: `${Math.min(99, (layoutPages / estimatedPages) * 100)}%` }}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         )}
         {phase === "exporting" && (
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-edge">
-            <div className="h-full bg-accent transition-[width] duration-150" style={{ width: `${progress * 100}%` }} />
+          <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-4 pb-4">
+            <div className="pointer-events-none w-full max-w-md rounded-xl border border-edge bg-surface/95 px-4 py-3 shadow-xl backdrop-blur">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs font-semibold text-ink">{EXPORT_STAGE_LABEL[exportProg.stage] ?? "Exporting…"}</span>
+                {exportProg.stage === "pages" && exportProg.total > 0 && (
+                  <span className="text-xs tabular-nums text-ink-2">
+                    {exportProg.done} / {exportProg.total} · {Math.round((exportProg.done / exportProg.total) * 100)}%
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-edge">
+                <div
+                  className="h-full rounded-full bg-accent transition-[width] duration-150"
+                  style={{ width: `${exportProg.total ? (exportProg.done / exportProg.total) * 100 : 0}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] tabular-nums text-faint">
+                {fmtDur(exportClock.elapsed)} elapsed
+                {exportClock.etaMs !== null ? ` · ≈${fmtDur(exportClock.etaMs)} left` : ""}
+              </p>
+            </div>
           </div>
         )}
         {phase === "error" && (

@@ -47,10 +47,15 @@ export interface TranscribeResult {
   warnings: string[];
 }
 
+/** Export phases, in order — lets the caller name the current operation
+    instead of showing a bare number. "pages" is the long middle phase
+    with real per-page progress; the others bracket it. */
+export type ExportStage = "prepare" | "pages" | "assemble";
+
 export async function transcribePaginated(
   srcDoc: Document,
   pdf: PDFDocument,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: (done: number, total: number, stage: ExportStage) => void,
 ): Promise<TranscribeResult> {
   const win = srcDoc.defaultView;
   if (!win) throw new Error("Document is detached");
@@ -73,6 +78,8 @@ export async function transcribePaginated(
   const K = 72 / 96;
 
   try {
+    onProgress?.(0, pageEls.length, "prepare");
+    await new Promise((r) => setTimeout(r, 0)); // let the stage label paint
     materializePseudos(srcDoc);
 
     for (let p = 0; p < pageEls.length; p++) {
@@ -93,7 +100,7 @@ export async function transcribePaginated(
       collectOutline(box, p, origin, outline);
       canvas.flush();
       pageEls[p].style.contentVisibility = "";
-      onProgress?.(p + 1, pageEls.length);
+      onProgress?.(p + 1, pageEls.length, "pages");
       // Yield so the progress UI can paint between pages.
       await new Promise((r) => setTimeout(r, 0));
     }

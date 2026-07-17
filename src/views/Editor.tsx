@@ -603,7 +603,16 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         canUndo={undoDepth > 0}
       />
 
-      {publishOpen && <Publish doc={doc} brand={brand} settings={settings} onPagesKnown={onPagesKnown} onClose={() => setPublishOpen(false)} />}
+      {publishOpen && (
+        <Publish
+          doc={doc}
+          brand={brand}
+          settings={settings}
+          estimatedPages={estPages}
+          onPagesKnown={onPagesKnown}
+          onClose={() => setPublishOpen(false)}
+        />
+      )}
     </div>
   );
 }

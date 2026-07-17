@@ -42,6 +42,12 @@ export interface ContentStats {
   h1s: number;
   /** Manual \pagebreak / \newpage lines. */
   pagebreaks: number;
+  /** Bullet / numbered list lines — each occupies a full line however
+      few words it holds, so structured notes fit far fewer words per
+      page than prose (the historical −23% estimate error). */
+  listItems: number;
+  /** ::: callout blocks — header + padding + margins per block. */
+  callouts: number;
   /** Question-dialect markers (`Q.` / `Q1.` lines) — drives the Question
       Bank page estimate, where card structure, not prose word flow,
       decides how many pages the layout really needs. */
@@ -57,8 +63,10 @@ export function contentStats(body: string): ContentStats {
   const headings = (body.match(/^#{1,6}\s/gm) || []).length;
   const h1s = (body.match(/^#\s/gm) || []).length;
   const pagebreaks = (body.match(/^\\(pagebreak|newpage)\s*$/gm) || []).length;
+  const listItems = (body.match(/^\s*(?:[-*+]|\d+[.)])\s/gm) || []).length;
+  const callouts = (body.match(/^:::\s*\w/gm) || []).length;
   const questions = (body.match(/^Q\d*[.)]\s/gm) || []).length;
-  return { words, headings, h1s, pagebreaks, questions, readingMinutes: Math.max(1, Math.round(words / 200)) };
+  return { words, headings, h1s, pagebreaks, listItems, callouts, questions, readingMinutes: Math.max(1, Math.round(words / 200)) };
 }
 
 /** Rough page-count estimate for the navigation readouts (editor
@@ -70,7 +78,7 @@ export function contentStats(body: string): ContentStats {
     their structural cost, plus a page each for cover and contents —
     deliberately labelled "≈" everywhere it surfaces. */
 export function estimatePages(
-  stats: Pick<ContentStats, "words" | "headings" | "h1s" | "pagebreaks" | "questions">,
+  stats: Pick<ContentStats, "words" | "headings" | "h1s" | "pagebreaks" | "listItems" | "callouts" | "questions">,
   density: "ultra" | "compact" | "comfort" | "relaxed",
   cover: boolean,
   toc: boolean,
@@ -83,16 +91,24 @@ export function estimatePages(
     // cost (header row, options grid, padding, card gap) on top of its
     // words, so a words-per-page constant lands wildly short (~50% under,
     // the "Flow says 80, Pages says 168" mismatch). Calibrated against
-    // real Paged.js layouts at compact density (300q/41k words → 167
-    // body pages; 1500q/143k words → 750), then scaled by the same
-    // density ratio the prose model uses.
+    // real Paged.js layouts at compact density; browser text-shaping
+    // differences put a ±10% floor under any static card constant, which
+    // the calibrated tier of the authority chain absorbs after the first
+    // real layout.
     body = (stats.questions * 0.372 + stats.words / 742) * (500 / wpp);
   } else {
-    // Every heading costs vertical rhythm (~1/18 page); a manual break or
-    // a chapter opening wastes half a page on average.
+    // Structure costs vertical space no words-per-page constant can see —
+    // the old words+headings model ran ~23% short on structured study
+    // notes. Grounded per-element costs, verified against real Paged.js
+    // layouts at 79/193/384 pages (predictions 79/194/385): a heading ≈
+    // 3 body lines (type + margins, ÷13), a list item ≈ 1.15 lines (÷34),
+    // a callout ≈ 0.09 page (header + padding), a manual break or chapter
+    // opening (h1 is break-before: page in Notes) wastes half a page on
+    // average. Dense prose degrades gracefully to the plain words/wpp
+    // model since its structural counts are ~0.
     body =
       stats.words / wpp +
-      stats.headings / 18 +
+      (stats.headings / 13 + stats.listItems / 34 + stats.callouts * 0.09) * (500 / wpp) +
       stats.pagebreaks * 0.5 +
       Math.max(0, stats.h1s - 1) * 0.5;
   }

@@ -4,9 +4,9 @@
  * ::before/::after boxes are invisible to DOM traversal, so before
  * transcription every generated box is replaced with a real <x-pseudo>
  * element carrying the pseudo's full computed style inline, occupying
- * exactly the same box. Generated text (counters, page numbers,
- * target-counter page references) is resolved from the data-counter-*
- * attributes Paged.js stamps during layout plus the page context.
+ * exactly the same box. Generated text (counters, page numbers) is
+ * resolved from the data-counter-* attributes Paged.js stamps during
+ * layout plus the page context.
  */
 
 const STYLE_ID = "x-pseudo-off";
@@ -14,21 +14,8 @@ const STYLE_ID = "x-pseudo-off";
 function resolveCounter(el: Element, name: string, pageNum: number, pageTotal: number): number {
   if (name === "page") return pageNum;
   if (name === "pages") return pageTotal;
-  if (name.startsWith("target-counter")) {
-    // Paged.js names TOC page-reference counters this way; the page
-    // number is where the link target landed.
-    const href = (el.closest("a[href^='#']") as HTMLAnchorElement | null)?.getAttribute("href");
-    if (href) {
-      try {
-        const target = el.ownerDocument.getElementById(decodeURIComponent(href.slice(1)));
-        const page = target?.closest(".pagedjs_page") as HTMLElement | null;
-        if (page?.dataset.pageNumber) return parseInt(page.dataset.pageNumber, 10);
-      } catch {
-        /* malformed href */
-      }
-    }
-    return 0;
-  }
+  // (TOC page references are no longer counters — the harness fills real
+  // .toc__page spans after layout, so they transcribe as ordinary text.)
   for (let node: Element | null = el; node; node = node.parentElement) {
     const v = node.getAttribute(`data-counter-${name}-value`);
     if (v !== null) return parseInt(v, 10) || 0;

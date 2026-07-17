@@ -201,6 +201,40 @@ async function run() {
       if (frame) {
         r.domNodes = await frame.evaluate(() => document.getElementsByTagName("*").length);
         r.settledPages = await frame.evaluate(() => document.querySelectorAll(".pagedjs_page.p-settled").length);
+        // Correctness probes: blank pages (a page whose content area has no
+        // text and no figure — layout waste or a break bug) and average
+        // content-area fill (bottom of last child vs area height) on the
+        // body pages, the "how much trailing whitespace" measure.
+        r.blankPages = await frame.evaluate(() =>
+          [...document.querySelectorAll(".pagedjs_page")].filter((p) => {
+            if (p.querySelector(".cover")) return false;
+            const area = p.querySelector(".pagedjs_page_content");
+            return !!area && !(area.textContent || "").trim() && !area.querySelector("img, svg");
+          }).length,
+        );
+        r.avgFillPct = await frame.evaluate(() => {
+          const pages = [...document.querySelectorAll(".pagedjs_page")].filter(
+            (p) => !p.querySelector(".cover, .toc") && (p.querySelector(".pagedjs_page_content")?.textContent || "").trim(),
+          );
+          if (pages.length < 2) return null;
+          let sum = 0;
+          let n = 0;
+          // Skip the final page — it is legitimately part-filled.
+          for (const p of pages.slice(0, -1)) {
+            const area = p.querySelector(".pagedjs_page_content > div") || p.querySelector(".pagedjs_page_content");
+            const ar = area.getBoundingClientRect();
+            let bottom = ar.top;
+            for (const el of area.querySelectorAll(":scope > *, :scope > * > *")) {
+              const r2 = el.getBoundingClientRect();
+              if (r2.bottom > bottom) bottom = r2.bottom;
+            }
+            if (ar.height > 0) {
+              sum += Math.min(1, (bottom - ar.top) / ar.height);
+              n++;
+            }
+          }
+          return n ? Math.round((sum / n) * 100) : null;
+        });
       }
       const perf = await cdp.send("Performance.getMetrics");
       const metric = (n) => perf.metrics.find((m) => m.name === n)?.value;

@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.3.0";
+const STUDIO_VERSION = "4.4.0";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -119,7 +119,7 @@ Solution: <optional worked solution, 2–5 sentences; "Explanation:" also works;
 
 - Group questions under "##" section headings (e.g. "## Unit 5 — Comparative Politics").
 - Exactly one correct option per question, one option per line.
-- The Topic and Source lines print label-free in each question's header row (number · topic · source) — write them as clean display text.
+- The Topic and Source lines print label-free as rounded badges in each question's header row (number · topic badge · source badge) — write them as clean display text.
 - A question without a Solution simply prints without one — no space is wasted.
 - No difficulty labels, no raw HTML, no YAML front matter.
 
@@ -319,7 +319,7 @@ ${NOTES_PROMPT}
 \`\`\`
 
 ### Question Bank
-PYQs, MCQs, mixed banks and practice sets in one examination-book layout. Each question's header row shows number · topic · source (label-free). The answers mode decides what each card reveals:
+PYQs, MCQs, mixed banks and practice sets in one examination-book layout. Each question's header is one compact line — the question number, the topic as a rounded badge, and the source as a gold-outlined badge (label-free). The opening line of the question reads slightly stronger than the rest; options sit lighter, so the hierarchy is obvious at a glance. The answers mode decides what each card reveals:
 
 - **Inline** (default) — the study layout: correct option highlighted with a ✓, worked solution under the question when one exists.
 - **At the end** — a practice test: clean cards, answer key + explanations at the back.
@@ -563,7 +563,7 @@ export function Help() {
                 <code className="font-mono">D)</code> are options, a trailing <code className="font-mono">*</code>{" "}
                 (or <code className="font-mono">Answer: B</code>) marks the correct one.{" "}
                 <code className="font-mono">Topic:</code> and <code className="font-mono">Source:</code> fill the label-free
-                header row (number · topic · source); <code className="font-mono">Solution:</code> (or{" "}
+                header row as rounded badges (number · topic · source); <code className="font-mono">Solution:</code> (or{" "}
                 <code className="font-mono">Explanation:</code>) adds the optional worked solution. Use{" "}
                 <code className="font-mono">##</code> headings to split into sections. The <em>Answers &amp; solutions</em>{" "}
                 setting switches between the inline study layout (✓ on the correct option, solution under the question),
@@ -625,6 +625,9 @@ export function Help() {
             <li>Smart Import converts pasted Word, Google Docs, web and AI-chat content automatically; drag a <code className="font-mono text-xs">.md</code>, <code className="font-mono text-xs">.txt</code>, <code className="font-mono text-xs">.html</code> or <code className="font-mono text-xs">.docx</code> file onto the Library (new documents) or the editor (inserts at the cursor) — either way you get a review step to confirm or edit before anything is saved.</li>
             <li>Paste or import a raw <b>exam paper</b> and Smart Import restructures it into clean questions on its own — it recognises <code className="font-mono text-xs">Q.</code> / <code className="font-mono text-xs">Que.</code> / <code className="font-mono text-xs">[3/23]</code> numbering, statement lists, the real options (even two to a line), the answer and the worked solution, tags the exam/year, and strips page-number noise — landing as a ready Question Bank.</li>
             <li>Select several documents in the Library (the checklist icon) to merge them into one PDF, each starting on its own page.</li>
+            <li><b>Favourites</b> — tap the star on any Library card to pin that document to a quick-access row at the top of your Library. Starring never changes the "last modified" order.</li>
+            <li><b>Library sorting</b> — switch the grid between <b>Latest modified</b> (default) and <b>First created</b> (front-to-back course order) with the toggle above the documents.</li>
+            <li>During <b>Publish</b>, the typesetting and PDF stages show live progress — current page, total, percentage, elapsed time and an estimated time remaining — so even a very large export is never a black box.</li>
             <li><b>Home</b>, <b>Resume last session</b> and <b>Restart Studio</b> in the header work from anywhere — resume reopens your last document at the exact cursor line; restart safely reloads the app (autosave already covers your work).</li>
           </ul>
         </Section>
