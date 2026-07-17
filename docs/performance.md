@@ -107,7 +107,7 @@ pages (−16%)** — the same content, better filled pages, smaller PDF.
 | Notes 100p | 79 | 5.5 s | 4.1 s | 5.1 s | 357 KB | 9.9 k | 16 MB | ✅ |
 | Notes 250p | 193 | 16.8 s | 18.0 s | 13.8 s | 837 KB | 24.1 k | 22 MB | ✅ |
 | Notes 500p | 384 | 60.5 s | 69.2 s | 29.5 s | 1.6 MB | 48.0 k | 22 MB | ✅ |
-| Notes 1000p | 766 | NOTES1000PAG | NOTES1000PUB | NOTES1000EXP | 3.2 MB | 95.7 k | 33 MB | ✅ |
+| Notes 1000p | 766 | 247 s | 272 s | 82 s | 3.2 MB | 95.7 k | 33 MB | ✅ |
 | QB 1500q | 751 | 77.6 s | 97.1 s | 112.5 s | 4.5 MB | 112.8 k | 26 MB | ✅ |
 | QB 300q, long solutions | 168 | 9.8 s | 8.4 s | 14.3 s | 1.2 MB | 24.5 k | 16 MB | ✅ |
 <!-- BENCH:END -->
@@ -119,12 +119,18 @@ Reading the table honestly:
   main thread is yielded regularly (live progress counts, scroll probe
   gaps of ~17–55 ms at *every* size thanks to settled-page
   `content-visibility`).
-- **Notes pagination is superlinear** at scale: ~70 ms/page at 100
-  pages, ~87 at 250, ~158 at 500 — Paged.js's per-page work grows with
-  the accumulated document (counter/style bookkeeping over an ever-larger
-  DOM). This is the measured shape of roadmap item 1, not something the
-  harness fixes. Question Banks paginate ~2× faster per page than
-  prose notes (~100 ms/page at 751 pages) because cards break cleanly.
+- **Notes pagination is superlinear** at scale: ~70 ms/page at 79
+  pages, ~87 at 193, ~158 at 384, ~322 at 766 — Paged.js's per-page
+  bookkeeping (counters, target-counter TOC references, split tracking)
+  re-scans the accumulated document on every page, so per-page cost
+  grows with pages already laid out. A Question Bank at the same page
+  count stays at ~103 ms/page (no TOC, no target-counters, cards break
+  cleanly) — strong evidence the TOC reference resolution dominates the
+  growth for prose notes. Only chunked pagination (roadmap 1) changes
+  this shape. A side effect: at very large sizes responsiveness degrades
+  to per-page granularity (the cooperative yield can only run *between*
+  pages, and one page's layout can reach seconds near page 700+); live
+  progress, background safety and the watchdog are unaffected.
 - JS heap stays ~16–33 MB even at 1000 pages — memory pressure lives in
   the renderer's layout tree (DOM nodes ~125/page), which
   `content-visibility` keeps out of the rendering pipeline for
