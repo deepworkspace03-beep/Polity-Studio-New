@@ -373,6 +373,23 @@ optimization session.
   Flow/Pages toggle. The word-count in the editor header is computed
   behind `useDeferredValue` so the full-text scan never competes with
   a keystroke.
+- **Repeated per-page vector chrome is one PDF form, not one copy per
+  page.** The watermark temple, the footer temple and the two social
+  icons are cloned onto every content page but are byte-identical apart
+  from their page position. The transcriber (`engine/svg.ts` →
+  `buildLocalMarks`, `engine/canvas.ts` → `buildMarkForm`/`drawForm`) now
+  records each unique fully-opaque, fill-only mark once as a reusable PDF
+  **Form XObject** in a page-independent local space, then replays it with
+  a per-page `Do` (the placement `cm` is derived under the live graphics
+  state, so the watermark's rotation still applies). Result: **~30% smaller
+  PDFs** on large documents (a 180-page notes set: ~1110 KB → ~745 KB,
+  −33%; Question Bank −29%, dark theme −31%) and fewer per-page operator
+  allocations, with pixel-identical output (verified by rendering both PDFs
+  and diffing — <0.004% of pixels differ, all sub-perceptual anti-aliasing
+  at mark edges). Marks that are stroked or translucent fall back to the
+  inline path unchanged; the cache is content-derived, so a shared form can
+  never render differently than the inline transcription would. See
+  `docs/perf-1000-page-session.md` § Phase 3.
 - The export hot path resolves fonts per character; a synchronous
   (family stack, weight, style, codepoint) → face memo turns that into
   a Map hit after warm-up, which removes millions of microtask

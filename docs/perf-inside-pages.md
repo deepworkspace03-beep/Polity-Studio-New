@@ -84,8 +84,13 @@ before/after for the build stage and real browser-side pagination/export
 numbers. It landed the build-stage win (parse the body once per rebuild —
 the TOC no longer triggers a second full parse) and confirmed with data
 that the true wall is browser-side pagination (~60–75 ms/page), not the
-build pipeline (~170 ms at 1000 pages). Item (1) here (Form-XObject chrome
-caching) and a new item — moving the watermark to a `url()`-SVG CSS
-background to cut per-page pagination DOM — remain the top roadmap items;
-both are engine work that needs a manual-PDF verification loop, so they
-were deliberately deferred rather than rushed.
+build pipeline (~170 ms at 1000 pages).
+
+Item (1) here — Form-XObject chrome caching — **landed in v4.2.2 (Phase 3**,
+see [`perf-1000-page-session.md`](./perf-1000-page-session.md)): the
+watermark/footer temple and social icons are now cached as reusable PDF Form
+XObjects and replayed per page, cutting exported PDF size ~30% with
+pixel-identical output. The remaining top item is the *browser-side* one —
+moving the watermark to a `url()`-SVG CSS background to cut per-page
+pagination DOM — which still needs transcriber `url()`-background support
+first, then chunked/virtualized pagination for the ~70 ms/page wall itself.
