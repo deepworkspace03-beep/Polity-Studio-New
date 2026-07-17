@@ -4,7 +4,7 @@ import { FontResolver, type LoadedFace } from "./fonts";
 import { parseGradient } from "./gradient";
 import { isVisible, multiply, parseColor, parseCssMatrix, translation, type Rgba } from "./geometry";
 import { materializePseudos } from "./materialize";
-import { transcribeSvg } from "./svg";
+import { transcribeSvg, type MarkFormCache } from "./svg";
 
 /**
  * Transcribes a Paged.js-paginated document into vector PDF pages.
@@ -65,6 +65,7 @@ export async function transcribePaginated(
   const warnings: string[] = [];
   const runStats = { total: 0, failed: 0 };
   const fonts = new FontResolver(pdf, "");
+  const markForms: MarkFormCache = new Map();
   const links: PendingLink[] = [];
   const outline: OutlineItem[] = [];
   const pageRefs: PDFRef[] = [];
@@ -75,6 +76,11 @@ export async function transcribePaginated(
     materializePseudos(srcDoc);
 
     for (let p = 0; p < pageEls.length; p++) {
+      // Settled preview pages use content-visibility:auto; geometry APIs do
+      // force layout of a skipped page, but making the page being walked
+      // explicitly visible keeps the engine independent of that rendering
+      // hint (and bounds render memory to ~one page during export).
+      pageEls[p].style.contentVisibility = "visible";
       const box = pageEls[p].querySelector<HTMLElement>(".pagedjs_pagebox") ?? pageEls[p];
       const origin = box.getBoundingClientRect();
       const page = pdf.addPage([origin.width * K, origin.height * K]);
@@ -82,10 +88,11 @@ export async function transcribePaginated(
       const canvas = new PageCanvas(pdf, page, origin.height);
       canvases.push(canvas);
 
-      const t = new Transcriber(win, canvas, { x: origin.left, y: origin.top }, p, links, warnings, fonts, runStats);
+      const t = new Transcriber(win, canvas, { x: origin.left, y: origin.top }, p, links, warnings, fonts, runStats, markForms);
       await t.walk(box, { opacity: 1, decorations: [] });
       collectOutline(box, p, origin, outline);
       canvas.flush();
+      pageEls[p].style.contentVisibility = "";
       onProgress?.(p + 1, pageEls.length);
       // Yield so the progress UI can paint between pages.
       await new Promise((r) => setTimeout(r, 0));
@@ -213,6 +220,7 @@ class Transcriber {
     private warnings: string[],
     private fonts: FontResolver,
     private runStats: { total: number; failed: number },
+    private markForms: MarkFormCache,
   ) {
     this.range = win.document.createRange();
   }
@@ -259,7 +267,7 @@ class Transcriber {
     const tag = el.tagName.toLowerCase();
 
     if (tag === "svg") {
-      transcribeSvg(el as SVGSVGElement, this.canvas, this.pageOrigin, ctx.opacity);
+      transcribeSvg(el as SVGSVGElement, this.canvas, this.pageOrigin, ctx.opacity, this.markForms);
       return;
     }
     if (tag === "img") {

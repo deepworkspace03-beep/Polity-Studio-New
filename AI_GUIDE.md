@@ -115,6 +115,15 @@ using the pre-installed Chromium + Playwright before shipping engine or
 harness changes; don't try to fake this with jsdom/happy-dom, it will
 give false confidence.
 
+**Performance changes need numbers.** `scripts/stress.mjs` (see its
+header, and `docs/performance.md` for the reference tables) drives the
+real production build in headless Chromium and measures pagination,
+responsiveness, DOM growth and PDF export at 100 → 1000 pages. Any
+change claiming a performance or reliability benefit should show a
+before/after from that harness, and any change touching pagination or
+the engine must at minimum keep page counts and export success identical
+across its scenarios.
+
 **No ESLint currently.** `typescript-eslint@8.x` crashes against
 TypeScript 7's restructured compiler internals as of this writing —
 this is an upstream compatibility gap, not a missing config. `tsc --noEmit`

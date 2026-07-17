@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrandConfig, Doc, Settings } from "../../lib/types";
 import { buildDocumentHtml, pageFactKey } from "../../pdf/document";
+import { toPortableMarkdown } from "../../lib/image";
 import { downloadFile } from "../../lib/utils";
 import { Button, IconButton, useToast } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -49,6 +50,7 @@ export function Publish({
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
   const [progress, setProgress] = useState(0);
+  const [layoutPages, setLayoutPages] = useState(0);
 
   const fileTitle = useMemo(() => buildFileTitle(doc, brand, settings), [doc, brand, settings]);
   // Snapshot at open — the overlay owns the screen, the doc can't change.
@@ -73,6 +75,8 @@ export function Publish({
           setPages(d.pages);
           onPagesKnown?.(d.pages, doc.body, pageFactKey(doc, brand, settings.docTheme));
         }
+      } else if (d?.type === "paged-progress" && typeof d.pages === "number") {
+        setLayoutPages(d.pages);
       } else if (d?.type === "page-visible") {
         setCurrent(d.page);
       } else if (d?.type === "zoom" && typeof d.zoom === "number") {
@@ -131,7 +135,11 @@ export function Publish({
   }
 
   function downloadMarkdown() {
-    downloadFile(`${fileTitle}.md`, doc.body, "text/markdown");
+    // Portable Markdown: embedded images (data URIs) are preserved in full,
+    // but the Studio-only `{width=…}` figure attributes are stripped so the
+    // file renders cleanly in any Markdown editor. Full-fidelity round-trip
+    // (layout included) is the JSON backup's job, not the .md export's.
+    downloadFile(`${fileTitle}.md`, toPortableMarkdown(doc.body), "text/markdown");
     toast("Downloaded · plain-text source, portable to any Markdown editor", "ok");
   }
 
@@ -157,7 +165,9 @@ export function Publish({
           <h2 className="truncate text-[15px] font-bold leading-tight">{doc.title || "Untitled"}</h2>
           <p className="truncate text-xs text-faint">
             {phase === "layout"
-              ? "Typesetting pages…"
+              ? layoutPages > 0
+                ? `Typesetting pages… ${layoutPages}`
+                : "Typesetting pages…"
               : phase === "exporting"
                 ? `Building vector PDF… ${Math.round(progress * 100)}%`
                 : phase === "ready"
@@ -224,7 +234,9 @@ export function Publish({
         {phase === "layout" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg/85">
             <Icon name="loader" size={22} className="animate-spin text-accent" />
-            <p className="text-sm text-ink-2">Typesetting your pages…</p>
+            <p className="text-sm tabular-nums text-ink-2">
+              {layoutPages > 0 ? `Typesetting your pages… ${layoutPages}` : "Typesetting your pages…"}
+            </p>
           </div>
         )}
         {phase === "exporting" && (

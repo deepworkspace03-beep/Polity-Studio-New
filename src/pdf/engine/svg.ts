@@ -1,5 +1,6 @@
-import type { PageCanvas, PathPoint } from "./canvas";
+import type { MarkCommand, PageCanvas, PathPoint } from "./canvas";
 import { parseColor, isVisible, type Matrix } from "./geometry";
+import type { PDFRef } from "pdf-lib";
 
 /**
  * Transcribes inline SVG artwork (brand marks, icons, callout glyphs,
@@ -10,12 +11,94 @@ import { parseColor, isVisible, type Matrix } from "./geometry";
 
 const SHAPES = "path,rect,circle,ellipse,line,polyline,polygon";
 
+/** Signature → Form XObject ref, for per-page repeated marks (watermark
+    temple, footer temple, social icons). Shared across a whole export. */
+export type MarkFormCache = Map<string, PDFRef>;
+
+/**
+ * Fast path for repeated, fully-opaque, fill-only marks: the temple
+ * emblem and social icons are cloned onto every page, byte-identical but
+ * for their page position. Instead of re-emitting ~50 path operators per
+ * mark per page, transcribe each unique mark into one reusable Form
+ * XObject and replay it — smaller PDFs, fewer operator allocations, and
+ * pixel-identical output (the recorded geometry is the same operators the
+ * inline path would emit). Returns the recorded commands + page anchor, or
+ * null when the mark is not cache-eligible (any stroke or translucent
+ * fill), in which case the caller uses the inline path below.
+ */
+function buildLocalMarks(
+  svg: SVGSVGElement,
+): { commands: MarkCommand[]; anchor: { x: number; y: number }; sig: string } | null {
+  const win = svg.ownerDocument.defaultView!;
+  const rootCtm = svg.getScreenCTM();
+  if (!rootCtm) return null;
+  const anchor = { x: rootCtm.e, y: rootCtm.f };
+  const commands: MarkCommand[] = [];
+  for (const shape of svg.querySelectorAll<SVGGraphicsElement>(SHAPES)) {
+    const ctm = shape.getScreenCTM();
+    if (!ctm) return null;
+    const cs = win.getComputedStyle(shape);
+    if (cs.display === "none" || cs.visibility === "hidden") continue;
+    // Element-level opacity is applied at Do-time; per-shape translucency
+    // (a <g opacity> or a group fade inside the mark) is not cacheable.
+    for (let el: Element | null = shape; el && el !== svg; el = el.parentElement) {
+      if (parseFloat(win.getComputedStyle(el).opacity) < 1) return null;
+    }
+    const stroke = cs.stroke === "none" ? null : parseColor(cs.stroke);
+    if (isVisible(stroke)) return null; // stroked marks stay on the inline path
+    const fill = cs.fill === "none" ? null : parseColor(cs.fill);
+    if (!isVisible(fill)) continue; // invisible subpath — nothing to draw
+    if (fill.a < 0.999 || parseFloat(cs.fillOpacity || "1") < 0.999) return null;
+    const path = shapePath(shape);
+    if (path.length === 0) continue;
+    const local: Matrix = [ctm.a, ctm.b, ctm.c, ctm.d, ctm.e - anchor.x, ctm.f - anchor.y];
+    commands.push({ path, local, fill: { ...fill, a: 1 }, evenOdd: cs.fillRule === "evenodd" });
+  }
+  if (commands.length === 0) return null;
+  // Content-derived signature: two marks share a form only when their
+  // recorded geometry, colors and local placement are identical — so a
+  // cache hit can never yield different output than an inline transcription.
+  const r = (n: number) => Math.round(n * 100) / 100;
+  const sig = JSON.stringify(
+    commands.map((c) => ({
+      l: c.local.map(r),
+      f: [r(c.fill.r * 255), r(c.fill.g * 255), r(c.fill.b * 255)],
+      e: c.evenOdd,
+      d: c.path.map((p) =>
+        p.op === "C"
+          ? ["C", r(p.x1!), r(p.y1!), r(p.x2!), r(p.y2!), r(p.x!), r(p.y!)]
+          : p.op === "Z"
+            ? ["Z"]
+            : [p.op, r(p.x!), r(p.y!)],
+      ),
+    })),
+  );
+  return { commands, anchor, sig };
+}
+
 export function transcribeSvg(
   svg: SVGSVGElement,
   canvas: PageCanvas,
   pageOrigin: { x: number; y: number },
   baseOpacity: number,
+  markCache?: MarkFormCache,
 ): void {
+  if (markCache) {
+    try {
+      const built = buildLocalMarks(svg);
+      if (built) {
+        let formRef = markCache.get(built.sig);
+        if (!formRef) {
+          formRef = canvas.buildMarkForm(built.commands);
+          markCache.set(built.sig, formRef);
+        }
+        canvas.drawForm(formRef, built.anchor.x - pageOrigin.x, built.anchor.y - pageOrigin.y, baseOpacity);
+        return;
+      }
+    } catch {
+      /* fall through to the inline transcription below */
+    }
+  }
   const win = svg.ownerDocument.defaultView!;
   for (const shape of svg.querySelectorAll<SVGGraphicsElement>(SHAPES)) {
     const ctm = shape.getScreenCTM();

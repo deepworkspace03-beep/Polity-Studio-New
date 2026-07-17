@@ -88,6 +88,7 @@ export function Preview({
   const [current, setCurrent] = useState(1);
   const [flowPct, setFlowPct] = useState(0);
   const [paginating, setPaginating] = useState(false);
+  const [layoutPages, setLayoutPages] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [selectedImageLine, setSelectedImageLine] = useState<number | null>(null);
   const toast = useToast();
@@ -150,6 +151,7 @@ export function Preview({
     if (mode === "pages") {
       setPaginating(true);
       setPages(null);
+      setLayoutPages(0);
     }
     // Adaptive debounce: very large documents render and (especially)
     // paginate slower, so give typing a longer quiet window before the
@@ -227,6 +229,8 @@ export function Preview({
         }
         if (peekingRef.current) post({ type: "go-to-page", page: 1 });
         else if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
+      } else if (d.type === "paged-progress" && typeof d.pages === "number") {
+        setLayoutPages(d.pages);
       } else if (d.type === "page-visible") {
         setCurrent(d.page);
       } else if (d.type === "flow-scroll" && typeof d.pct === "number") {
@@ -345,8 +349,8 @@ export function Preview({
             )}
           </span>
         ) : (
-          <span className="text-xs text-faint" aria-live="polite">
-            {paginating ? "Laying out pages…" : ""}
+          <span className="text-xs tabular-nums text-faint" aria-live="polite">
+            {paginating ? (layoutPages > 0 ? `Laying out pages… ${layoutPages}` : "Laying out pages…") : ""}
           </span>
         )}
 

@@ -42,6 +42,10 @@ export interface ContentStats {
   h1s: number;
   /** Manual \pagebreak / \newpage lines. */
   pagebreaks: number;
+  /** Question-dialect markers (`Q.` / `Q1.` lines) — drives the Question
+      Bank page estimate, where card structure, not prose word flow,
+      decides how many pages the layout really needs. */
+  questions: number;
   readingMinutes: number;
 }
 
@@ -53,7 +57,8 @@ export function contentStats(body: string): ContentStats {
   const headings = (body.match(/^#{1,6}\s/gm) || []).length;
   const h1s = (body.match(/^#\s/gm) || []).length;
   const pagebreaks = (body.match(/^\\(pagebreak|newpage)\s*$/gm) || []).length;
-  return { words, headings, h1s, pagebreaks, readingMinutes: Math.max(1, Math.round(words / 200)) };
+  const questions = (body.match(/^Q\d*[.)]\s/gm) || []).length;
+  return { words, headings, h1s, pagebreaks, questions, readingMinutes: Math.max(1, Math.round(words / 200)) };
 }
 
 /** Rough page-count estimate for the navigation readouts (editor
@@ -65,16 +70,33 @@ export function contentStats(body: string): ContentStats {
     their structural cost, plus a page each for cover and contents —
     deliberately labelled "≈" everywhere it surfaces. */
 export function estimatePages(
-  stats: Pick<ContentStats, "words" | "headings" | "h1s" | "pagebreaks">,
+  stats: Pick<ContentStats, "words" | "headings" | "h1s" | "pagebreaks" | "questions">,
   density: "ultra" | "compact" | "comfort" | "relaxed",
   cover: boolean,
   toc: boolean,
+  template?: string,
 ): number {
   const wpp = density === "ultra" ? 620 : density === "compact" ? 500 : density === "relaxed" ? 340 : 410;
-  // Every heading costs vertical rhythm (~1/18 page); a manual break or a
-  // chapter opening wastes half a page on average.
-  const structural = stats.headings / 18 + stats.pagebreaks * 0.5 + Math.max(0, stats.h1s - 1) * 0.5;
-  let pages = Math.max(1, Math.ceil(stats.words / wpp + structural));
+  let body: number;
+  if (template === "questions" && stats.questions > 0) {
+    // Question Banks are cards, not prose: each card carries fixed layout
+    // cost (header row, options grid, padding, card gap) on top of its
+    // words, so a words-per-page constant lands wildly short (~50% under,
+    // the "Flow says 80, Pages says 168" mismatch). Calibrated against
+    // real Paged.js layouts at compact density (300q/41k words → 167
+    // body pages; 1500q/143k words → 750), then scaled by the same
+    // density ratio the prose model uses.
+    body = (stats.questions * 0.372 + stats.words / 742) * (500 / wpp);
+  } else {
+    // Every heading costs vertical rhythm (~1/18 page); a manual break or
+    // a chapter opening wastes half a page on average.
+    body =
+      stats.words / wpp +
+      stats.headings / 18 +
+      stats.pagebreaks * 0.5 +
+      Math.max(0, stats.h1s - 1) * 0.5;
+  }
+  let pages = Math.max(1, Math.ceil(body));
   if (cover) pages += 1;
   if (toc) pages += 1;
   return pages;

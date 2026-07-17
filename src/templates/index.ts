@@ -93,10 +93,17 @@ function questionCard(q: McqQuestion, reveal: boolean): string {
       ? `<div class="q__sol"><div class="q__sol-label">Solution</div><div class="q__sol-body">${renderMarkdown(q.explanation, { refIds: false })}</div></div>`
       : "";
 
+  // .q__main (header + stem + options) is the unsplittable unit — a
+  // question is never broken across pages. The solution flows on its own:
+  // a long one continues naturally onto the next page as an open box
+  // (questions.css styles Paged.js's data-split-to/from halves), so pages
+  // stay well filled instead of pushing whole cards down for want of room.
   return `<article class="q" id="q-${q.number}" data-line="${q.line}">
-  <header class="q__head"><span class="q__num">Q${q.number}</span>${topic}${lead}${source}</header>
-  <div class="q__text">${renderMarkdown(q.text, { refIds: false })}</div>
-  <ol class="q__options">${options}</ol>
+  <div class="q__main">
+    <header class="q__head"><span class="q__num">Q${q.number}</span>${topic}${lead}${source}</header>
+    <div class="q__text">${renderMarkdown(q.text, { refIds: false })}</div>
+    <ol class="q__options">${options}</ol>
+  </div>
   ${solution}
 </article>`;
 }

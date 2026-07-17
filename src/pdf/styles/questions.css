@@ -45,15 +45,39 @@
 /* ── Question card ───────────────────────────────────────────────── */
 
 .q {
-  break-inside: avoid;
-  border: 0.7pt solid var(--c-edge);
-  /* A restrained spine gives the card its textbook identity without a
-     fill — one extra stroke per card, nothing more. */
-  border-left: 2pt solid color-mix(in srgb, var(--c-primary) 38%, var(--c-edge));
-  border-radius: 5pt;
-  padding: 0.7em 0.9em 0.75em;
-  margin: 0 0 0.8em;
+  border: 0.7pt solid color-mix(in srgb, var(--c-edge) 88%, var(--c-primary));
+  /* A confident spine gives the card its textbook identity without a fill —
+     one extra stroke per card, nothing more. Restored to a deliberate,
+     legible accent (the tightened refinement pass had faded it to near
+     invisibility) so a page of cards reads as a crafted examination book. */
+  border-left: 2.5pt solid color-mix(in srgb, var(--c-primary) 62%, var(--c-edge));
+  border-radius: 7pt;
+  padding: 0.72em 0.95em 0.75em;
+  margin: 0 0 0.75em;
 }
+
+/* Pagination contract: a *question* (header + stem + options, .q__main)
+   is never split across pages; a long worked solution may continue onto
+   the next page. The card itself can therefore break — Paged.js marks the
+   halves with data-split-to (ends open) and data-split-from (continues
+   open), and the borders below turn that split into a quiet "open book"
+   continuation: the spine and side rules run on, no continuation labels,
+   no orphaned white space at the bottom of the page. */
+.q__main { break-inside: avoid; break-after: avoid; }
+.q[data-split-to] {
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+  padding-bottom: 0.3em;
+}
+.q[data-split-from] {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding-top: 0.45em;
+}
+.q__sol[data-split-from] { border-top: none; margin-top: 0; padding-top: 0; }
 
 /* Header row — number · topic reading left, source anchored right, a
    dotted leader bridging the two so the line always spans the card
@@ -73,9 +97,9 @@
      tint) — so the badge stays legible in both. */
   color: var(--c-th-ink, white);
   background: var(--c-primary);
-  border-radius: 3.5pt;
-  padding: 1.2pt 6pt 1.6pt;
-  letter-spacing: 0.04em;
+  border-radius: 4.5pt;
+  padding: 1.4pt 6.5pt 1.8pt;
+  letter-spacing: 0.03em;
   flex: none;
   align-self: center;
 }
@@ -83,11 +107,11 @@
   flex: none;
   max-width: 52%;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-size: 0.78em;
+  font-size: 0.77em;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.055em;
   text-transform: uppercase;
-  color: var(--c-primarySoft);
+  color: color-mix(in srgb, var(--c-primarySoft) 82%, var(--c-muted));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -95,7 +119,7 @@
 .q__lead {
   flex: 1;
   min-width: 1.2em;
-  border-bottom: 0.7pt dotted color-mix(in srgb, var(--c-edge) 80%, var(--c-muted));
+  border-bottom: 0.6pt dotted color-mix(in srgb, var(--c-edge) 72%, var(--c-muted));
   transform: translateY(-0.3em);
 }
 .q__src {
@@ -105,8 +129,8 @@
   gap: 0.6em;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-size: 0.74em;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--c-gold);
   max-width: 45%;
@@ -133,21 +157,21 @@
 
 .q__opt {
   display: flex;
-  gap: 0.55em;
+  gap: 0.6em;
   align-items: baseline;
   margin: 0;
-  padding: 1.5pt 3pt;
-  border-radius: 4pt;
+  padding: 2pt 4pt;
+  border-radius: 5pt;
 }
 .q__key {
   font-family: "Manrope", sans-serif;
   font-weight: 800;
   font-size: 0.8em;
   color: var(--c-accent);
-  border: 0.8pt solid color-mix(in srgb, var(--c-accent) 45%, var(--c-mix, white));
-  border-radius: 3pt;
-  min-width: 1.5em;
-  height: 1.5em;
+  border: 0.8pt solid color-mix(in srgb, var(--c-accent) 38%, var(--c-mix, white));
+  border-radius: 3.5pt;
+  min-width: 1.55em;
+  height: 1.55em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -156,9 +180,15 @@
 }
 .q__opt-text { font-size: 0.97em; }
 
-/* The correct option carries the answer: a subtle green wash, a green
-   key and a ✓ — no separate "Correct Answer" line anywhere. */
-.q__opt--correct { background: color-mix(in srgb, var(--c-good) 8%, var(--c-mix, white)); }
+/* The correct option carries the answer: a soft green wash, a green key
+   and a ✓ — no separate "Correct Answer" line. Background + border only
+   (both transcribe to the PDF; box-shadow would not, and preview must
+   equal print), so the wash reads identically on screen and on paper. */
+.q__opt--correct {
+  background: color-mix(in srgb, var(--c-good) 9%, var(--c-mix, white));
+  border: 0.7pt solid color-mix(in srgb, var(--c-good) 26%, transparent);
+  padding: 1.3pt 3.3pt; /* offsets the 0.7pt border so text stays aligned with other options */
+}
 .q__opt--correct .q__key { color: white; background: var(--c-good); border-color: var(--c-good); }
 .q__tick {
   flex: none;
@@ -179,13 +209,26 @@
   font-size: 0.94em;
 }
 .q__sol-label {
+  display: inline-flex;
+  align-items: center;
+  break-after: avoid;
+  gap: 0.5em;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-weight: 800;
-  font-size: 0.74em;
-  letter-spacing: 0.09em;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--c-accent);
   margin-bottom: 0.35em;
+}
+/* A short accent rule before the label — a subtle, book-style flourish
+   that costs one extra stroke and reads as a considered section mark. */
+.q__sol-label::before {
+  content: "";
+  width: 1.1em;
+  height: 1.6pt;
+  border-radius: 1pt;
+  background: color-mix(in srgb, var(--c-accent) 65%, transparent);
 }
 .q__sol-body > :first-child { margin-top: 0; }
 .q__sol-body > :last-child { margin-bottom: 0; }
@@ -218,7 +261,6 @@
 
 .explanations { break-before: page; }
 .exp {
-  break-inside: avoid;
   border-left: 2.5pt solid var(--c-accent);
   background: color-mix(in srgb, var(--c-band) 55%, var(--c-mix, white));
   border-radius: 0 6pt 6pt 0;
@@ -226,11 +268,16 @@
   margin-bottom: 0.7em;
   font-size: 0.95em;
 }
+/* Same continuation treatment as the question cards: a long explanation
+   flows on as an open box rather than dragging dead space behind it. */
+.exp[data-split-to] { border-bottom-right-radius: 0; margin-bottom: 0; padding-bottom: 0.3em; }
+.exp[data-split-from] { border-top-right-radius: 0; padding-top: 0.35em; }
 .exp__head {
   display: flex;
   gap: 0.8em;
   align-items: baseline;
   margin-bottom: 0.3em;
+  break-after: avoid;
 }
 .exp__num {
   font-family: "Manrope", sans-serif;
@@ -251,11 +298,15 @@
 
 /* ── Ultra Compact — question-bank-specific tightening ───────────── */
 
-body.density-ultra .q { padding: 0.55em 0.75em 0.6em; margin-bottom: 0.55em; border-radius: 5pt; }
+/* Ultra keeps every premium cue — the spine, the softened 6pt corners,
+   the framed correct option — and only tightens the spacing, so a dense
+   page still reads as a crafted book rather than a stripped-down list. */
+body.density-ultra .q { padding: 0.58em 0.8em 0.62em; margin-bottom: 0.6em; border-radius: 6pt; }
 body.density-ultra .q__head { margin-bottom: 0.35em; gap: 0.6em; }
 body.density-ultra .q__text p { margin-bottom: 0.35em; }
 body.density-ultra .q__options { gap: 1.5pt 8pt; margin-top: 0.25em; }
-body.density-ultra .q__opt { padding: 1pt 2pt; }
+body.density-ultra .q__opt { padding: 1.2pt 3pt; }
+body.density-ultra .q__opt--correct { padding: 0.5pt 2.3pt; } /* offsets the 0.7pt frame so keys stay aligned */
 body.density-ultra .q__sol { margin-top: 0.45em; padding-top: 0.4em; }
 body.density-ultra .q__sol-label { margin-bottom: 0.25em; }
 body.density-ultra .mcq-section { margin: 1.1em 0 0.7em; }
