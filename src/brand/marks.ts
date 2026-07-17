@@ -6,8 +6,34 @@ import { escapeHtml } from "../lib/utils";
  * Polity Made Simple emblem used on covers, footers and the closing page.
  */
 
+/** A rounded rectangle as clockwise SVG path data (circular corners,
+    clamped to the short side) — lets the temple mark ship as one compound
+    <path> instead of a <path> + five <rect> nodes. The whole emblem is
+    then a single node wherever it appears; on a 1000-page document it is
+    cloned into every footer and watermark, so collapsing six nodes to one
+    removes tens of thousands of DOM nodes (lower pagination memory) and,
+    since the transcriber walks multi-subpath paths as one fill, the same
+    count of PDF fill operators — with pixel-identical output. */
+function roundRectSubpath(x: number, y: number, w: number, h: number, r: number): string {
+  const rr = Math.min(r, w / 2, h / 2);
+  return (
+    `M ${x + rr} ${y} L ${x + w - rr} ${y} A ${rr} ${rr} 0 0 1 ${x + w} ${y + rr} ` +
+    `L ${x + w} ${y + h - rr} A ${rr} ${rr} 0 0 1 ${x + w - rr} ${y + h} ` +
+    `L ${x + rr} ${y + h} A ${rr} ${rr} 0 0 1 ${x} ${y + h - rr} ` +
+    `L ${x} ${y + rr} A ${rr} ${rr} 0 0 1 ${x + rr} ${y} Z`
+  );
+}
+
+/** The Polity Made Simple temple emblem as a single compound path (roof
+    triangle + lintel + three pillars + base), all filled with currentColor.
+    Geometry is unchanged from the former path+5-rect form. */
 export const TEMPLE_PATH =
-  '<path d="M 20 40 L 50 26 L 80 40 Z"/><rect x="18" y="43" width="64" height="6" rx="3"/><rect x="26" y="52" width="7" height="19" rx="3.5"/><rect x="46.5" y="52" width="7" height="19" rx="3.5"/><rect x="67" y="52" width="7" height="19" rx="3.5"/><rect x="14" y="74" width="72" height="6" rx="3"/>';
+  `<path d="M 20 40 L 50 26 L 80 40 Z ` +
+  `${roundRectSubpath(18, 43, 64, 6, 3)} ` +
+  `${roundRectSubpath(26, 52, 7, 19, 3.5)} ` +
+  `${roundRectSubpath(46.5, 52, 7, 19, 3.5)} ` +
+  `${roundRectSubpath(67, 52, 7, 19, 3.5)} ` +
+  `${roundRectSubpath(14, 74, 72, 6, 3)}"/>`;
 
 /** Inline temple mark sized in any CSS unit; inherits currentColor. */
 export function templeMarkSvg(width: string, className = ""): string {

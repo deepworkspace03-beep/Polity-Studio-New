@@ -351,6 +351,18 @@ optimization session.
   have no TOC). The memo is size 1 on purpose: a huge document's token
   tree is large, so it is never pinned beyond the current body and is
   released the moment the body changes.
+- **Repeated per-page vector chrome is one node, not six.** The temple
+  mark (`brand/marks.ts`, `TEMPLE_PATH`) is cloned into every page's footer
+  and watermark; it now ships as a single compound `<path>` (roof + rounded
+  -rect subpaths) instead of a `<path>` + five `<rect>`s. On a large document
+  that removes ~10 SVG nodes per page (~66% of the repeated-shape count,
+  ~8% of total DOM at any size) — lower pagination memory and style recalc,
+  and fewer PDF fill operators — with pixel-identical output (the transcriber
+  walks multi-subpath paths as one fill). Browser profiling (see
+  `docs/perf-1000-page-session.md`) confirmed the real wall is Paged.js
+  pagination at ~70 ms/page (linear, and the source of the Android-tablet
+  freeze, since the preview iframe shares the main thread); that ceiling is
+  Paged.js-inherent and only chunked/virtualized pagination moves it.
 - The flow preview re-renders in place ~200 ms after the last keystroke
   (innerHTML swap of the content root — no iframe reload, no font
   refetch), and skips the swap entirely when the rendered HTML didn't
