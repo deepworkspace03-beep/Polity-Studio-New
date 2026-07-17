@@ -135,9 +135,12 @@ Reading the table honestly:
   the renderer's layout tree (DOM nodes ~125/page), which
   `content-visibility` keeps out of the rendering pipeline for
   off-screen pages.
-- An Android tablet is roughly 2–4× slower per page than this desktop
-  Chromium; the reliability properties (backgroundable, responsive,
-  watchdogged, progress-visible) are identical.
+- **Tablet-class hardware (4× CPU throttle, `CPU_THROTTLE=4`):** the
+  250-page notes document paginates in 93 s (vs 17 s unthrottled) and
+  exports the byte-identical 837 KB PDF — slower, never less reliable.
+  Live progress (189 events), background-safe scheduling, the watchdog
+  and flat-cost scrolling (≤88 ms gaps after layout) all hold; this is
+  the measured approximation of the Android Chrome production target.
 
 ## Optimization history (what already landed)
 
