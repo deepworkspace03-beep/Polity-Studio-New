@@ -134,48 +134,63 @@ over-long card was a layout-failure risk. The contract now:
 Measured effect on a 300-question bank with long solutions: **201 → 168
 pages (−16%)** — the same content, better filled pages, smaller PDF.
 
-## Benchmarks (v4.3, production build, headless desktop Chromium)
+## Benchmarks (v4.4, production build, headless desktop Chromium)
 
 <!-- BENCH:START -->
-| Document | Pages | Paginate | Publish layout | PDF export | PDF size | DOM nodes | JS heap | Export |
-|---|--:|--:|--:|--:|--:|--:|--:|---|
-| Notes 100p | 79 | 5.5 s | 4.1 s | 5.1 s | 357 KB | 9.9 k | 16 MB | ✅ |
-| Notes 250p | 193 | 16.8 s | 18.0 s | 13.8 s | 837 KB | 24.1 k | 22 MB | ✅ |
-| Notes 500p | 384 | 60.5 s | 69.2 s | 29.5 s | 1.6 MB | 48.0 k | 22 MB | ✅ |
-| Notes 1000p | 766 | 247 s | 272 s | 82 s | 3.2 MB | 95.7 k | 33 MB | ✅ |
-| QB 1500q | 751 | 77.6 s | 97.1 s | 112.5 s | 4.5 MB | 112.8 k | 26 MB | ✅ |
-| QB 300q, long solutions | 168 | 9.8 s | 8.4 s | 14.3 s | 1.2 MB | 24.5 k | 16 MB | ✅ |
+| Document | Pages | Paginate | Publish layout | PDF export | PDF size | Fill | DOM nodes | JS heap | Export |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|---|
+| Notes 100p | 79 | 4.2 s | 3.2 s | 5.2 s | 357 KB | 96% | 10.0 k | 14 MB | ✅ |
+| Notes 250p | 193 | 8.3 s | 8.1 s | 13.7 s | 837 KB | 96% | 24.5 k | 27 MB | ✅ |
+| Notes 500p | 384 | 21.7 s | 22.9 s | 29.4 s | 1.6 MB | 96% | 48.8 k | 32 MB | ✅ |
+| Notes 1000p | 766 | 68.6 s | 84.6 s | 68.5 s | 3.2 MB | 96% | 97.3 k | 61 MB | ✅ |
+| QB 1500q | 751 | 67.2 s | 92.4 s | 114.7 s | 5.0 MB | 84% | 112.8 k | 23 MB | ✅ |
+| QB 300q, long solutions | 154 | 7.8 s | 7.0 s | 13.4 s | 1.3 MB | 97% | 23.3 k | 16 MB | ✅ |
 <!-- BENCH:END -->
+
+v4.3 → v4.4, same scenarios, same environment where measured (the
+notes rows were re-measured in both versions this session; the fix is
+isolated — TOC page-number resolution only, PDFs byte-identical):
+
+| Document | Paginate v4.3 | Paginate v4.4 | Publish v4.3 | Publish v4.4 |
+|---|--:|--:|--:|--:|
+| Notes 100p | 6.3 s | **4.2 s (−35%)** | 4.4 s | 3.2 s |
+| Notes 250p | 18.4 s | **8.3 s (−55%)** | 19.8 s | 8.1 s |
+| Notes 500p | 60.7 s | **21.7 s (−64%)** | 66.1 s | 22.9 s |
+| Notes 1000p | 247 s (v4.3 table) | **68.6 s (−72%)** | 272 s | 84.6 s |
 
 Reading the table honestly:
 
 - **Every scenario completes**, including full PDF export at 751–766
-  pages — the Phase-5 success criterion. During pagination the
-  main thread is yielded regularly (live progress counts, scroll probe
-  gaps of ~17–55 ms at *every* size thanks to settled-page
-  `content-visibility`).
-- **Notes pagination is superlinear** at scale: ~70 ms/page at 79
-  pages, ~87 at 193, ~158 at 384, ~322 at 766 — Paged.js's per-page
-  bookkeeping (counters, target-counter TOC references, split tracking)
-  re-scans the accumulated document on every page, so per-page cost
-  grows with pages already laid out. A Question Bank at the same page
-  count stays at ~103 ms/page (no TOC, no target-counters, cards break
-  cleanly) — strong evidence the TOC reference resolution dominates the
-  growth for prose notes. Only chunked pagination (roadmap 1) changes
-  this shape. A side effect: at very large sizes responsiveness degrades
-  to per-page granularity (the cooperative yield can only run *between*
-  pages, and one page's layout can reach seconds near page 700+); live
-  progress, background safety and the watchdog are unaffected.
-- JS heap stays ~16–33 MB even at 1000 pages — memory pressure lives in
-  the renderer's layout tree (DOM nodes ~125/page), which
-  `content-visibility` keeps out of the rendering pipeline for
-  off-screen pages.
+  pages. During pagination the main thread is yielded regularly (live
+  progress counts, scroll probe gaps of ~17–67 ms at *every* size
+  thanks to settled-page `content-visibility`).
+- **Notes pagination is now flat ~53–57 ms/page through 500 pages**;
+  at 766 pages it averages ~90 ms/page — a mild residual growth from
+  Paged.js's own per-page bookkeeping (break-token re-walks, split
+  tracking), an order of magnitude better than the ~322 ms/page the
+  `target-counter` resolution used to cost there. A Question Bank at
+  the same page count runs ~90 ms/page too — notes and banks now share
+  the same cost shape, which is the strongest evidence the special
+  cause is gone. Only chunked pagination (roadmap 1) moves the
+  remaining per-page constant.
+- Page counts vary a few percent between browser engine versions (text
+  shaping): this environment lays the QB-300 scenario at 154 pages
+  where the v4.3 environment measured 168. Within one environment
+  counts are deterministic (repeated runs identical), and Pages,
+  Publish and the exported PDF always agree exactly — verified by
+  parsing the PDFs (79/193/384/766/751/154 pages, equal everywhere).
+- JS heap stays ~14–32 MB through 500 pages (~61 MB transient at 1000)
+  — memory pressure lives in the renderer's layout tree (DOM nodes
+  ~125/page), which `content-visibility` keeps out of the rendering
+  pipeline for off-screen pages. Repeated edit→repaginate→export
+  cycles return to a flat heap after GC (see "Memory stability").
 - **Tablet-class hardware (4× CPU throttle, `CPU_THROTTLE=4`):** the
-  250-page notes document paginates in 93 s (vs 17 s unthrottled) and
-  exports the byte-identical 837 KB PDF — slower, never less reliable.
-  Live progress (189 events), background-safe scheduling, the watchdog
-  and flat-cost scrolling (≤88 ms gaps after layout) all hold; this is
-  the measured approximation of the Android Chrome production target.
+  250-page notes document paginates in **42 s** (v4.3: 93 s) and the
+  300-question bank in 36 s; both export byte-identical PDFs (837 KB /
+  1305 KB). Live progress (155/118 events), background-safe
+  scheduling, the watchdog and flat-cost scrolling (≤94 ms gaps) all
+  hold; this is the measured approximation of the Android Chrome
+  production target.
 
 ## Optimization history (what already landed)
 
@@ -246,9 +261,12 @@ correctness, consistency or layout time. Not implemented, by evidence.
 
 ## Known limitations (honest)
 
-- A 1000-page document is a minutes-long layout on desktop, longer on a
-  tablet. It now *always finishes* — visibly, responsively,
-  interruptibly — but it is not fast.
+- A 1000-page document is a ~70 s layout on desktop (was ~4 min before
+  v4.4), a few minutes on a tablet. It *always finishes* — visibly,
+  responsively, interruptibly — but the linear per-page cost remains.
+- The QB card estimate (and any static heuristic) carries a ±10%
+  environment floor from browser text shaping; the authority chain's
+  exact/calibrated tiers absorb it after the first real layout.
 - Pagination and PDF transcription run on the main thread by design:
   transcription needs live layout APIs (`getClientRects`), and the
   preview iframe shares the thread. Yielding keeps the app usable.
@@ -268,6 +286,18 @@ correctness, consistency or layout time. Not implemented, by evidence.
    support first). Smaller win now that settled pages skip rendering.
 3. **Web Worker for the Markdown build** — only worthwhile if documents
    grow far beyond 1000 pages; the build is ~0.2 s today.
+
+## Memory stability (long-run probe)
+
+Six consecutive edit → full-repagination cycles plus three consecutive
+PDF exports on the 250-page notes document, with forced GC between
+cycles (companion probe, this session): post-GC heap goes 13 MB after
+the first layout, then 17 · 17 · 18 · 18 · 18 · 18 MB across the six
+repagination cycles — a plateau, not growth. Repagination rebuilds the
+iframe from scratch (srcdoc swap), so the previous layout tree,
+Paged.js state and engine buffers are torn down wholesale rather than
+retained; repeated exports likewise return to the plateau once the
+transient `pdf-lib` document is released.
 
 ## How to re-measure (the harness)
 
