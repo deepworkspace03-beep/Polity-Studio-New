@@ -261,3 +261,114 @@ factor.
    the DOM entirely (needs transcriber `url()`-background support first).
 4. **Web Worker offload** for Markdown parse (DOM-free) — export transcription
    cannot move (it needs live layout APIs).
+
+---
+
+# Phase 3 — Form-XObject caching of repeated per-page vector chrome
+
+Phase 2 closed on the top PDF roadmap item: the watermark temple, the footer
+temple and the two social icons are cloned onto **every** content page and were
+re-transcribed into fresh PDF operators on each one — byte-identical apart from
+their page position. Phase 3 records each unique mark **once** as a reusable PDF
+**Form XObject** and replays it per page. This is a PDF-engine-only change: it
+touches neither pagination nor the preview DOM, so it carries **zero** tablet /
+pagination risk and is verifiable by rendering the exported PDF.
+
+## Measurement method (unchanged, direct against the real engine)
+
+A throwaway harness drove the **real** `buildDocumentHtml` → Paged.js →
+`exportPaginatedPdf` path in headless Chromium on synthetic documents, timing
+pagination and export and recording PDF byte size. Output fidelity was checked by
+rasterizing the same page of the before/after PDFs with pdf.js at 2× and diffing
+the pixel buffers (the noise floor — a PDF against itself — is 0 changed pixels,
+so any difference is real, not rasterizer jitter).
+
+## What was changed
+
+`engine/svg.ts` gained `buildLocalMarks()`: for a fully-opaque, **fill-only**
+SVG (the temple and the icons all qualify) it records each subpath in a
+page-independent local space (CSS px relative to the mark's own anchor) and
+returns a **content-derived signature**. `engine/canvas.ts` gained
+`buildMarkForm()` — which bakes those subpaths into one Form XObject authored
+with a page-height-independent flip (`Ff = [K,0,0,-K,0,0]`) — and `drawForm()`,
+which emits `q <ca gs> cm Do Q` under the **current** graphics state, so any
+active transform (the watermark's −35° rotation) still applies. `transcribe.ts`
+holds one `Map<signature, PDFRef>` for the whole export: first sighting of a
+signature builds the form, every later page is a single `Do`.
+
+Three properties make this safe:
+
+- **Content-derived cache key.** Two marks share a form only when their recorded
+  geometry, fill colors and local placement are byte-identical, so a cache hit can
+  never produce different output than an inline transcription would.
+- **Element opacity applied at `Do` time**, not baked into the form — the
+  watermark (11%), footer temple (80%) and icons (75%) reuse forms cleanly, and
+  the form content itself needs no `ExtGState`/soft-mask (kept deliberately
+  simple).
+- **Conservative fallback.** Any stroke or translucent per-shape fill routes the
+  whole SVG back to the untouched inline path.
+
+One subtlety cost a measured iteration: the form `BBox` **clips** its content, so
+a tight bounding box shaved the anti-aliased fringe off every mark edge (visible
+as a faint outline in the diff — 160 changed px, maxDiff 113/1020). Padding the
+BBox by 1 pt (which draws nothing new) dropped that to sub-perceptual noise.
+
+## Measured (before → after, real engine, Chromium)
+
+| Document | Pages | PDF before | PDF after | Δ size | Export before | Export after |
+|---|--:|--:|--:|--:|--:|--:|
+| Notes | 62 | 394.2 KB (6.36/pg) | 273.0 KB (4.40/pg) | **−30.7%** | 2,630 ms | 2,347 ms |
+| Notes | 181 | 1,110.0 KB (6.13/pg) | 744.9 KB (4.12/pg) | **−32.9%** | 5,384 ms | ~4,990 ms |
+| Question Bank | 139 | 964.8 KB (6.94/pg) | 680.5 KB (4.90/pg) | **−29.5%** | 4,760 ms | 4,556 ms |
+| Notes · dark theme | 58 | 368.3 KB (6.35/pg) | 255.0 KB (4.40/pg) | **−30.8%** | 1,771 ms | 1,580 ms |
+
+The saving is structural (~2 KB/page of repeated chrome removed regardless of
+template or theme) and scales linearly, so a 1000-page notes set drops from
+roughly 6 MB to ~4 MB. Export time improves modestly — the per-page cost was
+never dominated by chrome (it is per-word `Range.getClientRects()` measurement) —
+but fewer `PDFOperator` allocations and a smaller content stream to serialize both
+help. Pagination time, DOM node count and preview behaviour are unchanged by
+construction (nothing in the pagination path was touched).
+
+## Fidelity (pixel diff, 2× raster)
+
+| Page | Changed px / total | max channel Δ (of 1020) |
+|---|--:|--:|
+| Cover (temple emblem + mark) | 37 / 2,005,644 (0.0018%) | 14 |
+| Content (rotated watermark + footer chrome) | 72–78 / 2,005,644 (0.0039%) | 13 |
+
+Every difference is a single-LSB anti-aliasing shade at a mark's outline — the
+inherent nuance between a directly-drawn path and the same path drawn through a
+Form XObject `Do`. Visually the exported watermark, footer lockup and social
+icons are indistinguishable from before (confirmed by eye on the rendered pages);
+selectable text, fonts, links and the outline are untouched (text never went
+through the mark path).
+
+## Guardrails
+
+Two browser-free unit tests (`engine/canvas.test.ts`) lock the pure pdf-lib
+mechanics: a well-formed form is produced, referenced from the page's XObject
+resource dict, and survives a save→load round-trip, including the same ref
+replayed twice. Full transcription still relies on the manual/harness PDF pass
+(it needs live `getScreenCTM`/`getClientRects`).
+
+## Honest conclusion (updated)
+
+The PDF pipeline is now materially leaner on large documents — **~30% smaller
+files**, pixel-identical branding — closing the second roadmap item. The tablet
+wall is untouched: this optimization is deliberately PDF-only, and the
+**O(pages) ~70 ms/page pagination cost remains the dominant limiter**. The next
+real lever on responsiveness is still **chunked / virtualized pagination**
+(roadmap #1), which remains a dedicated-session redesign of the Paged.js
+integration.
+
+## Roadmap (updated priority)
+
+1. **Chunked / virtualized pagination** — the only lever on the ~70 ms/page wall;
+   the tablet responsiveness redesign. Highest impact, highest effort.
+2. **`url()`-SVG watermark background** — remove per-page watermark cloning from
+   the pagination DOM (needs transcriber `url()`-background support first). Now
+   the top *browser-side* item.
+3. **Web Worker offload** for Markdown parse (DOM-free) — export transcription
+   cannot move (it needs live layout APIs).
+4. ~~Form-XObject chrome caching~~ — **done (Phase 3).**

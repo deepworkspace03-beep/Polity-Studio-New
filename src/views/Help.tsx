@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.2";
+const STUDIO_VERSION = "4.2.2";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -395,7 +395,13 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Performance & polish)`} intro="Large documents build faster, the Question Bank looks more premium, and images size from 1% to full width.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Smaller, faster PDFs)`} intro="Exported PDFs are noticeably smaller on large documents, with pixel-identical typography and branding.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>~30% smaller PDFs on big documents</b> — the temple emblem in every footer and watermark, plus the Telegram and WhatsApp icons, are now stored once and reused on every page instead of being redrawn page by page. A long study set exports around a third smaller (e.g. a 180-page notes set drops from ~1.1&nbsp;MB to ~0.75&nbsp;MB) and a touch faster to download — with the branding pixel-identical on screen and in print.</li>
+          </ul>
+        </Section>
+
+        <Section title="Version 4.2 — Performance & polish" intro="Large documents build faster, the Question Bank looks more premium, and images size from 1% to full width.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Faster on big documents</b> — the preview no longer parses your Markdown twice on every rebuild (once for the body, once for the contents). On a 1000-page set of notes that roughly halves the rebuild's parsing work, so typing and preview updates stay smooth as documents grow.</li>
             <li><b>Lighter pages</b> — the temple emblem repeated in every footer and watermark is now a single vector shape instead of six, trimming ~8% of the page-layout nodes (and a bigger share of the vector ones). Large documents lay out a little faster and use less memory — with the mark pixel-identical on screen and in the PDF.</li>

@@ -61,6 +61,20 @@ export interface StrokeStyle {
   dash?: number[]; // CSS px
 }
 
+/**
+ * One opaque filled subpath of a cacheable vector mark (temple emblem,
+ * social icon…). `path` is in SVG user units; `local` maps those units to
+ * CSS px relative to the mark's own anchor, so the recorded geometry is
+ * page-position-independent and can be replayed on every page as one
+ * reusable Form XObject.
+ */
+export interface MarkCommand {
+  path: PathPoint[];
+  local: Matrix;
+  fill: Rgba;
+  evenOdd: boolean;
+}
+
 const CAPS = { butt: LineCapStyle.Butt, round: LineCapStyle.Round, square: LineCapStyle.Projecting } as const;
 const JOINS = { miter: LineJoinStyle.Miter, round: LineJoinStyle.Round, bevel: LineJoinStyle.Bevel } as const;
 
@@ -76,7 +90,7 @@ export class PageCanvas {
   constructor(
     private doc: PDFDocument,
     readonly page: PDFPage,
-    cssPageHeight: number,
+    private cssPageHeight: number,
   ) {
     this.F = [K, 0, 0, -K, 0, cssPageHeight * K];
     this.Finv = invert(this.F);
@@ -313,6 +327,73 @@ export class PageCanvas {
     const y0 = F[3] * (rect.y + rect.h) + F[5];
     const ref = this.doc.context.register(this.doc.context.obj({ ...dict, Rect: [x0, y0, x1, y1] } as never));
     this.page.node.addAnnot(ref);
+  }
+
+  /* ── reusable vector marks (Form XObjects) ── */
+
+  /**
+   * Builds a Form XObject from a mark's opaque filled subpaths and returns
+   * its ref. The content is authored in a page-independent local space
+   * (CSS px, y-down, origin at the mark anchor) flipped to PDF points, so
+   * one form serves every page the mark repeats on. Registered on the
+   * shared PDF context — build once, `drawForm` on each page.
+   */
+  buildMarkForm(commands: MarkCommand[]): PDFRef {
+    const ctx = this.doc.context;
+    const Ff: Matrix = [K, 0, 0, -K, 0, 0]; // CSS px (y-down) → PDF pt, no page offset
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const fmt = (v: number) => (Math.abs(v) < 1e-5 ? "0" : v.toFixed(3));
+    const parts: string[] = [];
+    for (const cmd of commands) {
+      const M = multiply(Ff, cmd.local); // SVG user units → form-PDF points
+      const pt = (x: number, y: number): string => {
+        const X = M[0] * x + M[2] * y + M[4];
+        const Y = M[1] * x + M[3] * y + M[5];
+        if (X < minX) minX = X;
+        if (X > maxX) maxX = X;
+        if (Y < minY) minY = Y;
+        if (Y > maxY) maxY = Y;
+        return `${fmt(X)} ${fmt(Y)}`;
+      };
+      const seg: string[] = ["q", `${fmt(cmd.fill.r)} ${fmt(cmd.fill.g)} ${fmt(cmd.fill.b)} rg`];
+      for (const p of cmd.path) {
+        if (p.op === "M") seg.push(`${pt(p.x!, p.y!)} m`);
+        else if (p.op === "L") seg.push(`${pt(p.x!, p.y!)} l`);
+        else if (p.op === "C") seg.push(`${pt(p.x1!, p.y1!)} ${pt(p.x2!, p.y2!)} ${pt(p.x!, p.y!)} c`);
+        else seg.push("h");
+      }
+      seg.push(cmd.evenOdd ? "f*" : "f", "Q");
+      parts.push(seg.join("\n"));
+    }
+    if (!Number.isFinite(minX)) { minX = minY = 0; maxX = maxY = 1; }
+    // The BBox clips the form, so pad it a hair beyond the exact path
+    // extent — otherwise the anti-aliased fringe of edge pixels is clipped
+    // and the mark reads a touch lighter along its outline than the inline
+    // path. 1 pt of slack changes no geometry (nothing is drawn there).
+    const pad = 1;
+    const strm = ctx.flateStream(parts.join("\n"), {
+      Type: "XObject",
+      Subtype: "Form",
+      FormType: 1,
+      BBox: [minX - pad, minY - pad, maxX + pad, maxY + pad],
+      Resources: {},
+    });
+    return ctx.register(strm);
+  }
+
+  /**
+   * Draws a prebuilt mark form at CSS-page anchor (ax, ay) under the
+   * current graphics state (so any active transform — e.g. the watermark
+   * rotation — still applies). `opacity` is the mark's element-level alpha.
+   */
+  drawForm(formRef: PDFRef, ax: number, ay: number, opacity = 1): void {
+    if (opacity < 0.001) return;
+    const name = this.page.node.newXObject(`XM${this.tags++}`, formRef);
+    this.save();
+    if (opacity < 0.999) this.alpha(opacity);
+    this.ops.push(concatTransformationMatrix(1, 0, 0, 1, K * ax, (this.cssPageHeight - ay) * K));
+    this.ops.push(drawObject(name));
+    this.restore();
   }
 
   /** Writes accumulated operators into the page content stream. */
