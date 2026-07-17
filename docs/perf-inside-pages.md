@@ -75,3 +75,17 @@ upcoming 1000-page stress-testing / optimization session.
 2. Measure pagination + export on a synthetic 1000-page Question Bank
    (the generator can live in the verify skill) before touching anything.
 3. Only then consider Paged.js-level work (chunking, virtualization).
+
+## Update — v4.2 large-document session
+
+The 1000-page session ran (2) end to end and is written up in
+[`perf-1000-page-session.md`](./perf-1000-page-session.md): a measured
+before/after for the build stage and real browser-side pagination/export
+numbers. It landed the build-stage win (parse the body once per rebuild —
+the TOC no longer triggers a second full parse) and confirmed with data
+that the true wall is browser-side pagination (~60–75 ms/page), not the
+build pipeline (~170 ms at 1000 pages). Item (1) here (Form-XObject chrome
+caching) and a new item — moving the watermark to a `url()`-SVG CSS
+background to cut per-page pagination DOM — remain the top roadmap items;
+both are engine work that needs a manual-PDF verification loop, so they
+were deliberately deferred rather than rushed.

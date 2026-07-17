@@ -336,6 +336,21 @@ optimization session.
   editor views are separate lazy chunks. The PDF engine (`pdf-lib` +
   `fontkit`, ~0.5 MB gzip) is its own chunk that loads only on the first
   Download, never during editing.
+- **Markdown is parsed once per rebuild.** `markdown-it`'s `render()` is
+  `parse()` + `renderer.render()`, and every document build needs two
+  reads of the body — the body HTML and the table of contents — while a
+  flow edit is immediately followed by the paged rebuild on the same
+  body. `renderer.ts` keeps a single-entry memo of the last
+  `(tokens, env)` pair so those back-to-back calls share one parse;
+  reuse is exact because `render()` consumes the very tokens/env `parse()`
+  produced (footnote/reference state lives on `env`). On a 1000-page
+  notes set this cut the prose+TOC build's Markdown cost by ~40% (the TOC
+  extraction went from a full second parse — ~80 ms — to a token walk),
+  measured; see `docs/perf-1000-page-session.md`. Question Bank builds are
+  unaffected (they render per-question fragments, not the whole body, and
+  have no TOC). The memo is size 1 on purpose: a huge document's token
+  tree is large, so it is never pinned beyond the current body and is
+  released the moment the body changes.
 - The flow preview re-renders in place ~200 ms after the last keystroke
   (innerHTML swap of the content root — no iframe reload, no font
   refetch), and skips the swap entirely when the rendered HTML didn't

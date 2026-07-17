@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.1";
+const STUDIO_VERSION = "4.2";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -288,7 +288,7 @@ via an optional \`{…}\` block:
   Wrapped text stops cleanly: headings, tables, callouts and lists always
   start below the image, never beside or under it.
 - **Size** — any percentage of the text column, e.g. \`width=22%\` for a
-  small author portrait (10–60% for wrapped images, up to 100% centered);
+  small author portrait (1–60% for wrapped images, 1–100% centered);
   \`width=18%\`/\`35%\`/\`65%\` are the XS/S/M shortcuts, omit for natural
   size (L). Any CSS length works too (\`width=220px\`).
 - **Spacing** — \`gap=sm|md|lg\` controls the margin around the image (and
@@ -395,22 +395,29 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Refinement pass)`} intro="Polish on the four-type architecture: a finer Question Bank header, one honest page count everywhere, and lighter workspace chrome.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Performance & polish)`} intro="Large documents build faster, the Question Bank looks more premium, and images size from 1% to full width.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Question Bank header, refined</b> — number and topic read left, the source anchors right, and a fine dotted leader bridges them so every card header spans the full width, book-style. A subtle spine on the card's left edge replaces the old empty-center look.</li>
-            <li><b>One page count everywhere</b> — once the Pages view (or Publish) has laid your document out, that <em>exact</em> count drives the editor scrollbar and Flow readouts too; until then they show a structural estimate marked <code className="font-mono text-xs">≈</code>. Editing after a layout scales the last real count instead of guessing from scratch.</li>
-            <li><b>Light/Dark app toggle in the editor header</b> — the same toggle the Library has, now always at hand (the document reading theme keeps its own sun/moon in the preview toolbar).</li>
-            <li><b>Quieter chrome</b> — the Pages toolbar is one compact row (zoom % taps back to fit-width; double-tap and pinch still zoom), and the Go-to-Top/Bottom buttons are now featherweight chevrons that fade away near the ends.</li>
-            <li><b>AI-proof question markers</b> — bolded markers that AI chats love (<code className="font-mono text-xs">**Q1.**</code>, <code className="font-mono text-xs">**A)**</code>, <code className="font-mono text-xs">**Answer:** B</code>) now parse automatically; bold inside your question text still renders as bold.</li>
+            <li><b>Faster on big documents</b> — the preview no longer parses your Markdown twice on every rebuild (once for the body, once for the contents). On a 1000-page set of notes that roughly halves the rebuild's parsing work, so typing and preview updates stay smooth as documents grow.</li>
+            <li><b>Question Bank, more premium</b> — softer card corners, a confident textbook spine, a rounded number badge, the correct option framed in a soft green, and a small accent before every <em>Solution</em> — refreshed in every density (including Ultra Compact) and in both light and dark, with no extra weight in the PDF.</li>
+            <li><b>Image size 1–100%</b> — the width slider now goes all the way down to 1% for a tiny inline mark, still up to full column width.</li>
+            <li><b>Cleaner Markdown export</b> — a <code className="font-mono text-xs">.md</code> download keeps your images in full and drops only the Studio-only layout hints, so it opens tidily in any editor; a JSON backup still restores everything, layout included.</li>
           </ul>
         </Section>
 
-        <Section title="Version 4.0 — the document architecture" intro="The foundation this release polishes.">
+        <Section title="Version 4.1 — refinement pass" intro="Polish on the four-type architecture.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Four document types</b> — Theory Notes, Question Bank, Quick Revision, Universal. Older MCQ/PYQ/Flash-Card documents migrated automatically with their content untouched.</li>
-            <li><b>Question Bank</b> — one examination-book card for PYQs, MCQs and practice sets: label-free header, ✓ on the correct option, optional inline solution; the <em>Answers &amp; solutions</em> setting switches study / practice / plain-paper layouts.</li>
-            <li><b>Ultra Compact density</b> — tightens the whole layout (spacing, margins, tables, cards), not just the font, across all four types.</li>
-            <li><b>Clickable PDF navigation</b> — cross-references like <code className="font-mono text-xs">Question 42</code> / <code className="font-mono text-xs">Table 3</code> / <code className="font-mono text-xs">Note 15</code> become real internal PDF links, alongside the clickable contents and bookmark outline.</li>
+            <li><b>One page count everywhere</b> — once Pages (or Publish) has laid the document out, that <em>exact</em> count drives the editor scrollbar and Flow readouts too; until then they show a structural estimate marked <code className="font-mono text-xs">≈</code>.</li>
+            <li><b>Editor header essentials</b> — a Light/Dark app toggle always at hand, a quieter one-row Pages toolbar (tap the zoom % to fit width; double-tap and pinch still zoom), and featherweight Go-to-Top/Bottom chevrons.</li>
+            <li><b>AI-proof question markers</b> — bolded markers AI chats emit (<code className="font-mono text-xs">**Q1.**</code>, <code className="font-mono text-xs">**A)**</code>, <code className="font-mono text-xs">**Answer:** B</code>) parse automatically.</li>
+          </ul>
+        </Section>
+
+        <Section title="Version 4.0 — the document architecture" intro="The foundation these releases polish.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>Four document types</b> — Theory Notes, Question Bank, Quick Revision, Universal. Older MCQ/PYQ/Flash-Card documents migrated automatically, content untouched.</li>
+            <li><b>Question Bank</b> — one examination-book card for PYQs, MCQs and practice sets: ✓ on the correct option, optional inline solution; the <em>Answers &amp; solutions</em> setting switches study / practice / plain-paper layouts.</li>
+            <li><b>Ultra Compact density</b> — tightens the whole layout (spacing, margins, tables, cards), not just the font.</li>
+            <li><b>Clickable PDF navigation</b> — cross-references like <code className="font-mono text-xs">Question 42</code> / <code className="font-mono text-xs">Table 3</code> become real internal PDF links, alongside clickable contents and a bookmark outline.</li>
           </ul>
         </Section>
 
@@ -482,12 +489,13 @@ export function Help() {
             <code className="font-mono">{"{…}"}</code>: <code className="font-mono">align=center</code> (default),{" "}
             <code className="font-mono">align=left</code>/<code className="font-mono">right</code> to wrap text beside it book-style, or{" "}
             <code className="font-mono">align=full</code> for the full column. Set any width — down to a small{" "}
-            <code className="font-mono">width=15%</code> author portrait (10–60% wrapped, up to 100% centered; a length like{" "}
+            <code className="font-mono">width=15%</code> author portrait (1–60% wrapped, 1–100% centered; a length like{" "}
             <code className="font-mono">220px</code> works too), <code className="font-mono">gap=sm|md|lg</code> for spacing, and any of{" "}
             <code className="font-mono">border</code>, <code className="font-mono">round</code>, <code className="font-mono">shadow</code>,{" "}
             <code className="font-mono">fit=cover</code>. Older <code className="font-mono">{"{width=… align=…}"}</code> images keep
             working unchanged. Images are downscaled and saved as data URIs, so they travel with the document and render identically
-            in the preview and the exported PDF.
+            in the preview and the exported PDF. A Markdown export keeps the full image; only the Studio-only{" "}
+            <code className="font-mono">{"{…}"}</code> layout hints are dropped so the file opens cleanly anywhere (a JSON backup keeps layout too).
           </p>
           <p className="text-xs text-faint">
             You rarely type any of that: put the cursor on an image line (or tap the picture in the <b>Flow</b> preview) and a
