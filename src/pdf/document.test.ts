@@ -59,6 +59,24 @@ describe("buildDocumentHtml", () => {
     expect(qb).not.toContain('class="toc"');
   });
 
+  it("wraps a question's unsplittable unit (header + stem + options) in q__main, with the solution outside it", () => {
+    // The pagination contract: .q__main is break-inside-avoid (a question
+    // is never split across pages) while the solution stays a sibling so a
+    // long one can continue onto the next page as an open box. Moving the
+    // solution inside q__main would silently reintroduce the whole-card
+    // break behaviour and its wasted page space.
+    const qb = buildDocumentHtml(
+      baseDoc({ template: "questions", body: "Q. Test?\nA) a\nB) b *\nSolution: Because." }),
+      DEFAULT_BRAND,
+      { mode: "flow" },
+    );
+    const main = /<div class="q__main">([\s\S]*?)<\/div>\s*<div class="q__sol">/.exec(qb);
+    expect(main).not.toBeNull();
+    expect(main![1]).toContain('class="q__head"');
+    expect(main![1]).toContain('class="q__options"');
+    expect(main![1]).not.toContain('class="q__sol"');
+  });
+
   it("emits the density class and the tighter Ultra Compact page margins", () => {
     const comfort = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "paged" });
     expect(comfort).toContain("density-comfort");

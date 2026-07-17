@@ -308,7 +308,11 @@ chain (`Editor.tsx`): the **exact** count from the last completed layout
 are unchanged → a **calibrated** count (last exact × word ratio) while
 only the body has changed → the structural **heuristic**
 (`estimatePages`, `lib/utils.ts`) when nothing has paginated yet.
-Only the non-exact tiers are prefixed "≈".
+Only the non-exact tiers are prefixed "≈". The heuristic has two models:
+prose (words-per-page + structural costs) and — for Question Banks — a
+card model (per-question fixed cost + word flow) calibrated against real
+Paged.js layouts, because cards carry layout cost no words-per-page
+constant can see (the words-only model ran ~50% short).
 
 ## Internal PDF navigation
 
@@ -324,85 +328,45 @@ no browser hacks, works in Chrome, Adobe Reader, Edge and standard
 readers. A reference whose target doesn't exist degrades to plain text
 in the PDF (the engine drops unresolvable links).
 
-## Performance notes
+## Performance & reliability
 
-See `docs/perf-inside-pages.md` for the inside-page cost review — what
-was optimized in v4.0 (redundant paper-on-paper fills, chip-free
-question headers), what was deliberately kept (per-page watermark and
-footer chrome), and the documented baseline for the upcoming 1000-page
-optimization session.
+[docs/performance.md](./docs/performance.md) is the knowledge base:
+per-stage benchmarks (100 → 1000 pages), the optimization history
+(v4.0 → v4.3) with measured effects, what is at its structural floor,
+known limitations and the priority-ordered roadmap — plus the committed
+harness (`scripts/stress.mjs`) to re-measure any change. The shape of
+the system, in one paragraph each:
 
-- Initial route loads no editor code: CodeMirror, markdown-it and the
-  editor views are separate lazy chunks. The PDF engine (`pdf-lib` +
-  `fontkit`, ~0.5 MB gzip) is its own chunk that loads only on the first
-  Download, never during editing.
-- **Markdown is parsed once per rebuild.** `markdown-it`'s `render()` is
-  `parse()` + `renderer.render()`, and every document build needs two
-  reads of the body — the body HTML and the table of contents — while a
-  flow edit is immediately followed by the paged rebuild on the same
-  body. `renderer.ts` keeps a single-entry memo of the last
-  `(tokens, env)` pair so those back-to-back calls share one parse;
-  reuse is exact because `render()` consumes the very tokens/env `parse()`
-  produced (footnote/reference state lives on `env`). On a 1000-page
-  notes set this cut the prose+TOC build's Markdown cost by ~40% (the TOC
-  extraction went from a full second parse — ~80 ms — to a token walk),
-  measured; see `docs/perf-1000-page-session.md`. Question Bank builds are
-  unaffected (they render per-question fragments, not the whole body, and
-  have no TOC). The memo is size 1 on purpose: a huge document's token
-  tree is large, so it is never pinned beyond the current body and is
-  released the moment the body changes.
-- **Repeated per-page vector chrome is one node, not six.** The temple
-  mark (`brand/marks.ts`, `TEMPLE_PATH`) is cloned into every page's footer
-  and watermark; it now ships as a single compound `<path>` (roof + rounded
-  -rect subpaths) instead of a `<path>` + five `<rect>`s. On a large document
-  that removes ~10 SVG nodes per page (~66% of the repeated-shape count,
-  ~8% of total DOM at any size) — lower pagination memory and style recalc,
-  and fewer PDF fill operators — with pixel-identical output (the transcriber
-  walks multi-subpath paths as one fill). Browser profiling (see
-  `docs/perf-1000-page-session.md`) confirmed the real wall is Paged.js
-  pagination at ~70 ms/page (linear, and the source of the Android-tablet
-  freeze, since the preview iframe shares the main thread); that ceiling is
-  Paged.js-inherent and only chunked/virtualized pagination moves it.
-- The flow preview re-renders in place ~200 ms after the last keystroke
-  (innerHTML swap of the content root — no iframe reload, no font
-  refetch), and skips the swap entirely when the rendered HTML didn't
-  change. The paged preview re-paginates ~1.2 s after the last edit.
-  Both debounces scale with document size (up to 1.2 s flow / 5 s
-  paged for very large documents) so typing in a 400-page document
-  never races the expensive work; pagination remains opt-in via the
-  Flow/Pages toggle. The word-count in the editor header is computed
-  behind `useDeferredValue` so the full-text scan never competes with
-  a keystroke.
-- **Repeated per-page vector chrome is one PDF form, not one copy per
-  page.** The watermark temple, the footer temple and the two social
-  icons are cloned onto every content page but are byte-identical apart
-  from their page position. The transcriber (`engine/svg.ts` →
-  `buildLocalMarks`, `engine/canvas.ts` → `buildMarkForm`/`drawForm`) now
-  records each unique fully-opaque, fill-only mark once as a reusable PDF
-  **Form XObject** in a page-independent local space, then replays it with
-  a per-page `Do` (the placement `cm` is derived under the live graphics
-  state, so the watermark's rotation still applies). Result: **~30% smaller
-  PDFs** on large documents (a 180-page notes set: ~1110 KB → ~745 KB,
-  −33%; Question Bank −29%, dark theme −31%) and fewer per-page operator
-  allocations, with pixel-identical output (verified by rendering both PDFs
-  and diffing — <0.004% of pixels differ, all sub-perceptual anti-aliasing
-  at mark edges). Marks that are stroked or translucent fall back to the
-  inline path unchanged; the cache is content-derived, so a shared form can
-  never render differently than the inline transcription would. See
-  `docs/perf-1000-page-session.md` § Phase 3.
-- The export hot path resolves fonts per character; a synchronous
-  (family stack, weight, style, codepoint) → face memo turns that into
-  a Map hit after warm-up, which removes millions of microtask
-  allocations on a 400-page export. The transcriber yields to the
-  event loop after every page so the progress bar stays live.
-- The standalone HTML export snapshots the already-paginated DOM from
-  the Publish iframe instead of re-shipping Paged.js (~500 KB saved);
-  it inlines only the font faces whose scripts (latin / latin-ext /
-  Devanagari) actually occur in the text, un-materializes the PDF
-  engine's `<x-pseudo>` boxes, and rides a ~2 KB viewer script (zoom,
-  pinch, page indicator). The file opens instantly — layout is done.
-- Exported PDFs are ~60% smaller than the browser's own print output for
-  the same document (e.g. the 10-page notes demo: ~120 KB vs ~210 KB),
-  because the engine re-subsets fonts to used glyphs and keeps every
-  graphic vector. Export is ~1 s for a 10-page document, all on the main
-  thread inside the export overlay with a progress bar.
+- **Load cost.** The initial route loads no editor code: CodeMirror,
+  markdown-it and the editor views are separate lazy chunks; the PDF
+  engine (`pdf-lib` + `fontkit`, ~0.5 MB gzip) loads only on the first
+  Download.
+- **Build stage is cheap.** A 1000-page body assembles its full HTML in
+  ~0.2 s; `renderer.ts` keeps a single-entry token memo so the body
+  render and the TOC extraction (and the flow → paged rebuild pair)
+  share one markdown-it parse.
+- **Pagination is the wall — but a safe one.** Paged.js costs
+  ~55–70 ms/page, linear, main-thread. Since v4.3 it is *cooperative*:
+  the Studio handler yields on a time budget, posts live progress,
+  re-points Paged.js's rAF-driven queue at `setTimeout` (rAF is
+  suspended in background tabs — the historical "export hangs" root
+  cause), and a watchdog reports partial layouts instead of hanging.
+  Pages the handler has finished are stamped `.p-settled` and rendered
+  with `content-visibility: auto`, so preview scrolling and zooming stay
+  flat-cost at any document size.
+- **Adaptive debounces.** The flow preview re-renders in place ~200 ms
+  after the last keystroke (in-place innerHTML swap, skipped when the
+  HTML didn't change); the paged preview re-paginates ~1.2 s after the
+  last edit. Both scale with document size (to 1.2 s / 5 s) so typing
+  never races the expensive work; the header word-count runs behind
+  `useDeferredValue`.
+- **Export.** The transcriber is linear (~25–35 ms/page), yields per
+  page behind a live progress bar, and memoizes font resolution per
+  (stack, weight, style, codepoint). Repeated per-page chrome ships once
+  as PDF Form XObjects (~30% smaller files, pixel-diff-verified);
+  content streams are Flate-compressed; fonts embed subset to used
+  glyphs. Result: ~60% smaller than browser print output, ~4.2–4.5
+  KB/page — the measured structural floor.
+- **HTML export** snapshots the already-paginated DOM (no Paged.js
+  re-ship, ~500 KB saved), inlines only the font scripts the text uses,
+  and rides a ~2 KB viewer script.

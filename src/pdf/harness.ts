@@ -242,7 +242,41 @@ export const HARNESS_JS = String.raw`(function () {
     return (s || "").split(/\s*[:—–]\s+|\s+[-]\s+/)[0].trim();
   }
 
+  // Cooperative pagination. Paged.js awaits every afterPageLayout hook, so
+  // returning a macrotask here (on a time budget, not every page) guarantees
+  // the browser gets the thread back between pages regardless of how the
+  // engine schedules its own loop — paint and input stay serviced through a
+  // minutes-long layout, and the throttled progress posts below reach the
+  // host live instead of after the fact.
+  var laidOut = 0;
+  var lastYield = Date.now();
+  var lastProgress = 0;
+  function progressAndYield() {
+    laidOut += 1;
+    var now = Date.now();
+    if (now - lastProgress > 150) {
+      lastProgress = now;
+      try { parent.postMessage({ type: "paged-progress", pages: laidOut }, "*"); } catch (e) {}
+    }
+    if (now - lastYield > 32) {
+      lastYield = now;
+      return new Promise(function (r) { setTimeout(r, 0); });
+    }
+  }
+
   class StudioHandler extends window.Paged.Handler {
+    constructor(chunker, polisher, caller) {
+      super(chunker, polisher, caller);
+      // Paged.js schedules every page layout through requestAnimationFrame,
+      // and browsers suspend rAF entirely for hidden tabs / locked screens.
+      // A minutes-long large-document layout therefore froze forever the
+      // moment the user switched apps (the real-world "export hangs" on
+      // tablets). setTimeout is throttled in background tabs but never
+      // suspended, so layout keeps making progress and simply speeds back
+      // up when the tab returns.
+      if (chunker && chunker.q) chunker.q.tick = function (cb) { return setTimeout(cb, 0); };
+    }
+
     afterPageLayout(pageElement) {
       var topicBox = pageElement.querySelector(".pagedjs_margin-top-center .run-head-topic");
       if (topicBox) topicBox.textContent = shortTopic(curChap || curSect);
@@ -254,10 +288,16 @@ export const HARNESS_JS = String.raw`(function () {
         else { curSect = t; }
       }
 
-      if (!wantWatermark || !wmTemplate) return;
-      if (pageElement.querySelector(".cover")) return;
-      var box = pageElement.querySelector(".pagedjs_pagebox");
-      if (box) box.appendChild(wmTemplate.content.cloneNode(true));
+      if (wantWatermark && wmTemplate && !pageElement.querySelector(".cover")) {
+        var box = pageElement.querySelector(".pagedjs_pagebox");
+        if (box) box.appendChild(wmTemplate.content.cloneNode(true));
+      }
+
+      // Settled pages opt into content-visibility (see PAGED_PREVIEW_CSS):
+      // the browser skips style/layout/paint for off-screen pages, keeping
+      // scroll, zoom and repaint cost flat as the document grows.
+      pageElement.classList.add("p-settled");
+      return progressAndYield();
     }
 
     afterRendered(pages) {
@@ -278,10 +318,9 @@ export const HARNESS_JS = String.raw`(function () {
   // failing on a timer, watch the page count and only give up once
   // pagination has genuinely stalled, reporting whatever pages exist.
   var watching = false;
-  function unblock(ev) {
+  function watch(reason, stallLimit) {
     if (watching || window.__PAGED_DONE__) return;
     watching = true;
-    var reason = (ev && (ev.message || ev.reason)) || "render error";
     var lastCount = -1;
     var stalls = 0;
     (function check() {
@@ -289,18 +328,26 @@ export const HARNESS_JS = String.raw`(function () {
       var count = document.querySelectorAll(".pagedjs_page").length;
       if (count !== lastCount) { lastCount = count; stalls = 0; } // still making progress
       else stalls += 1;
-      // ~3s with no new page = genuinely stuck. Pages already laid out are
-      // a real (if partial) render, so keep them rather than discard the
-      // whole export; only a zero-page render is a true failure.
-      if (stalls >= 12) {
+      // stallLimit × 250ms with no new page = genuinely stuck. Pages already
+      // laid out are a real (if partial) render, so keep them rather than
+      // discard the whole export; only a zero-page render is a true failure.
+      if (stalls >= stallLimit) {
         report(count, count ? null : reason);
         return;
       }
       setTimeout(check, 250);
     })();
   }
+  // ~3s of no progress after a render error = stuck. Independently, a slow
+  // watchdog (~20s of zero page progress, no error required) guards against
+  // a silent layout livelock — now meaningful because the cooperative yields
+  // above let these timers actually run *during* pagination.
+  function unblock(ev) {
+    watch((ev && (ev.message || ev.reason)) || "render error", 12);
+  }
   window.addEventListener("error", unblock);
   window.addEventListener("unhandledrejection", unblock);
+  setTimeout(function () { watch("layout stalled", 80); }, 4000);
 })();`;
 
 /**

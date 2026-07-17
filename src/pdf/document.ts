@@ -350,6 +350,14 @@ body.purpose-preview .pagedjs_page {
   box-shadow: 0 3px 18px rgba(0, 0, 0, 0.4);
   flex: none;
 }
+/* Laid-out pages (.p-settled, stamped by the harness) skip off-screen
+   rendering work entirely — style, layout and paint cost stay flat as the
+   document grows, which is what keeps a 1000-page preview scrollable on a
+   tablet. Every page keeps its explicit Paged.js size, so scrollbars, page
+   navigation and fit-zoom stay exact; geometry APIs still measure skipped
+   pages correctly (the PDF transcriber additionally forces each page
+   visible while walking it, see engine/transcribe.ts). */
+body.purpose-preview .pagedjs_page.p-settled { content-visibility: auto; }
 /* NOTE: Paged.js is a print polyfill — it applies @media print rules to
    the paginated screen document too, so an !important zoom reset here
    would permanently disable the preview's zoom controls. The harness
@@ -358,6 +366,9 @@ body.purpose-preview .pagedjs_page {
   body.purpose-preview { background: none; }
   body.purpose-preview .pagedjs_pages { gap: 0; padding: 0; }
   body.purpose-preview .pagedjs_page { box-shadow: none; }
+  /* Chrome can skip content-visibility:auto subtrees when printing —
+     every page must render in the print fallback. */
+  body.purpose-preview .pagedjs_page.p-settled { content-visibility: visible; }
 }`;
 
 /** Cursor-follow highlight + inline-editing affordances (flow only). */

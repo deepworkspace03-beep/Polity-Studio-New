@@ -76,6 +76,11 @@ export async function transcribePaginated(
     materializePseudos(srcDoc);
 
     for (let p = 0; p < pageEls.length; p++) {
+      // Settled preview pages use content-visibility:auto; geometry APIs do
+      // force layout of a skipped page, but making the page being walked
+      // explicitly visible keeps the engine independent of that rendering
+      // hint (and bounds render memory to ~one page during export).
+      pageEls[p].style.contentVisibility = "visible";
       const box = pageEls[p].querySelector<HTMLElement>(".pagedjs_pagebox") ?? pageEls[p];
       const origin = box.getBoundingClientRect();
       const page = pdf.addPage([origin.width * K, origin.height * K]);
@@ -87,6 +92,7 @@ export async function transcribePaginated(
       await t.walk(box, { opacity: 1, decorations: [] });
       collectOutline(box, p, origin, outline);
       canvas.flush();
+      pageEls[p].style.contentVisibility = "";
       onProgress?.(p + 1, pageEls.length);
       // Yield so the progress UI can paint between pages.
       await new Promise((r) => setTimeout(r, 0));

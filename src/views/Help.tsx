@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.2.2";
+const STUDIO_VERSION = "4.3.0";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -395,9 +395,19 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Smaller, faster PDFs)`} intro="Exported PDFs are noticeably smaller on large documents, with pixel-identical typography and branding.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Reliable at any size)`} intro="Very large documents now lay out and export dependably — visibly, responsively, and even with the app in the background.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>~30% smaller PDFs on big documents</b> — the temple emblem in every footer and watermark, plus the Telegram and WhatsApp icons, are now stored once and reused on every page instead of being redrawn page by page. A long study set exports around a third smaller (e.g. a 180-page notes set drops from ~1.1&nbsp;MB to ~0.75&nbsp;MB) and a touch faster to download — with the branding pixel-identical on screen and in print.</li>
+            <li><b>Large exports always finish</b> — page layout used to pause forever if you switched apps or the screen locked mid-way (the browser suspends the timer it ran on). It now keeps going in the background and speeds back up when you return, so a 1000-page book reliably reaches its PDF.</li>
+            <li><b>Live layout progress</b> — Pages and Publish show a running "Laying out pages… N" count, and the app stays responsive while a big document is being typeset. If layout ever genuinely stalls, the Studio recovers the pages already laid out instead of hanging.</li>
+            <li><b>Smooth scrolling at any size</b> — the Pages view now renders only the pages near your viewport, so scrolling and zooming a 1000-page preview feels the same as a 10-page one.</li>
+            <li><b>Question Bank: smarter page breaks</b> — a question (stem + options) is never split, but a long solution now continues naturally onto the next page as an elegant open card instead of dragging the whole question — and its white space — to a new page. Solution-heavy banks come out noticeably shorter (about 16% fewer pages in testing), with the same content.</li>
+            <li><b>Truer page estimates for question banks</b> — before the first full layout, the Flow view's ≈ page estimate now understands cards, options and solutions rather than treating them as prose, so it lands much closer to the real count.</li>
+          </ul>
+        </Section>
+
+        <Section title="Version 4.2.2 — Smaller PDFs" intro="Exported PDFs are noticeably smaller on large documents, with pixel-identical typography and branding.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>~30% smaller PDFs on big documents</b> — the temple emblem in every footer and watermark, plus the Telegram and WhatsApp icons, are now stored once and reused on every page instead of being redrawn page by page. A long study set exports around a third smaller (e.g. a 180-page notes set drops from ~1.1&nbsp;MB to ~0.75&nbsp;MB) — with the branding pixel-identical on screen and in print.</li>
           </ul>
         </Section>
 

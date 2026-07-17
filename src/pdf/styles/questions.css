@@ -45,7 +45,6 @@
 /* ── Question card ───────────────────────────────────────────────── */
 
 .q {
-  break-inside: avoid;
   border: 0.7pt solid color-mix(in srgb, var(--c-edge) 88%, var(--c-primary));
   /* A confident spine gives the card its textbook identity without a fill —
      one extra stroke per card, nothing more. Restored to a deliberate,
@@ -53,9 +52,32 @@
      invisibility) so a page of cards reads as a crafted examination book. */
   border-left: 2.5pt solid color-mix(in srgb, var(--c-primary) 62%, var(--c-edge));
   border-radius: 7pt;
-  padding: 0.75em 0.95em 0.8em;
-  margin: 0 0 0.85em;
+  padding: 0.72em 0.95em 0.75em;
+  margin: 0 0 0.75em;
 }
+
+/* Pagination contract: a *question* (header + stem + options, .q__main)
+   is never split across pages; a long worked solution may continue onto
+   the next page. The card itself can therefore break — Paged.js marks the
+   halves with data-split-to (ends open) and data-split-from (continues
+   open), and the borders below turn that split into a quiet "open book"
+   continuation: the spine and side rules run on, no continuation labels,
+   no orphaned white space at the bottom of the page. */
+.q__main { break-inside: avoid; break-after: avoid; }
+.q[data-split-to] {
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+  padding-bottom: 0.3em;
+}
+.q[data-split-from] {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding-top: 0.45em;
+}
+.q__sol[data-split-from] { border-top: none; margin-top: 0; padding-top: 0; }
 
 /* Header row — number · topic reading left, source anchored right, a
    dotted leader bridging the two so the line always spans the card
@@ -189,6 +211,7 @@
 .q__sol-label {
   display: inline-flex;
   align-items: center;
+  break-after: avoid;
   gap: 0.5em;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-weight: 800;
@@ -238,7 +261,6 @@
 
 .explanations { break-before: page; }
 .exp {
-  break-inside: avoid;
   border-left: 2.5pt solid var(--c-accent);
   background: color-mix(in srgb, var(--c-band) 55%, var(--c-mix, white));
   border-radius: 0 6pt 6pt 0;
@@ -246,11 +268,16 @@
   margin-bottom: 0.7em;
   font-size: 0.95em;
 }
+/* Same continuation treatment as the question cards: a long explanation
+   flows on as an open box rather than dragging dead space behind it. */
+.exp[data-split-to] { border-bottom-right-radius: 0; margin-bottom: 0; padding-bottom: 0.3em; }
+.exp[data-split-from] { border-top-right-radius: 0; padding-top: 0.35em; }
 .exp__head {
   display: flex;
   gap: 0.8em;
   align-items: baseline;
   margin-bottom: 0.3em;
+  break-after: avoid;
 }
 .exp__num {
   font-family: "Manrope", sans-serif;
