@@ -4,8 +4,10 @@
    sets. Header row is label-free: number · topic · source, with topic
    and source as quiet rounded badges. The card stays deliberately light
    to render — no card background fill (the page already provides the
-   paper) and one paint operation per badge, benchmarked at ~1% of PDF
-   size on a 1500-question bank.
+   paper) and one paint operation per badge; measured cost of the badge
+   pair: zero pagination-time change, +9% PDF size on a solution-heavy
+   300-question bank (1199 → 1305 KB, ~0.7 KB/page) — accepted as the
+   price of the header hierarchy, page counts unchanged.
    ═══════════════════════════════════════════════════════════════════ */
 
 .mcq-preamble {

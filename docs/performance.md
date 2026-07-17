@@ -69,7 +69,9 @@ chunked/virtualized pagination redesign (see Roadmap).
 3. **Correctness probes in the harness.** `blankPages` (content pages
    with no text/figure) and `avgFillPct` (mean content-area fill,
    excluding cover/TOC/final page) are now measured on every run —
-   0 blank pages and ~96% fill across the suite (see table).
+   0 blank pages everywhere; fill is ~96–97% on notes and
+   solution-heavy banks, ~84% on short-card banks (see "Smart
+   pagination" for why that gap is intentional).
 
 ## v4.3 — reliability engineering (Phase 5)
 
@@ -186,7 +188,7 @@ Reading the table honestly:
 | v4.3 | Background-safe + cooperative pagination, live progress, watchdog, `content-visibility` on settled pages, QB split-solution contract | large layouts always finish; app stays responsive; QB pages −16% on solution-heavy banks |
 | v4.4 | TOC page numbers filled by the harness in one pass (CSS `target-counter` removed — it re-scanned the whole document per page) + layout waits for `document.fonts.ready` | **notes pagination −35/−50/−64% at 100/250/500p, linear ~52–57 ms/page at every size**; byte-identical PDFs; deterministic first-layout metrics |
 | v4.4 | Structured-notes page estimate: grounded per-element costs for headings/list items/callouts | heuristic error on structured notes −23% → ±2% (verified at 79/193/384 pages) |
-| v4.4 | QB header badges (topic soft pill, source outlined pill), first-line emphasis | pagination/PDF-size effect within noise (page counts and KB unchanged on the QB suite) |
+| v4.4 | QB header badges (topic soft pill, source outlined pill), first-line emphasis | pagination time and page counts unchanged; PDF +9% on a 300q bank (1199 → 1305 KB) — accepted for the header hierarchy |
 
 ## What is at its structural floor (measured, not assumed)
 
@@ -208,36 +210,39 @@ Reading the table honestly:
   reduction (v4.2.1) shaved ~5%; removing `target-counter` (v4.4) made
   the cost genuinely linear; the per-page constant does not move
   without chunked pagination.
-- **Page fill.** Content pages average ~96% fill (harness `avgFillPct`,
-  cover/TOC/final page excluded) with zero blank pages across the
-  suite. The remaining ~4% is the atomic-question / keep-with-next
-  contract doing its job — see "Smart pagination" below.
+- **Page fill.** Zero blank pages across the suite; content pages
+  average ~96% fill on notes and solution-heavy banks, ~84% on
+  short-card banks (harness `avgFillPct`, cover/TOC/final page
+  excluded) — the atomic-question / keep-with-next contract doing its
+  job, see "Smart pagination" below.
 - Rejected after measurement (v4.2.1): `text-rendering: optimizeSpeed`
   — zero improvement, typographic risk.
 
 ## Smart pagination (whitespace) — investigated, deliberately bounded
 
-Measured fill is already ~96% on both notes and question banks. The
-residual whitespace at page bottoms is the price of two deliberate
-contracts: a question (`.q__main`) is never split, and headings keep
-their following content (`break-after: avoid`). The candidate
-"improvements" were evaluated and rejected:
+Measured fill: ~96% on notes, ~97% on solution-heavy banks (whose long
+solutions flow as open boxes), ~84% on short-card banks (`qb-1500`).
+The 84% is exactly the arithmetic of the atomic-question contract: at
+~2.7 cards/page, the page bottom loses on average about half a card
+(~0.15–0.2 page) because a question that doesn't fit moves whole. The
+candidate "improvements" were evaluated and rejected:
 
-- **Splitting questions/options across pages** recovers at most part of
-  one card height per page but destroys the exam-book reading contract —
-  a question you can't see whole is a usability regression, not a win.
+- **Splitting questions/options across pages** is the only lever that
+  could claim that remainder, and it destroys the exam-book reading
+  contract — a question you can't see whole is a usability regression,
+  not a win.
 - **Adaptive per-page spacing compression** (shrinking margins/gaps so
-  one more block fits) makes visually inconsistent pages, breaks
-  "preview = PDF" pixel identity, and would need a second layout pass
-  per page (undoing the v4.4 linearity).
+  one more card fits) makes visually inconsistent pages, breaks
+  "preview = PDF" identity, and would need a second layout pass per
+  page (undoing the v4.4 linearity).
 - **The v4.3 open-box solution/explanation continuation** was the real
   win here (long solutions no longer drag whole cards to the next page,
-  −16% pages on solution-heavy banks) and stays.
+  −16% pages on solution-heavy banks) and stays — it is why
+  solution-heavy banks reach 97%.
 
-Verdict: at ~96% measured fill the remaining headroom is ~4% minus the
-final page — single-digit pages on a 750-page bank — and every approach
-that could claim part of it costs correctness, consistency or layout
-time. Not implemented, by evidence.
+Verdict: the remaining whitespace is the atomic-question guarantee
+itself, not waste. Every approach that could claim part of it costs
+correctness, consistency or layout time. Not implemented, by evidence.
 
 ## Known limitations (honest)
 
