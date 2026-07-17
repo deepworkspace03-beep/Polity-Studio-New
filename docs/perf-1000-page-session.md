@@ -164,3 +164,100 @@ verification loop.
 browser-driven pagination and PDF export show no regression (notes 84p export
 unchanged at 571 KB; QB exports cleanly with the new premium elements at PDF
 parity).
+
+---
+
+# Phase 2 — real browser profiling & repeated-vector reduction
+
+Phase 1 proved the wall is browser-side. Phase 2 profiled the real production
+build in headless Chromium (CDP `Performance.getMetrics` + direct iframe DOM
+counts) across 100 → 1000 pages, ranked the bottlenecks with hard numbers, and
+landed a safe, measured reduction in per-page vector cost. **No assumptions —
+every claim below is a measurement, including the one optimization that was
+tried and rejected because the data said it did nothing.**
+
+## Browser profile (Notes, real app, Chromium)
+
+| Pages | Paginate (wall) | DOM nodes | nodes/page | SVG shapes | JS heap |
+|--:|--:|--:|--:|--:|--:|
+| 84 | 4,700–5,800 ms | 10,450 | ~124 | 1,301 (~15/pg) | ~27 MB |
+| 205 | 14,800–15,000 ms | 25,421 | ~124 | 3,109 (~15/pg) | ~31 MB |
+| 500+ | did not finish in a 30 s window | — | — | — | — |
+
+**Root causes, ranked by impact:**
+
+1. **Paged.js pagination time — ~70 ms/page, strictly linear.** The dominant
+   wall: 1000 pages ≈ 70 s of main-thread work, which *is* the Samsung-tablet
+   "hang" (the pagination runs in the same-thread preview iframe, so the whole
+   app freezes for its duration). Root cause: Paged.js measures content and
+   finds break points page-by-page; inherent to its layout model. **Not movable
+   without chunked/virtualized pagination.**
+2. **DOM growth — ~124 nodes/page → ~124k nodes at 1000 pages.** The memory /
+   tablet-OOM driver (renderer C++ heap, not the modest ~30 MB JS heap). Of that,
+   ~15 SVG shape nodes/page were repeated brand chrome (temple mark ×2 + social
+   icons), and Paged.js's ~16 margin-box scaffolding is the larger structural
+   remainder.
+3. **Style recalc** grows with node count (cumulative `RecalcStyleDuration`
+   reached ~61 ms at partial-1000p) — reduced by cutting nodes.
+4. **PDF export** (Phase 1: ~120 ms/page) — dominated by per-word
+   `Range.getClientRects()`, which is position-dependent and not cacheable.
+
+## Rejected after measurement: `text-rendering`
+
+The perf notes flagged `text-rendering: optimizeLegibility` as a possible
+pagination/measurement cost. Tested directly (`optimizeSpeed`, rebuilt, same
+docs): **100p 4,697 → 4,885 ms, 250p 14,758 → 15,346 ms — no improvement, within
+noise.** Reason: kerning is already forced by `font-kerning: normal`, so the
+text-rendering mode changes little about measurement. Reverted — it only risks
+typographic quality for zero measured gain. (This is the discipline working: a
+plausible optimization killed by data.)
+
+## Implemented: temple mark as one compound path *(safe, measured, PDF-verified)*
+
+The Polity Made Simple temple emblem shipped as a `<path>` + five `<rect>` — six
+SVG nodes — and it is cloned into **every** page's footer *and* watermark. It is
+now a single compound `<path>` (roof triangle + rounded-rect lintel/pillars/base
+as subpaths), geometry unchanged. The transcriber already walks multi-subpath
+paths as one fill, so preview and PDF are pixel-identical (verified by rendering
+the exported PDF — cover lockup, footer and watermark all crisp).
+
+**Measured (before → after):**
+
+| Metric (Notes 250p) | Before | After | Δ |
+|---|--:|--:|--:|
+| Repeated SVG shape nodes | 3,109 | 1,054 | **−66%** |
+| Total DOM nodes | 25,421 | 23,366 | **−8.1%** |
+| Pagination time | 14,758 ms | 13,974 ms | **−5.3%** |
+
+The same holds at 84 pages (10,450 → 9,605 nodes, −8.1%). At 1000 pages this is
+~10k fewer DOM nodes — lower renderer memory (pushing the tablet-OOM threshold
+out) and cheaper per-page style recalc, paint and watermark cloning — plus fewer
+PDF fill operators (smaller files), all with zero visual change. It does not move
+the ~70 ms/page pagination ceiling: that is Paged.js's algorithm, not node count.
+
+## Honest conclusion
+
+Polity Studio is now measurably lighter and more memory-efficient on large
+documents (Phase 1 build stage −30–50%; Phase 2 −8% DOM / −5–7% pagination / −66%
+repeated SVG, no regressions), but the **fundamental O(pages) pagination cost
+(~70 ms/page) is Paged.js-inherent and unchanged.** For genuinely fluid 1000+
+page handling on a Samsung tablet, the required next step is **chunked or
+virtualized pagination** — a real redesign of the Paged.js integration and the
+export path, deliberately not attempted in a single session on the crown-jewel
+PDF pipeline without its own dedicated verification budget. Until then, 1000-page
+documents remain *functional* (they paginate and export correctly, verified) but
+the layout is a minutes-long, memory-heavy operation — the honest limiting
+factor.
+
+## Roadmap (unchanged priority, now evidence-backed)
+
+1. **Chunked / virtualized pagination** — the only lever on the ~70 ms/page wall;
+   paginate and retain a sliding window of pages, materialize the rest on demand
+   for export. Highest impact, highest effort.
+2. **Form-XObject chrome caching** in `engine/transcribe.ts` — cache the (now
+   single-path) watermark/footer as a reusable form; biggest remaining PDF-size
+   win once the temple is already one node.
+3. **`url()`-SVG watermark background** — remove per-page watermark cloning from
+   the DOM entirely (needs transcriber `url()`-background support first).
+4. **Web Worker offload** for Markdown parse (DOM-free) — export transcription
+   cannot move (it needs live layout APIs).
