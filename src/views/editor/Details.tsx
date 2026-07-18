@@ -3,6 +3,7 @@ import type { BrandConfig, CoverColors, CoverDesign, CoverPattern, Doc, DocLayou
 import { saveBrand, saveSettings, useApp } from "../../lib/store";
 import { DEFAULT_BRAND, DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
 import { canSavePreset, deletePreset, duplicatePreset, MAX_PRESETS, renamePreset, savePreset, usePresets } from "../../lib/presets";
+import { canSaveCoverDesign, deleteCoverDesign, MAX_COVER_DESIGNS, saveCoverDesign, useCoverDesigns } from "../../lib/coverDesigns";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
 import { Button, Field, HintBubble, IconButton, Modal, Segmented, Toggle, inputClass, useFocusTrap, useLongPressHint, useToast } from "../../components/ui";
@@ -10,9 +11,8 @@ import { Icon } from "../../components/Icon";
 import { cx } from "../../lib/utils";
 
 const COVER_STYLES: { id: Exclude<DocLayout["coverStyle"], "custom">; label: string; swatch: string }[] = [
-  { id: "regal", label: "Regal", swatch: "linear-gradient(140deg,#0d1930,#1d3357 60%,#c9bc9e 175%)" },
+  { id: "meridian", label: "Meridian", swatch: "linear-gradient(150deg,#0a1526,#16305a 62%,#d8b878 205%)" },
   { id: "aurora", label: "Aurora", swatch: "linear-gradient(140deg,#123c93,#0d76b2 52%,#0a9f80)" },
-  { id: "heritage", label: "Heritage", swatch: "linear-gradient(150deg,#faf8f2 55%,#8a6d3b 200%)" },
   { id: "eclipse", label: "Eclipse", swatch: "linear-gradient(160deg,#0c1017,#1a2434 62%,#d3a662 210%)" },
 ];
 
@@ -28,20 +28,20 @@ const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: str
    emblem and an optional uploaded logo. The flow preview is the live
    canvas: every change re-renders the cover in place. */
 
-/* Premium, subtle textures first; the plainer geometric rules follow.
-   Elegance over decoration — every option stays a faint vector layer. */
+/* A short, curated set of subtle, publication-grade textures — elegance
+   over decoration. Each stays a faint vector layer. */
 const PATTERN_OPTIONS: { value: CoverPattern; label: string }[] = [
   { value: "none", label: "None" },
-  { value: "dots", label: "Dots" },
-  { value: "rings", label: "Rings" },
-  { value: "waves", label: "Waves" },
   { value: "geometry", label: "Geometry" },
-  { value: "mesh", label: "Mesh" },
   { value: "abstract", label: "Arcs" },
-  { value: "grid", label: "Graph" },
-  { value: "lines", label: "Ruled" },
-  { value: "weave", label: "Crosshatch" },
+  { value: "globe", label: "Globe" },
 ];
+
+/** Two cover designs are "the same" for the purpose of highlighting which
+    saved design is active — a value compare over the design snapshot. */
+function sameDesign(a: CoverDesign | undefined, b: CoverDesign): boolean {
+  return !!a && JSON.stringify({ ...DEFAULT_COVER_DESIGN, ...a }) === JSON.stringify({ ...DEFAULT_COVER_DESIGN, ...b });
+}
 
 const TITLE_SIZES: { value: string; label: string }[] = [
   { value: "0.8", label: "S" },
@@ -171,6 +171,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [savePrompt, setSavePrompt] = useState(false);
   const design: CoverDesign = { ...DEFAULT_COVER_DESIGN, ...doc.layout.coverDesign };
   const set = (patch: Partial<CoverDesign>) =>
     onChange({ layout: { ...doc.layout, coverDesign: { ...design, ...patch } } });
@@ -179,7 +180,7 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
     <div className="space-y-4 rounded-xl border border-edge p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10.5px] font-bold uppercase tracking-wide text-faint">Start from</span>
-        <div className="flex gap-1.5">
+        <div className="flex items-center gap-1.5">
           {COVER_STYLES.map((s) => (
             <SwatchButton
               key={s.id}
@@ -190,6 +191,32 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           ))}
         </div>
       </div>
+      {/* Save the current design to the personal library so it appears beside
+          the presets for one-tap reuse on any document. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (!canSaveCoverDesign()) {
+            toast(`Saved-design limit reached (${MAX_COVER_DESIGNS}) — delete one first`, "info");
+            return;
+          }
+          setSavePrompt(true);
+        }}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-edge py-1.5 text-[11px] font-semibold text-ink-2 hover:border-accent hover:text-accent"
+      >
+        <Icon name="star" size={13} />
+        Save this design
+      </button>
+      <NamePromptModal
+        open={savePrompt}
+        title="Name this cover design"
+        initial="My cover"
+        onClose={() => setSavePrompt(false)}
+        onSubmit={(name) => {
+          saveCoverDesign(name, design);
+          toast(`Saved cover design “${name}”`, "ok");
+        }}
+      />
 
       <FieldGroup label="Colors">
         <div className="grid grid-cols-2 gap-2">
@@ -221,17 +248,9 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
           ))}
         </div>
         {design.pattern !== "none" && (
-          <>
-            <Field label={`Opacity — ${Math.round(design.patternOpacity * 100)}%`}>
-              <input type="range" min={1} max={30} step={1} value={Math.round(design.patternOpacity * 100)} onChange={(e) => set({ patternOpacity: Number(e.target.value) / 100 })} className="w-full" />
-            </Field>
-            <Field label={`Density — ${Math.round((design.patternDensity ?? 1) * 100)}%`}>
-              <input type="range" min={50} max={200} step={10} value={Math.round((design.patternDensity ?? 1) * 100)} onChange={(e) => set({ patternDensity: Number(e.target.value) / 100 })} className="w-full" />
-            </Field>
-            <Field label={`Size — ${Math.round((design.patternSize ?? 1) * 100)}%`}>
-              <input type="range" min={50} max={250} step={10} value={Math.round((design.patternSize ?? 1) * 100)} onChange={(e) => set({ patternSize: Number(e.target.value) / 100 })} className="w-full" />
-            </Field>
-          </>
+          <Field label={`Opacity — ${Math.round(design.patternOpacity * 100)}%`}>
+            <input type="range" min={1} max={30} step={1} value={Math.round(design.patternOpacity * 100)} onChange={(e) => set({ patternOpacity: Number(e.target.value) / 100 })} className="w-full" />
+          </Field>
         )}
       </FieldGroup>
 
@@ -292,7 +311,6 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
             ]}
           />
         </Field>
-        <Toggle label="Premium header rule" checked={!!design.headerRule} onChange={(headerRule) => set({ headerRule })} />
       </FieldGroup>
 
       <FieldGroup label="Branding">
@@ -531,6 +549,7 @@ const BRAND_COLOR_LABELS: Record<keyof BrandConfig["colors"], string> = {
     cover so the author sees their edit land, then restores the position. */
 function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: (patch: Partial<Doc>) => void; onCoverEditing?: (active: boolean) => void }) {
   const { brand, settings } = useApp();
+  const savedDesigns = useCoverDesigns();
   const toast = useToast();
   const template = TEMPLATE_META[doc.template];
   const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
@@ -632,6 +651,36 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
                     {s.label}
                   </button>
                 ))}
+                {/* Saved custom designs sit right beside the defaults — one tap
+                    to apply, exactly like choosing a preset. */}
+                {savedDesigns.map((d) => (
+                  <div key={d.id} className="group relative">
+                    <button
+                      onClick={() => layout({ coverStyle: "custom", coverDesign: { ...d.design } })}
+                      title={`Apply “${d.name}”`}
+                      className={cx(
+                        "flex w-full flex-col items-center gap-1.5 rounded-lg border p-1.5 text-[11px] font-semibold",
+                        doc.layout.coverStyle === "custom" && sameDesign(doc.layout.coverDesign, d.design)
+                          ? "border-accent text-accent"
+                          : "border-edge text-ink-2 hover:border-faint",
+                      )}
+                    >
+                      <span
+                        className="h-10 w-full rounded-md border border-black/10"
+                        style={{ background: `linear-gradient(150deg, ${d.design.bg1}, ${d.design.bg2})` }}
+                      />
+                      <span className="max-w-full truncate">{d.name}</span>
+                    </button>
+                    <button
+                      onClick={() => deleteCoverDesign(d.id)}
+                      title="Delete this saved design"
+                      aria-label={`Delete ${d.name}`}
+                      className="absolute right-1 top-1 hidden rounded-full bg-ink/70 p-0.5 text-bg group-hover:block"
+                    >
+                      <Icon name="x" size={11} />
+                    </button>
+                  </div>
+                ))}
                 <button
                   onClick={() =>
                     layout({
@@ -646,10 +695,7 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
                     doc.layout.coverStyle === "custom" ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
                   )}
                 >
-                  <span
-                    className="h-5 w-10 rounded-md border border-black/10"
-                    style={{ background: "conic-gradient(from 210deg,#0d1930,#123c93,#0a9f80,#c9bc9e,#0d1930)" }}
-                  />
+                  <Icon name="plus" size={13} />
                   Custom — design your own
                 </button>
               </div>

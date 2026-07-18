@@ -126,7 +126,11 @@ export function withDefaults<T extends object>(defaults: T, stored: unknown, pre
 /** Retired cover styles map onto their closest current replacement so
     older documents (and backups) keep a sensible cover. */
 const LEGACY_COVERS: Record<string, Doc["layout"]["coverStyle"]> = {
-  ivory: "heritage",
+  // Retired light/academic covers fold into Meridian (the academic navy);
+  // the dark ones into Eclipse.
+  regal: "meridian",
+  heritage: "meridian",
+  ivory: "meridian",
   midnight: "eclipse",
 };
 

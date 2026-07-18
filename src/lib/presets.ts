@@ -31,8 +31,8 @@ export const MAX_PRESETS = 8;
 // renamable, editable and deletable like any user preset.
 const STARTERS: Omit<LayoutPreset, "id">[] = [
   { name: "Default", layout: { ...DEFAULT_LAYOUT } },
-  { name: "Preset 1 · Premium Notes", layout: { ...DEFAULT_LAYOUT, coverStyle: "regal", toc: true, watermark: true, density: "comfort" } },
-  { name: "Preset 2 · Minimal", layout: { ...DEFAULT_LAYOUT, coverStyle: "heritage", toc: false, watermark: false, density: "comfort" } },
+  { name: "Preset 1 · Premium Notes", layout: { ...DEFAULT_LAYOUT, coverStyle: "meridian", toc: true, watermark: true, density: "comfort" } },
+  { name: "Preset 2 · Minimal", layout: { ...DEFAULT_LAYOUT, coverStyle: "aurora", toc: false, watermark: false, density: "comfort" } },
   { name: "Preset 3 · Compact Booklet", layout: { ...DEFAULT_LAYOUT, coverStyle: "eclipse", toc: true, watermark: true, pageSize: "a5", density: "compact" } },
 ];
 

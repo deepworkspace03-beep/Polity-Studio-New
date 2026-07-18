@@ -1,4 +1,4 @@
-import type { BrandConfig, CoverColors, CoverDesign, Doc, PageSize } from "../lib/types";
+import type { BrandConfig, CoverColors, CoverDesign, CoverPattern, Doc, PageSize } from "../lib/types";
 import { DEFAULT_COVER_DESIGN } from "../brand/defaults";
 import { escapeHtml } from "../lib/utils";
 import { coverPatternSvg, type CoverPatternKind, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
@@ -46,10 +46,9 @@ const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; marg
 /** Vector pattern layer per cover style (SVG so print stays vector).
     "custom" is absent — its pattern comes from the CoverDesign. */
 const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { kind: CoverPatternKind; color: string }> = {
-  regal: { kind: "dots", color: "rgba(245,242,234,0.05)" },
-  aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
-  heritage: { kind: "lines", color: "rgba(26,39,64,0.06)" },
-  eclipse: { kind: "rings", color: "rgba(211,166,98,0.08)" },
+  meridian: { kind: "globe", color: "rgba(216,184,120,0.08)" },
+  aurora: { kind: "abstract", color: "rgba(255,255,255,0.09)" },
+  eclipse: { kind: "geometry", color: "rgba(211,166,98,0.07)" },
 };
 
 /** Body size/leading per density. "ultra" additionally gets a
@@ -158,6 +157,7 @@ function hexToRgba(hex: string, alpha: number): string {
 
 const FRAME_STYLES = new Set<CoverDesign["frameStyle"]>(["none", "single", "shaded", "accent"]);
 const TITLE_BOXES = new Set<CoverDesign["titleBox"]>(["none", "outline", "filled", "premium"]);
+const PATTERNS = new Set<CoverPattern>(["none", "geometry", "abstract", "globe"]);
 
 /** Sanitized copy of a stored design over the schema defaults. Values land
     in class names and the srcdoc's style attribute, so every enum and
@@ -171,6 +171,9 @@ function resolveDesign(design: CoverDesign | undefined): CoverDesign {
     ink: safeHex(d.ink, DEFAULT_COVER_DESIGN.ink),
     accent: safeHex(d.accent, DEFAULT_COVER_DESIGN.accent),
     angle: clampNum(d.angle, 0, 360, 160),
+    // Retired patterns (grid, dots, lines, rings, weave, waves, mesh) fall
+    // back to the nearest surviving premium texture.
+    pattern: PATTERNS.has(d.pattern) ? d.pattern : "geometry",
     patternOpacity: clampNum(d.patternOpacity, 0, 0.3, 0.05),
     patternDensity: clampNum(d.patternDensity, 0.5, 2, 1),
     patternSize: clampNum(d.patternSize, 0.5, 2.5, 1),
@@ -245,7 +248,6 @@ function coverHtml(doc: Doc, brand: BrandConfig, defaultCoverLines: string[]): s
     design?.align === "center" ? "cover--center" : "",
     design && design.frameStyle !== "none" ? `cover--frame-${design.frameStyle}` : "",
     design && design.titleBox !== "none" ? `cover--tbox-${design.titleBox}` : "",
-    design?.headerRule ? "cover--header-rule" : "",
   ].filter(Boolean).join(" ");
   const styleAttr = design ? customCoverVars(design) : coverColorVars(doc.layout.coverColors);
   const emblem = design && !design.emblem ? "" : templeEmblemSvg("cv-emblem");

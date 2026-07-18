@@ -69,16 +69,18 @@ export function watermarkHtml(text: string): string {
 </div>`;
 }
 
-export type CoverPatternKind = "grid" | "dots" | "lines" | "rings" | "weave" | "abstract" | "waves" | "mesh" | "geometry";
+export type CoverPatternKind = "geometry" | "abstract" | "globe";
 
 /**
  * Full-bleed cover pattern layer, generated as inline SVG (mm units) so
  * it stays vector in print and in the PDF engine — CSS repeating
  * gradients would be rasterized by the browser's print pipeline.
  *
- * `density` (0.5–2) tightens or loosens the element spacing; `size`
- * (0.5–2.5) scales stroke width / dot radius. Both default to 1 so
- * existing covers render exactly as before.
+ * A curated, publication-grade set: `geometry` (a sparse constellation of
+ * outlined academic shapes), `abstract` (soft sweeping corner arcs) and
+ * `globe` (a large, quiet meridian wireframe — an International-Relations /
+ * humanities motif). `density` (0.5–2) tunes element spacing; `size`
+ * (0.5–2.5) tunes stroke/shape scale. Both default to 1.
  */
 export function coverPatternSvg(
   style: CoverPatternKind,
@@ -90,50 +92,36 @@ export function coverPatternSvg(
   const d = Math.min(2, Math.max(0.5, opts.density ?? 1));
   const s = Math.min(2.5, Math.max(0.5, opts.size ?? 1));
   const parts: string[] = [];
-  if (style === "grid") {
-    const step = 12 / d;
-    for (let x = step; x < wMm; x += step) parts.push(`<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${hMm}"/>`);
-    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y.toFixed(1)}" x2="${wMm}" y2="${y.toFixed(1)}"/>`);
-  } else if (style === "dots") {
-    // Even dot grid — filled circles so the size control reads clearly.
-    const step = 9 / d;
-    const r = (0.5 * s).toFixed(2);
-    for (let y = step; y < hMm; y += step)
-      for (let x = step; x < wMm; x += step) parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${color}" stroke="none"/>`);
-  } else if (style === "lines") {
-    // Laid-paper texture: fine horizontal rules only.
-    const step = 7 / d;
-    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y.toFixed(1)}" x2="${wMm}" y2="${y.toFixed(1)}"/>`);
-  } else if (style === "rings") {
-    const cx = wMm * 0.82;
-    const cy = hMm * 0.1;
+  if (style === "globe") {
+    // A quiet meridian wireframe — latitude ellipses + longitude ellipses
+    // inside an outline circle, placed large in the upper-right so it bleeds
+    // off two edges and reads as texture rather than an icon. Full ellipses
+    // keep it curved without any clip-path (which the PDF engine avoids).
+    const cx = wMm * 0.86;
+    const cy = hMm * 0.26;
+    const R = Math.min(wMm, hMm) * (0.62 * s);
+    parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${R.toFixed(1)}" fill="none"/>`);
+    const rings = Math.max(2, Math.round(3 * d));
+    for (let i = 1; i <= rings; i++) {
+      const k = i / (rings + 1);
+      parts.push(`<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${(R * Math.cos(k * Math.PI / 2)).toFixed(1)}" ry="${R.toFixed(1)}" fill="none"/>`);
+      parts.push(`<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${R.toFixed(1)}" ry="${(R * Math.cos(k * Math.PI / 2)).toFixed(1)}" fill="none"/>`);
+    }
+    parts.push(`<line x1="${cx.toFixed(1)}" y1="${(cy - R).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${(cy + R).toFixed(1)}"/>`);
+    parts.push(`<line x1="${(cx - R).toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(cx + R).toFixed(1)}" y2="${cy.toFixed(1)}"/>`);
+  } else if (style === "abstract") {
+    // A few large, soft sweeping arcs from two corners — a modern,
+    // premium "designed" texture rather than a repeating pattern.
+    const step = 13 / d;
     const max = Math.hypot(wMm, hMm);
-    const step = 6.4 / d;
-    for (let r = step; r < max; r += step) parts.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none"/>`);
-  } else if (style === "waves") {
-    // Stacked gentle sine waves — calm, editorial texture.
-    const step = 11 / d;
-    const wl = 26;
-    const amp = 2.4;
-    for (let y = step; y < hMm + amp; y += step) {
-      let path = `M ${-wl} ${y.toFixed(1)} q ${(wl / 4).toFixed(1)} ${(-amp * 2).toFixed(1)} ${(wl / 2).toFixed(1)} 0`;
-      for (let x = -wl / 2; x < wMm + wl; x += wl / 2) path += ` t ${(wl / 2).toFixed(1)} 0`;
-      parts.push(`<path d="${path}" fill="none"/>`);
+    for (let r = step * 2; r < max * 1.05; r += step) {
+      parts.push(`<circle cx="${(wMm * 0.05).toFixed(1)}" cy="${(hMm * 0.98).toFixed(1)}" r="${r.toFixed(1)}" fill="none"/>`);
+      parts.push(`<circle cx="${(wMm * 0.98).toFixed(1)}" cy="${(hMm * 0.06).toFixed(1)}" r="${(r * 0.72).toFixed(1)}" fill="none"/>`);
     }
-  } else if (style === "mesh") {
-    // Isometric triangle mesh: horizontal rows plus both diagonal
-    // families — an architectural, engineered texture.
-    const step = 16 / d;
-    const run = hMm * 0.577; // ~30° from vertical, equilateral-ish cells
-    for (let y = step; y < hMm; y += step) parts.push(`<line x1="0" y1="${y.toFixed(1)}" x2="${wMm}" y2="${y.toFixed(1)}"/>`);
-    for (let x = -run; x < wMm + run; x += step) {
-      parts.push(`<line x1="${x.toFixed(1)}" y1="0" x2="${(x + run).toFixed(1)}" y2="${hMm}"/>`);
-      parts.push(`<line x1="${(x + run).toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${hMm}"/>`);
-    }
-  } else if (style === "geometry") {
-    // Sparse outlined shapes — circles, diamonds, triangles — on a
-    // staggered grid with deterministic size drift: a designed,
-    // non-repeating feel without any randomness.
+  } else {
+    // geometry — sparse outlined shapes (circles, diamonds, triangles) on a
+    // staggered grid with deterministic size drift: a designed, non-repeating
+    // feel without any randomness.
     const step = 30 / d;
     const r0 = 4.6 * s;
     let row = 0;
@@ -149,21 +137,6 @@ export function coverPatternSvg(
           parts.push(`<polygon points="${cx},${(y - r).toFixed(1)} ${(x + r * 0.87).toFixed(1)},${(y + r / 2).toFixed(1)} ${(x - r * 0.87).toFixed(1)},${(y + r / 2).toFixed(1)}" fill="none"/>`);
       }
       row++;
-    }
-  } else if (style === "abstract") {
-    // A few large, soft sweeping arcs from two corners — a modern,
-    // premium "designed" texture rather than a repeating pattern.
-    const step = 13 / d;
-    const max = Math.hypot(wMm, hMm);
-    for (let r = step * 2; r < max * 1.05; r += step) {
-      parts.push(`<circle cx="${(wMm * 0.05).toFixed(1)}" cy="${(hMm * 0.98).toFixed(1)}" r="${r.toFixed(1)}" fill="none"/>`);
-      parts.push(`<circle cx="${(wMm * 0.98).toFixed(1)}" cy="${(hMm * 0.06).toFixed(1)}" r="${(r * 0.72).toFixed(1)}" fill="none"/>`);
-    }
-  } else {
-    const step = 5.8 / d;
-    for (let dd = -hMm; dd < wMm + hMm; dd += step) {
-      parts.push(`<line x1="${dd.toFixed(1)}" y1="0" x2="${(dd + hMm).toFixed(1)}" y2="${hMm}"/>`);
-      parts.push(`<line x1="${dd.toFixed(1)}" y1="${hMm}" x2="${(dd + hMm).toFixed(1)}" y2="0"/>`);
     }
   }
   const stroke = (0.16 * s).toFixed(3);

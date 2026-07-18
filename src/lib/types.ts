@@ -4,19 +4,14 @@
     migrate on load — see LEGACY_TEMPLATES in lib/store.ts. */
 export type TemplateId = "notes" | "questions" | "revision" | "universal";
 
-export type CoverStyle = "regal" | "aurora" | "heritage" | "eclipse" | "custom";
+/** The default cover styles. Legacy ids ("regal", "heritage", "ivory",
+    "midnight") migrate on load — see LEGACY_COVERS in lib/store.ts. */
+export type CoverStyle = "meridian" | "aurora" | "eclipse" | "custom";
 
-export type CoverPattern =
-  | "none"
-  | "grid"
-  | "dots"
-  | "lines"
-  | "rings"
-  | "weave"
-  | "abstract"
-  | "waves"
-  | "mesh"
-  | "geometry";
+/** Cover pattern layer — a small, curated set of subtle, publication-grade
+    textures. Retired patterns (grid, dots, lines, rings, weave, waves, mesh)
+    migrate to the nearest survivor on load (resolveDesign). */
+export type CoverPattern = "none" | "geometry" | "abstract" | "globe";
 
 /** Hairline frame inset from the page edge (Cover Designer → Structure).
     Legacy "double" designs migrate to "shaded" on load (resolveDesign). */
@@ -60,9 +55,6 @@ export interface CoverDesign {
   /** Box treatment behind the title block — outline, filled or the
       premium ruled band. Optional, defaults to "none". */
   titleBox?: CoverTitleBox;
-  /** Optional premium header band: a thin top rule and a hairline divider
-      under the publisher lockup. Optional so older designs default off. */
-  headerRule?: boolean;
   /** Temple emblem watermark in the lower-right. */
   emblem: boolean;
   /** Small data-URI image replacing the temple mark in the publisher

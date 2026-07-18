@@ -265,24 +265,36 @@ body.mode-paged .cv-guide--empty { display: none; }
   color: var(--cv-ink);
 }
 
-/* ── 01 · Regal (oxford navy + champagne platinum, default) ─────────
-   A restrained, library-grade cover: deep navy ground, warm ivory
-   type, and one muted metallic tone — no saturated yellow anywhere. */
-.cover--regal {
-  --cv-bg: linear-gradient(163deg, #0a1324 0%, #122240 52%, #1a2e54 100%);
-  --cv-ink: #f6f3ec;
-  --cv-soft: #bcc8dc;
-  --cv-accent: #cdbd96;
-  --cv-line: rgba(205, 189, 150, 0.42);
+/* ── 01 · Meridian (oxford navy + gold, default) ─────────────────────
+   A modern academic-publishing cover: a deep midnight-to-oxford navy
+   ground with real vertical depth, warm ivory type and a single restrained
+   gold tone, held by a fine gold hairline frame. The quiet meridian globe
+   motif (International-Relations / humanities) rides the pattern layer. */
+.cover--meridian {
+  --cv-bg: linear-gradient(163deg, #0a1526 0%, #11223f 52%, #16305a 100%);
+  --cv-ink: #f5f3ec;
+  --cv-soft: #b9c6dc;
+  --cv-accent: #d8b878;
+  --cv-line: rgba(216, 184, 120, 0.4);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
-  --cv-edition-tx: #142441;
+  --cv-edition-tx: #12233f;
 }
 /* Soft top-left key light + a deep bottom vignette give the flat gradient
    dimensionality without any raster texture (both are PDF-engine shadings). */
-.cover--regal .cv-shade {
+.cover--meridian .cv-shade {
   background:
-    radial-gradient(90% 60% at 22% -8%, rgba(214, 226, 245, 0.10), transparent 60%),
-    radial-gradient(130% 92% at 50% 118%, rgba(4, 9, 20, 0.5), transparent 62%);
+    radial-gradient(92% 60% at 20% -8%, rgba(216, 226, 244, 0.09), transparent 60%),
+    radial-gradient(132% 94% at 50% 120%, rgba(3, 8, 18, 0.52), transparent 62%);
+}
+/* A refined gold hairline frame comes built in — the presets carry their
+   own elegant border so a premium cover needs no extra toggles. */
+.cover--meridian::after {
+  content: "";
+  position: absolute;
+  inset: 8.5mm;
+  border: 0.5pt solid var(--cv-line);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ── 02 · Aurora (brand gradient) ───────────────────────────────── */
@@ -295,44 +307,23 @@ body.mode-paged .cv-guide--empty { display: none; }
   --cv-title-font: "Manrope", "Noto Sans Devanagari", sans-serif;
   --cv-edition-tx: #0d4b8a;
 }
-.cover--aurora .cv-shade { background: radial-gradient(120% 80% at 50% 120%, rgba(0, 0, 0, 0.16), transparent 60%); }
+.cover--aurora .cv-shade {
+  background:
+    radial-gradient(90% 55% at 20% -6%, rgba(255, 255, 255, 0.12), transparent 58%),
+    radial-gradient(120% 80% at 50% 120%, rgba(0, 0, 0, 0.18), transparent 60%);
+}
 .cover--aurora .cv-edition { background: #ffffff; }
-
-/* ── 03 · Heritage (ivory press) ────────────────────────────────────
-   A clean university-press cover: a warm porcelain ground, oxford-ink
-   typography and an aged-bronze accent, held by a single refined
-   hairline frame with a whisper of inset shading — the busy double rule
-   is gone. Quiet, bookish, unmistakably premium. */
-.cover--heritage {
-  --cv-bg: linear-gradient(168deg, #fcfaf4 0%, #f4f0e6 100%);
-  --cv-ink: #1a2740;
-  --cv-soft: #58647c;
-  --cv-accent: #90713d;
-  --cv-line: rgba(144, 113, 61, 0.5);
-  --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
-  --cv-edition-tx: #f8f5ec;
-  padding: 22mm 21mm 19mm;
-}
-/* One crisp bronze hairline (the ::after) plus a soft inset vignette on
-   the shade layer for depth — a CSS gradient the PDF engine replays as a
-   shading, so print and preview match. */
-.cover--heritage .cv-shade {
-  background: radial-gradient(138% 112% at 50% 42%, transparent 60%, rgba(26, 39, 64, 0.06) 100%);
-  inset: 9mm;
-}
-.cover--heritage::after {
+/* Aurora carries a soft ivory hairline frame for the same built-in polish. */
+.cover--aurora::after {
   content: "";
   position: absolute;
-  inset: 9mm;
-  border: 0.6pt solid var(--cv-line);
+  inset: 8.5mm;
+  border: 0.5pt solid var(--cv-line);
   pointer-events: none;
   z-index: 0;
 }
-.cover--heritage .cv-edition { background: #1a2740; }
-.cover--heritage .cv-emblem { opacity: 0.08; right: 16mm; bottom: 27mm; }
-.cover--heritage .cv-highlights li::before { border-radius: 50%; }
 
-/* ── 04 · Eclipse (graphite & gold) ─────────────────────────────────
+/* ── 03 · Eclipse (graphite & gold) ─────────────────────────────────
    A dark gallery cover: near-black graphite ground, a soft gold glow
    rising from the top corner, gilded hairline frame and serif titling —
    modern, elegant, unmistakably premium. */
@@ -420,36 +411,6 @@ body.mode-paged .cv-guide--empty { display: none; }
 /* Centered layouts shrink-wrap the box around its text. */
 .cover--center.cover--tbox-outline .cv-titlebox,
 .cover--center.cover--tbox-filled .cv-titlebox { padding-inline: 12mm; }
-/* Optional premium header band — a thin rule at the very top plus a
-   hairline divider under the publisher lockup. Structural, so it works on
-   the custom cover regardless of the chosen colors. */
-.cover--header-rule::before {
-  content: "";
-  position: absolute;
-  top: 9mm;
-  left: 17mm;
-  right: 17mm;
-  height: 0;
-  border-top: 0.7pt solid var(--cv-accent);
-  z-index: 1;
-}
-.cover--header-rule .cv-top {
-  padding-bottom: 4mm;
-  border-bottom: 0.5pt solid var(--cv-line);
-}
-/* Frame + header rule share the top edge — tuck the rule inside the frame
-   (and give the lockup a little more headroom) so the two never sit on top
-   of each other. Also nudge the emblem clear of the frame line. */
-.cover--frame-single.cover--header-rule::before,
-.cover--frame-shaded.cover--header-rule::before,
-.cover--frame-accent.cover--header-rule::before {
-  top: 14mm;
-  left: 21mm;
-  right: 21mm;
-}
-.cover--frame-single.cover--header-rule .cv-top,
-.cover--frame-shaded.cover--header-rule .cv-top,
-.cover--frame-accent.cover--header-rule .cv-top { margin-top: 11mm; }
 
 .cover--center .cv-body { align-items: center; text-align: center; }
 .cover--center .cv-guide { margin-left: auto; margin-right: auto; }
