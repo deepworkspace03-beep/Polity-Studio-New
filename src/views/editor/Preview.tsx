@@ -18,6 +18,30 @@ const FLOW_DEBOUNCE = 200;
 const PAGED_DEBOUNCE = 1200;
 const CURSOR_DEBOUNCE = 120;
 
+/** The reader's preferred Pages-view zoom, remembered across documents and
+    sessions. Fit-width is the sane default (auto-fills the pane and follows
+    pane resizes); once the reader picks an explicit zoom it is kept until
+    they change it again. Stored as "fit-width" | "fit-page" | a number. */
+const ZOOM_PREF_KEY = "ps2:preview:zoom";
+function loadZoomPref(): ZoomMode | number | null {
+  try {
+    const raw = localStorage.getItem(ZOOM_PREF_KEY);
+    if (!raw) return null;
+    if (raw === "fit-width" || raw === "fit-page") return raw;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+function saveZoomPref(v: ZoomMode | number) {
+  try {
+    localStorage.setItem(ZOOM_PREF_KEY, String(v));
+  } catch {
+    /* private mode */
+  }
+}
+
 /**
  * Live preview — the central workspace.
  *
@@ -114,8 +138,9 @@ export function Preview({
   // the reader kept typing while Paged.js was laying out.
   const builtForRef = useRef<{ body: string; factKey: string } | null>(null);
   // The zoom the reader last chose — reapplied after every repagination
-  // rebuild, which otherwise silently reset it back to fit-width.
-  const zoomCmdRef = useRef<ZoomMode | number | null>(null);
+  // rebuild (which otherwise silently reset it to fit-width) and seeded from
+  // the persisted preference so it survives reloads and new documents.
+  const zoomCmdRef = useRef<ZoomMode | number | null>(loadZoomPref());
   // Snapshot of zoomCmdRef taken right before a rebuild, consumed once on
   // that rebuild's paged-done. A fresh iframe announces its own default
   // zoom before paged-done fires, which would clobber zoomCmdRef itself —
@@ -243,7 +268,11 @@ export function Preview({
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
         setZoom(d.zoom);
         const nextMode: ZoomMode = d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom";
-        zoomCmdRef.current = nextMode === "custom" ? d.zoom : nextMode;
+        const pref = nextMode === "custom" ? d.zoom : nextMode;
+        // Only persist a genuine change — the harness re-posts fit-width on
+        // every pane-resize frame, which would otherwise spam localStorage.
+        if (pref !== zoomCmdRef.current) saveZoomPref(pref);
+        zoomCmdRef.current = pref;
       } else if (d.type === "edit-focus") {
         editingRef.current = true;
       } else if (d.type === "edit-blur") {
@@ -394,6 +423,10 @@ export function Preview({
         />
         <ScrollJump
           pct={previewPct}
+          // The paged view sits on a dark desk; the flow view sits on the
+          // document's own reading paper — so the arrows follow that, not the
+          // app theme, and stay legible in every combination.
+          tone={isPages || isDark ? "onDark" : "onLight"}
           atTop={isPages ? current <= 1 : flowEdge.top}
           atBottom={isPages ? !!pages && current >= pages : flowEdge.bottom}
           onTop={() => jumpPreview(0)}

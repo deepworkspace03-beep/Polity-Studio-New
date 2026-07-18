@@ -27,6 +27,14 @@ import { Icon } from "../../components/Icon";
 const NEAR_TOP = 0.06;
 const NEAR_BOTTOM = 0.94;
 
+/** Which background the buttons sit over, so their disc + chevron keep
+    sufficient contrast in every theme combination (Studio light/dark ×
+    document/paged-desk light/dark). "app" follows the app-theme tokens (the
+    editor pane); "onLight"/"onDark" are fixed to read on a light or dark
+    surface regardless of the app theme (the preview, which overlays the
+    document's own reading theme or the dark paged desk). */
+export type ScrollJumpTone = "app" | "onLight" | "onDark";
+
 export function ScrollJump({
   pct,
   onTop,
@@ -35,6 +43,7 @@ export function ScrollJump({
   atTop,
   atBottom,
   side = "right",
+  tone = "app",
   className,
 }: {
   pct: number;
@@ -47,6 +56,7 @@ export function ScrollJump({
   atTop?: boolean;
   atBottom?: boolean;
   side?: "left" | "right";
+  tone?: ScrollJumpTone;
   className?: string;
 }) {
   const isTop = atTop ?? pct <= NEAR_TOP;
@@ -64,11 +74,20 @@ export function ScrollJump({
         className,
       )}
     >
-      <JumpButton show={showTop} icon="chevronUp" label="Go to top" dir={-1} onClick={onTop} onNudge={onNudge} />
-      <JumpButton show={showBottom} icon="chevronDown" label="Go to bottom" dir={1} onClick={onBottom} onNudge={onNudge} />
+      <JumpButton show={showTop} icon="chevronUp" label="Go to top" dir={-1} tone={tone} onClick={onTop} onNudge={onNudge} />
+      <JumpButton show={showBottom} icon="chevronDown" label="Go to bottom" dir={1} tone={tone} onClick={onBottom} onNudge={onNudge} />
     </div>
   );
 }
+
+/** Per-tone disc + chevron styling. Each keeps a clear, WCAG-comfortable
+    contrast against its background while staying a light, unobtrusive
+    affordance (a soft disc, no hard border). */
+const TONE_CLASS: Record<ScrollJumpTone, string> = {
+  app: "bg-raised/90 text-ink-2 ring-1 ring-edge/70 hover:text-accent hover:ring-accent/40",
+  onLight: "bg-black/[0.06] text-black/55 ring-1 ring-black/10 hover:bg-black/12 hover:text-black/80",
+  onDark: "bg-white/15 text-white/85 ring-1 ring-white/15 hover:bg-white/25 hover:text-white",
+};
 
 /** Deliberately featherweight: a bare chevron on a barely-there disc —
     no border, no shadow — so it reads as an affordance, never as chrome
@@ -78,6 +97,7 @@ function JumpButton({
   icon,
   label,
   dir,
+  tone,
   onClick,
   onNudge,
 }: {
@@ -85,6 +105,7 @@ function JumpButton({
   icon: "chevronUp" | "chevronDown";
   label: string;
   dir: -1 | 1;
+  tone: ScrollJumpTone;
   onClick: () => void;
   onNudge?: (dir: -1 | 1) => void;
 }) {
@@ -150,8 +171,9 @@ function JumpButton({
       onPointerLeave={() => stop()}
       onPointerCancel={() => stop()}
       className={cx(
-        "flex h-6 w-6 touch-none items-center justify-center rounded-full bg-surface/45 text-faint/80 backdrop-blur-[2px] transition-opacity duration-300 hover:bg-surface/80 hover:text-accent",
-        show ? "pointer-events-auto opacity-70 hover:opacity-100" : "pointer-events-none opacity-0",
+        "flex h-6 w-6 touch-none items-center justify-center rounded-full backdrop-blur-[2px] transition-[opacity,color,background-color] duration-300",
+        TONE_CLASS[tone],
+        show ? "pointer-events-auto opacity-90 hover:opacity-100" : "pointer-events-none opacity-0",
       )}
     >
       <Icon name={icon} size={14} />
