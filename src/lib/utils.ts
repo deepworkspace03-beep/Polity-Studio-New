@@ -1,3 +1,28 @@
+import type { Doc, LibrarySort } from "./types";
+
+/** Orders a document list for the Library. `size` sorts on body length
+    (the document's raw source size — the honest "how big is this" proxy,
+    since exported PDFs are never stored); `name` is natural/numeric-aware
+    and case-insensitive. Pure and stable-input, so it's unit-tested. */
+export function sortDocs(docs: Doc[], sort: LibrarySort): Doc[] {
+  const dash = sort.lastIndexOf("-");
+  const field = sort.slice(0, dash);
+  const sign = sort.slice(dash + 1) === "asc" ? 1 : -1;
+  const cmp = (a: Doc, b: Doc): number => {
+    switch (field) {
+      case "created":
+        return a.createdAt - b.createdAt;
+      case "name":
+        return (a.title || "Untitled").localeCompare(b.title || "Untitled", undefined, { numeric: true, sensitivity: "base" });
+      case "size":
+        return a.body.length - b.body.length;
+      default: // modified
+        return a.updatedAt - b.updatedAt;
+    }
+  };
+  return [...docs].sort((a, b) => sign * cmp(a, b));
+}
+
 export function uid(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()

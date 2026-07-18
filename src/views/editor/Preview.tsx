@@ -343,7 +343,7 @@ export function Preview({
             title={pagesExact ? "Exact pages — from the latest full layout" : "Estimated position — exact pages appear in the Pages view"}
           >
             {flowTotal ? (
-              <><span className="font-semibold">{pagesExact ? "" : "≈ "}Page {flowPage} / {flowTotal}</span> <span className="text-faint">· {flowPercent}%</span></>
+              <><span className="font-semibold">Page {flowPage} / {pagesExact ? "" : "≈"}{flowTotal}</span> <span className="text-faint">· {flowPercent}%</span></>
             ) : (
               <span className="text-faint">Live preview · tap a title to edit</span>
             )}

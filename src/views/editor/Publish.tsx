@@ -66,16 +66,21 @@ export function Publish({
   brand,
   settings,
   estimatedPages,
+  pagesExact,
   onPagesKnown,
   onClose,
 }: {
   doc: Doc;
   brand: BrandConfig;
   settings: Settings;
-  /** The workspace's current page estimate (authority chain) — used only
-      to give the typesetting phase an honest "≈" progress bar before the
-      real count exists. */
+  /** The workspace's current page count (authority chain) — drives the
+      typesetting phase's progress bar and ETA before this overlay's own
+      layout completes. */
   estimatedPages?: number;
+  /** True when `estimatedPages` is an exact count carried over from a
+      completed Pages-mode / Publish layout of this exact body + geometry:
+      the typesetting bar can then trust the number and drop the "≈". */
+  pagesExact?: boolean;
   /** Reports the completed layout so the editor's page readouts adopt
       the exact count (see Editor.tsx's page-count authority chain). */
   onPagesKnown?: (pages: number, body: string, factKey: string) => void;
@@ -103,6 +108,9 @@ export function Publish({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  // An exact count carried over from Pages mode needs no "≈" prefix.
+  const approx = pagesExact ? "" : "≈";
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
 
@@ -210,7 +218,7 @@ export function Publish({
           <p className="truncate text-xs tabular-nums text-faint">
             {phase === "layout"
               ? layoutPages > 0
-                ? `Typesetting pages… ${layoutPages}${estimatedPages ? ` / ≈${estimatedPages}` : ""}`
+                ? `Typesetting pages… ${layoutPages}${estimatedPages ? ` / ${approx}${estimatedPages}` : ""}`
                 : "Typesetting pages…"
               : phase === "exporting"
                 ? exportProg.stage === "pages" && exportProg.total
@@ -286,7 +294,7 @@ export function Publish({
                 {layoutPages > 0 ? (
                   <>
                     Page {layoutPages}
-                    {estimatedPages ? ` of ≈${estimatedPages} · ≈${Math.min(99, Math.round((layoutPages / estimatedPages) * 100))}%` : ""}
+                    {estimatedPages ? ` of ${approx}${estimatedPages} · ${approx}${Math.min(99, Math.round((layoutPages / estimatedPages) * 100))}%` : ""}
                   </>
                 ) : (
                   "Preparing the layout engine…"

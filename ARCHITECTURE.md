@@ -156,10 +156,14 @@ src/
 │                        imports before they become a document or an
 │                        insert) — the latter two mounted once in App
 └─ views/
-   ├─ Library.tsx        home: hero, document grid (starred favourites
-   │                     quick-access row, latest-modified/first-created
-   │                     sorting), search, templates, Examples, theme
-   │                     toggle (no persistent nav chrome)
+   ├─ Library.tsx        home: the daily workspace — document grid with
+   │                     scan-at-a-glance card metadata (≈final pages,
+   │                     type-specific unit — chapters/questions/sections,
+   │                     word count, edited time), starred favourites
+   │                     quick-access row, full field+direction sorting
+   │                     (modified/created/name/size via `sortDocs`),
+   │                     search, type filter, templates, Examples, theme
+   │                     toggle (no greeting/hero, no persistent nav chrome)
    ├─ Editor.tsx         header, three resizable panes (settings pane ·
    │                     editor · preview), mobile write/preview tabs,
    │                     focus mode (hides toolbar + settings pane)
@@ -191,6 +195,23 @@ Publish PDF
 If pagination fails on unusual content, Publish offers a simplified
 continuous-layout export (browser print) as a fallback; the engine also
 falls back to print if transcription throws.
+
+**On pipeline reuse (why the PDF is not a third pagination).** The export
+does *not* re-paginate: `exportPaginatedPdf` transcribes the Publish
+overlay's already-laid-out DOM — the layout is computed once inside
+Publish and read straight into the PDF. The one place a document can be
+laid out twice is Pages-preview → Publish: they are **separate iframes**,
+and the export contract ("what you approve is what you download") is why
+Publish owns its own review surface. Sharing a single layout between the
+in-pane Pages preview and the full-screen Publish overlay is blocked at
+the platform level — moving/reparenting an `<iframe>` in the DOM reloads
+it in every browser, discarding the Paged.js layout — so it cannot be
+done without re-running pagination anyway. The cost is bounded (one extra
+layout, and only when the reader visited Pages first), and what *is*
+reused is the result that matters: the exact page count carries from the
+Pages layout into Publish's progress bar (see the authority chain above).
+Chunked/virtualized pagination — the lever that would make the layout
+itself incremental — remains the roadmap item in `docs/performance.md`.
 
 ## Inline editing
 
@@ -313,17 +334,32 @@ chain (`Editor.tsx`): the **exact** count from the last completed layout
 are unchanged → a **calibrated** count (last exact × word ratio) while
 only the body has changed → the structural **heuristic**
 (`estimatePages`, `lib/utils.ts`) when nothing has paginated yet.
-Only the non-exact tiers are prefixed "≈". The heuristic has two models:
-prose (words-per-page plus grounded per-element costs for headings, list
-items, callouts and chapter breaks — verified within ±2% on real layouts
-at 79/193/384 pages; the words-only model ran ~23% short on structured
-notes) and — for Question Banks — a card model (per-question fixed cost
-+ word flow) calibrated against real Paged.js layouts, because cards
-carry layout cost no words-per-page constant can see (the words-only
-model ran ~50% short). Absolute page counts can differ a few percent
-between browser engine versions (text shaping); the exact and calibrated
-tiers absorb that automatically because they come from real layouts on
-the reader's own browser.
+Only the non-exact tiers carry an "≈", and it is attached to the
+**total** — "Page 12 / ≈480" — not the whole readout, because the current
+position is the reader's real scroll spot; only the total is estimated.
+The heuristic has two models: prose (words-per-page plus grounded
+per-element costs for headings, list items, callouts and chapter
+breaks — verified within ±0.5% on real layouts at 79/193/384/766 pages;
+the words-only model ran ~23% short on structured notes) and — for
+Question Banks — a card model (per-question fixed cost + word flow)
+calibrated against real Paged.js layouts, because cards carry layout cost
+no words-per-page constant can see (the words-only model ran ~50% short).
+
+The prose model is remarkably tight on uniformly-structured notes (±0.5%
+at up to 766 pages, re-measured against the stress corpora), so a larger
+gap in the wild — the "flow said ≈1005, PDF is 927" screenshot — is not a
+model defect but the inherent ±10% floor of *any* pre-layout heuristic on
+content that packs **better** than a static model assumes: long open-box
+solutions and dense short callouts fill trailing whitespace the estimate
+can't foresee (the `qb-300-long` corpus shows the same +9.7% for exactly
+this reason). Tuning the constants to chase such a case would regress the
+verified ±0.5% notes; the right response is the estimate label, not a
+recalibration. Absolute page counts also differ a few percent between
+browser engine versions (text shaping); the exact and calibrated tiers
+absorb both automatically because they come from real layouts on the
+reader's own browser. Once any layout runs (Pages or Publish), the exact
+count flows workspace-wide — including into Publish's typesetting progress
+bar, which then drops the "≈" and gives a trustworthy ETA.
 
 ## Internal PDF navigation
 
