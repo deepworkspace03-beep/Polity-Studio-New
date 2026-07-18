@@ -4,7 +4,7 @@ import type { Doc, DocLayout } from "./types";
 
 const LAYOUT: DocLayout = {
   cover: true,
-  coverStyle: "regal",
+  coverStyle: "meridian",
   toc: true,
   watermark: true,
   pageSize: "a4",

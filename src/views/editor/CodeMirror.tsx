@@ -143,9 +143,6 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   const onImageFilesRef = useRef(onImageFiles);
   const onFindRef = useRef(onFind);
   const onScrollFractionRef = useRef(onScrollFraction);
-  // Timestamp of the last cursor/doc change — lets scroll-sync defer to the
-  // precise cursor→preview sync while the author is actively editing.
-  const lastCursorTsRef = useRef(0);
   onChangeRef.current = onChange;
   onCursorRef.current = onCursorLine;
   onSaveRef.current = onSaveShortcut;
@@ -227,7 +224,6 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
               setRevision((r) => r + 1); // refresh the custom scrollbar geometry
             }
             if (u.selectionSet || u.docChanged) {
-              lastCursorTsRef.current = performance.now();
               onCursorRef.current?.(u.state.doc.lineAt(u.state.selection.main.head).number);
             }
           }),
@@ -238,35 +234,17 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
     view.scrollDOM.id = "editor-scroller";
     setScroller(view.scrollDOM);
 
-    // Report scroll position (0–1) so the host can keep the preview at the
-    // same document position — throttled to one report per frame, and only
-    // when it actually moved, so it stays cheap on a long document. When the
-    // scroll was caused by typing or a cursor jump (which auto-scrolls to
-    // keep the caret visible), the more precise cursor→preview line sync
-    // already handles it, so the coarser fraction sync stands down to avoid
-    // the two fighting over the preview's scroll position.
-    let scrollRaf = 0;
-    let lastPct = -1;
-    const reportScroll = () => {
-      scrollRaf = 0;
-      if (performance.now() - lastCursorTsRef.current < 250) return;
-      const el = view.scrollDOM;
-      const max = el.scrollHeight - el.clientHeight;
-      const pct = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0;
-      if (Math.abs(pct - lastPct) < 0.004) return;
-      lastPct = pct;
-      onScrollFractionRef.current?.(pct);
-    };
-    const onScroll = () => {
-      if (!scrollRaf) scrollRaf = requestAnimationFrame(reportScroll);
-    };
-    view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
+    // Manual wheel/touch/keyboard scrolling of the editor deliberately does
+    // NOT drive the preview — reading one pane must never disturb the other
+    // (and on a 500-page note a scroll listener firing preview posts every
+    // frame is pure wasted work). Editor → preview sync happens only on
+    // *intentional* requests: clicking to place the cursor (handled by the
+    // cursor-line sync above) and dragging the shared scrollbar (which calls
+    // onScrollFraction directly, see EditorScrollbar).
 
     return () => {
       viewRef.current = null;
       setScroller(null);
-      view.scrollDOM.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(scrollRaf);
       view.destroy();
     };
     // The view owns the document after mount; external value changes are
@@ -301,7 +279,7 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
   return (
     <div className="relative h-full min-h-0">
       <div ref={hostRef} className="h-full min-h-0" />
-      <EditorScrollbar scroller={scroller} revision={revision} estimatedPages={estimatedPages} pagesExact={pagesExact} />
+      <EditorScrollbar scroller={scroller} revision={revision} estimatedPages={estimatedPages} pagesExact={pagesExact} onSyncScroll={(pct) => onScrollFractionRef.current?.(pct)} />
       {IS_COARSE_POINTER && (
         <button
           type="button"

@@ -215,6 +215,9 @@ export const HARNESS_JS = String.raw`(function () {
       }
       window.scrollTo(0, start + Math.max(0, Math.min(1, d.pct)) * (max - start));
     }
+    else if (d.type === "scroll-nudge" && (d.dir === 1 || d.dir === -1)) {
+      window.scrollBy(0, d.dir * window.innerHeight * 0.055);
+    }
     else if (d.type === "print") {
       // Print at 1:1 — the preview zoom must not scale the paper.
       var pages = document.querySelector(".pagedjs_pages");
@@ -580,6 +583,9 @@ export const PREVIEW_JS = String.raw`(function () {
         if (first) start = Math.max(0, Math.min(max, first.getBoundingClientRect().top + window.scrollY - 12));
       }
       window.scrollTo(0, start + Math.max(0, Math.min(1, d.pct)) * (max - start));
+    } else if (d.type === "scroll-nudge" && (d.dir === 1 || d.dir === -1)) {
+      // Held Go-Top/Bottom — a small per-frame step for a smooth glide.
+      window.scrollBy(0, d.dir * window.innerHeight * 0.055);
     }
   });
 
@@ -591,7 +597,12 @@ export const PREVIEW_JS = String.raw`(function () {
     var doc = document.documentElement;
     var max = doc.scrollHeight - doc.clientHeight;
     var pct = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
-    try { parent.postMessage({ type: "flow-scroll", pct: pct }, "*"); } catch (e) {}
+    // Viewport-aware near-edge flags — a screen from each end, not a fixed
+    // fraction of a possibly-enormous document.
+    var edge = Math.max(120, doc.clientHeight * 0.6);
+    var atTop = window.scrollY <= edge;
+    var atBottom = max - window.scrollY <= edge;
+    try { parent.postMessage({ type: "flow-scroll", pct: pct, atTop: atTop, atBottom: atBottom }, "*"); } catch (e) {}
   }
   window.addEventListener("scroll", function () {
     if (scrollTick) return;

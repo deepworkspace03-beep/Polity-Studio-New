@@ -37,7 +37,7 @@ function baseDoc(partial: Partial<Doc> = {}): Doc {
 describe("buildDocumentHtml", () => {
   it("includes a cover section when layout.cover is true", () => {
     const html = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow" });
-    expect(html).toContain('class="cover cover--regal"');
+    expect(html).toContain('class="cover cover--meridian"');
     expect(html).toContain("Test Document");
   });
 
@@ -113,7 +113,7 @@ describe("buildDocumentHtml", () => {
           angle: 160,
           ink: "#f5f2ea",
           accent: "#c9bc9e",
-          pattern: "grid",
+          pattern: "geometry",
           patternOpacity: 0.05,
           titleFont: "serif",
           titleScale: 1,
@@ -139,7 +139,7 @@ describe("buildDocumentHtml", () => {
           angle: 160,
           ink: "#f5f2ea",
           accent: "#c9bc9e",
-          pattern: "grid",
+          pattern: "geometry",
           patternOpacity: 0.05,
           titleFont: "serif",
           titleScale: 999,
@@ -165,7 +165,7 @@ describe("buildDocumentHtml", () => {
           angle: 160,
           ink: "#f5f2ea",
           accent: "#c9bc9e",
-          pattern: "grid",
+          pattern: "geometry",
           patternOpacity: 0.05,
           titleFont: "serif",
           titleScale: 1,
@@ -185,12 +185,21 @@ describe("buildDocumentHtml", () => {
 
   it("emits frameStyle and titleBox classes, sanitizing junk values", () => {
     const styled = buildDocumentHtml(
-      customCoverDoc({ frameStyle: "double", titleBox: "premium" }),
+      customCoverDoc({ frameStyle: "shaded", titleBox: "premium" }),
       DEFAULT_BRAND,
       { mode: "flow" },
     );
-    expect(styled).toContain("cover--frame-double");
+    expect(styled).toContain("cover--frame-shaded");
     expect(styled).toContain("cover--tbox-premium");
+
+    // Legacy "double" frames migrate to the premium "shaded" frame.
+    const legacy = buildDocumentHtml(
+      customCoverDoc({ frameStyle: "double" as never }),
+      DEFAULT_BRAND,
+      { mode: "flow" },
+    );
+    expect(legacy).toContain("cover--frame-shaded");
+    expect(legacy).not.toContain("cover--frame-double");
 
     const junk = buildDocumentHtml(
       customCoverDoc({
@@ -205,7 +214,7 @@ describe("buildDocumentHtml", () => {
   });
 
   it("renders the new cover patterns as inline SVG", () => {
-    for (const pattern of ["waves", "mesh", "geometry"] as const) {
+    for (const pattern of ["geometry", "abstract", "globe"] as const) {
       const html = buildDocumentHtml(customCoverDoc({ pattern }), DEFAULT_BRAND, { mode: "flow" });
       expect(html).toContain('class="cv-pattern"');
     }

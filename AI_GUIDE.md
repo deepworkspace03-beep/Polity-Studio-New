@@ -211,6 +211,30 @@ scripted Playwright pass if you want it automated for one session.
   When testing/inspecting editor content externally, read
   `document.querySelector(".cm-content").innerText` — note it renders
   each blank line as an extra `\n`.
+- **Never smooth-scroll a virtualised scroller to `scrollHeight`.** A
+  500-page note gives CodeMirror a ~700k px `scrollHeight`;
+  `scrollTo({behavior:"smooth"})` caps its velocity and CM re-measures line
+  heights as it goes, so the animation stalls at ~1% — the "first-click
+  hang". Go-to-Top/Bottom set `scrollTop` directly (instant), re-asserting
+  the bottom across a couple of frames because `scrollHeight` grows as lower
+  lines render. Any large-document jump must be verified against a real
+  500+ page body, not a small fixture — the failure only appears at scale.
+- **Editor→preview sync is intentional-only.** Don't re-add a passive
+  `scroll`→`onScrollFraction` listener to `CodeMirror`; manual scrolling is
+  meant to be independent, and on a large document a per-frame preview post
+  is pure waste. Sync flows only from cursor placement (`onCursorLine` →
+  `scroll-to-line`) and the `EditorScrollbar` drag (`onSyncScroll` →
+  `scroll-to-pct`, `body`-mapped). See ARCHITECTURE.md § Editor ⇄ preview.
+- **Overlay controls that sit over an iframe need a background-aware tone.**
+  The preview's `ScrollJump` overlays the *document* reading theme (flow) or
+  the dark paged desk (pages), not the app theme — so it takes a `tone`
+  (`onLight`/`onDark`) rather than app-theme tokens, or it washes out in
+  half the Studio-light/dark × document-light/dark combinations.
+- **Field hints are an on-demand affordance, not a caption.** `Field`
+  (`components/ui.tsx`) renders its `hint` through `HintInfo` (a small ⓘ with
+  hover `title` + touch long-press bubble), which keeps the Settings pane
+  short. Put the `HintInfo` trigger inside the `<label>` only with
+  `preventDefault` on press so revealing the hint never focuses the field.
 
 ## Extension points (checklist)
 
@@ -224,7 +248,16 @@ reasoning; this is the quick-reference version:
 - **New cover style** → `.cover--<id>` in `pdf/styles/covers.css` +
   `COVER_PATTERNS` in `pdf/document.ts` + `COVER_STYLES` in
   `views/editor/Details.tsx`. Retiring one → add to `LEGACY_COVERS`
-  in `lib/store.ts`.
+  in `lib/store.ts` (and fix any test/starter that names the old id;
+  `document.test.ts` and `search.test.ts` assert on the default style).
+  The three shipping presets (Meridian/Aurora/Eclipse) each bake in their
+  own hairline frame + shade so "premium" needs no extra toggles.
+- **New cover pattern** → add the kind to `CoverPattern` (`lib/types.ts`)
+  and the exposed `PATTERN_OPTIONS` (`Details.tsx`), a branch in
+  `coverPatternSvg` (`brand/marks.ts`), and — if it can be a preset default
+  — `CoverPatternKind`. `resolveDesign` validates `pattern` against a
+  `PATTERNS` set and coerces anything unknown (including retired kinds) to
+  `geometry`, so trimming the set never crashes a stored design.
 - **New callout type** → one entry in `CALLOUTS` (`markdown/renderer.ts`)
   + a `.callout--<type>` rule in `pdf/styles/print-base.css`.
 - **New toolbar action** → a command in `views/editor/commands.ts` +

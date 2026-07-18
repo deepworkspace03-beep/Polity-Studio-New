@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.4.0";
+const STUDIO_VERSION = "4.6.0";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -365,7 +365,7 @@ ${UNIVERSAL_PROMPT}
 - The toolbar keeps everyday tools visible; the More (⋯) menu holds the rest (text styles, tables, page breaks, whole-document copy/cut/paste/replace). Every action in More has a pin toggle — Pin to Toolbar / Remove from Toolbar — so you can build your own always-visible bar; the layout is remembered per browser.
 - On touch devices, the editor starts keyboard-free: tapping to place the cursor, selecting text and toolbar formatting all leave the on-screen keyboard closed. Tap the "Tap to type" pill in the editor's bottom-left corner to switch into typing mode (opens the keyboard) and back out again.
 - The toolbar is selection-aware: with text selected, a callout or the code block wraps the selected text, headings/lists/quote transform the selected lines, inline styles wrap the exact selection, and the clipboard paste replaces it. With nothing selected the same buttons insert their usual templates.
-- Scrolling the editor keeps the preview at the same body position (the generated cover/contents pages don't skew the mapping); small Go-to-Top / Go-to-Bottom buttons fade in on each pane once you've scrolled.
+- Editor and preview scroll independently — reading one never disturbs the other. To sync them on purpose, click a line in the editor (or the preview) to place the cursor there, or drag the editor's scrollbar; the preview maps to the same body position (the generated cover/contents pages don't skew it). Small Go-to-Top / Go-to-Bottom buttons fade in on each pane once you've scrolled — a single tap jumps instantly to the end, press-and-hold glides smoothly.
 - Editing a Publication or Cover field peeks the preview at the cover, then returns to where you were.
 - Inserting or tapping an image shows a toolbar for its layout (left/center/right/full), size, spacing, border, rounded corners, shadow and caption — the same controls appear right in the Flow preview, updating the document live.
 - "Replace with clipboard" (in the More menu) swaps the whole document for the clipboard's text, with a confirmation if the document isn't empty — separate from a normal paste at the cursor.
@@ -395,7 +395,18 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Reliable at any size)`} intro="Very large documents now lay out and export dependably — visibly, responsively, and even with the app in the background.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Workspace refined)`} intro="A calmer, more premium three-pane workspace — a cleaner cover system, a shorter Settings panel, and navigation that stays instant at any document size.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>A refreshed cover system</b> — three premium publication-quality presets (Meridian, Aurora, Eclipse), each with an elegant built-in border and subtle depth. Design your own in the Cover Designer and <b>Save this design</b> — saved covers then sit right beside the presets for one-tap reuse on any document. Patterns are a short, tasteful set (Geometry, Arcs and a Globe motif). Older Regal/Heritage documents move to Meridian automatically.</li>
+            <li><b>Instant Go-to-Top / Go-to-Bottom</b> — a single tap jumps to the very top or bottom immediately, even in a 1000-page note (it used to crawl and stall). Press and hold to glide smoothly instead.</li>
+            <li><b>Scrolling stays independent</b> — reading one pane no longer drags the other. The preview follows the editor only when you ask it to: click a line to place the cursor, or drag the editor scrollbar. Manual wheel/touch scrolling in either pane is yours alone.</li>
+            <li><b>Remembered zoom</b> — the Pages view auto-fits the width and now remembers the zoom you choose across documents and sessions.</li>
+            <li><b>A shorter Settings panel</b> — field explanations tuck into a small ⓘ you can hover or long-press, so the everyday controls stay close instead of scrolling.</li>
+            <li><b>Legible everywhere</b> — the Go-to-Top / Bottom arrows keep clear contrast in every Studio-light/dark and document-light/dark combination.</li>
+          </ul>
+        </Section>
+
+        <Section title="Version 4.4 — Reliable at any size" intro="Very large documents lay out and export dependably — visibly, responsively, and even with the app in the background.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Large exports always finish</b> — page layout used to pause forever if you switched apps or the screen locked mid-way (the browser suspends the timer it ran on). It now keeps going in the background and speeds back up when you return, so a 1000-page book reliably reaches its PDF.</li>
             <li><b>Live layout progress</b> — Pages and Publish show a running "Laying out pages… N" count, and the app stays responsive while a big document is being typeset. If layout ever genuinely stalls, the Studio recovers the pages already laid out instead of hanging.</li>
@@ -612,7 +623,7 @@ export function Help() {
             <li><b>Customizable toolbar</b> — every action listed in More has its own pin toggle: <b>Pin to Toolbar</b> moves it into the always-visible bar, <b>Remove from Toolbar</b> sends it back to More. Your choices are remembered in this browser and survive a refresh.</li>
             <li><b>Keyboard-free selection on tablets</b> — on a touch device the editor starts in a mode where tapping to place the cursor, selecting text and every toolbar formatting action never pop the on-screen keyboard. When you actually want to type, tap the <b>Tap to type</b> pill in the editor's bottom-left corner. Desktop editing is unchanged.</li>
             <li><b>The toolbar is selection-aware</b> — select text first, then tap a callout (Definition, Important, Tip…) or the code block to wrap the <em>selected text</em> in it; headings, bullet/numbered/check lists and quote transform the selected lines; bold/italic/highlight wrap the exact selection; the clipboard paste button replaces it. With nothing selected the same buttons insert their usual templates.</li>
-            <li><b>Shared navigation</b> — scrolling the editor keeps the preview at the same <em>body</em> position (the generated cover and contents pages don't skew the mapping). Small <b>Go to Top / Go to Bottom</b> buttons fade in on each pane once you've scrolled — each pair scrolls only its own pane. The editor scrollbar and both previews also show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
+            <li><b>Navigation you control</b> — the editor and preview scroll independently, so reading one never disturbs the other. Sync them on purpose by clicking a line in the editor (or the preview) to place the cursor, or by dragging the editor's scrollbar — the preview then maps to the same <em>body</em> position (the generated cover and contents pages don't skew the mapping). Small <b>Go to Top / Go to Bottom</b> buttons fade in on each pane once you've scrolled — a single tap jumps instantly to the end even in a huge document, press-and-hold glides smoothly, and each pair scrolls only its own pane. The editor scrollbar and both previews also show an estimated <em>page X / Y</em> and percentage; the Pages view stays exact.</li>
             <li><b>Replace with clipboard</b> (in the More menu) swaps the entire document for your clipboard's text — asks first if the document isn't empty. Different from a normal paste, which inserts at the cursor.</li>
             <li><b>Download Guide (.md)</b> (top of this page) exports the complete Markdown reference — syntax, document types, AI prompts, common mistakes — as one file, kept in sync with this page.</li>
             <li><b>Ctrl/Cmd+K</b> opens universal search — jump to any document, or run a command (new document, import, theme, backup) from anywhere.</li>
@@ -636,7 +647,7 @@ export function Help() {
         <Section title="The Settings pane, covers & the dark reading theme" intro="The editor's Settings pane (the sliders icon) is organised into four groups: Publication · Cover · Layout & PDF · Advanced.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Publication</b> holds the document's identity — subtitle, exam, paper/unit and author.</li>
-            <li><b>Cover</b> holds everything on the cover page in one place: the brand/institute name, session, edition, the language badge (cover only — it never changes your content), highlight lines, and the cover design. Each preset style accepts optional color overrides; <b>Custom — design your own</b> opens the Cover Designer, previewing live.</li>
+            <li><b>Cover</b> holds everything on the cover page in one place: the brand/institute name, session, edition, the language badge (cover only — it never changes your content), highlight lines, and the cover design. Three premium presets — <b>Meridian</b>, <b>Aurora</b> and <b>Eclipse</b> — each accept optional color overrides; <b>Custom — design your own</b> opens the Cover Designer (colors, a curated pattern, typography, frame and title-box treatments, emblem/logo), previewing live. Use <b>Save this design</b> and your saved covers appear right beside the presets for one-tap reuse on any document.</li>
             <li><b>Layout &amp; PDF</b> covers text density (<b>Ultra</b> · Compact · Comfort · Relaxed — Ultra tightens the whole layout, not just the font, to pack the most onto each page while staying readable), page size, table of contents, watermark, (for Question Banks) the answers &amp; solutions position, and named layout presets.</li>
             <li><b>Advanced</b> holds the document reading theme, the studio-wide PDF colors, and the PDF filename pattern. The full Branding page (names, links, watermark text) stays in Studio Settings.</li>
             <li>The <b>document reading theme</b> (light/dark) renders previews, PDFs and HTML exports on an eye-friendly dark palette that typesets like a professional dark publication — the preview toolbar's sun/moon icon toggles it without leaving the editor. Covers keep their own design.</li>
