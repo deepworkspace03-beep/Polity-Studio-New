@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { contentStats, cx, escapeHtml } from "./utils";
+import { contentStats, cx, escapeHtml, sortDocs } from "./utils";
+import type { Doc } from "./types";
+
+/** Minimal doc for sort tests — only the fields sortDocs reads. */
+function doc(p: { id: string; title?: string; body?: string; createdAt?: number; updatedAt?: number }): Doc {
+  return { id: p.id, title: p.title ?? "", body: p.body ?? "", createdAt: p.createdAt ?? 0, updatedAt: p.updatedAt ?? 0 } as Doc;
+}
 
 describe("cx", () => {
   it("joins truthy class names and skips falsy ones", () => {
@@ -29,6 +35,43 @@ describe("contentStats", () => {
 
   it("estimates at least 1 minute of reading time even for a near-empty body", () => {
     expect(contentStats("hi").readingMinutes).toBe(1);
+  });
+});
+
+describe("sortDocs", () => {
+  const docs = [
+    doc({ id: "a", title: "Banana", body: "xx", createdAt: 100, updatedAt: 300 }),
+    doc({ id: "b", title: "apple", body: "xxxxx", createdAt: 200, updatedAt: 100 }),
+    doc({ id: "c", title: "Cherry 2", body: "x", createdAt: 300, updatedAt: 200 }),
+    doc({ id: "d", title: "Cherry 10", body: "xxx", createdAt: 50, updatedAt: 400 }),
+  ];
+  const ids = (sort: Parameters<typeof sortDocs>[1]) => sortDocs(docs, sort).map((d) => d.id);
+
+  it("orders by modified date in both directions", () => {
+    expect(ids("modified-desc")).toEqual(["d", "a", "c", "b"]);
+    expect(ids("modified-asc")).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("orders by created date in both directions", () => {
+    expect(ids("created-desc")).toEqual(["c", "b", "a", "d"]);
+    expect(ids("created-asc")).toEqual(["d", "a", "b", "c"]);
+  });
+
+  it("orders by name case-insensitively and numeric-aware", () => {
+    // apple < Banana < Cherry 2 < Cherry 10 (natural numeric ordering, not "10" < "2").
+    expect(ids("name-asc")).toEqual(["b", "a", "c", "d"]);
+    expect(ids("name-desc")).toEqual(["d", "c", "a", "b"]);
+  });
+
+  it("orders by source size (body length)", () => {
+    expect(ids("size-desc")).toEqual(["b", "d", "a", "c"]);
+    expect(ids("size-asc")).toEqual(["c", "a", "d", "b"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [...docs];
+    sortDocs(input, "name-asc");
+    expect(input.map((d) => d.id)).toEqual(["a", "b", "c", "d"]);
   });
 });
 

@@ -164,9 +164,18 @@ export interface BrandConfig {
 
 export type UiTheme = "dark" | "light" | "system";
 export type DocTheme = "light" | "dark";
-/** Library ordering — latest-modified first (default) or oldest-created
-    first (reading a course front to back). */
-export type LibrarySort = "modified" | "created";
+/** Library ordering. Each field carries an explicit direction so the
+    control is unambiguous. Legacy stored values "modified"/"created"
+    migrate to "modified-desc"/"created-asc" in lib/store.ts. */
+export type LibrarySort =
+  | "modified-desc" // Latest modified first (default)
+  | "modified-asc" // Oldest modified first
+  | "created-desc" // Latest created first
+  | "created-asc" // Oldest created first (reading a course front to back)
+  | "name-asc" // A → Z
+  | "name-desc" // Z → A
+  | "size-desc" // Largest first
+  | "size-asc"; // Smallest first
 
 export interface Settings {
   theme: UiTheme;

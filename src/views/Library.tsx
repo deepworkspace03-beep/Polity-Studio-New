@@ -1,13 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { navigate } from "../lib/router";
 import { createDoc, deleteDoc, deleteDocs, duplicateDoc, mergeDocs, saveSettings, toggleFavorite, useApp } from "../lib/store";
-import { contentStats, cx, relativeDate } from "../lib/utils";
+import { contentStats, cx, estimatePages, relativeDate, sortDocs } from "../lib/utils";
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import type { DemoDoc } from "../templates/demos";
-import type { LibrarySort, TemplateId } from "../lib/types";
+import type { Doc, LibrarySort, TemplateId } from "../lib/types";
 import { searchDocs } from "../lib/search";
 import { pickAndImportFiles, stageAndReview } from "../components/ImportReview";
-import { Button, DropOverlay, IconButton, Modal, Segmented, useFileDrop, useToast } from "../components/ui";
+import { Button, DropOverlay, IconButton, Modal, useFileDrop, useToast } from "../components/ui";
 import { Icon, TempleMark } from "../components/Icon";
 import { openPalette } from "../components/CommandPalette";
 import { StudioNav } from "../components/StudioNav";
@@ -20,10 +20,38 @@ function TemplateGlyph({ id, className }: { id: TemplateId; className?: string }
   );
 }
 
-function greeting(): string {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+/** A document's scan-at-a-glance facts — the reason a card exists is so
+    you understand the contents without opening it. Type-specific count
+    surfaces the unit that matters for each document type. */
+interface DocMeta {
+  sig: string;
+  words: number;
+  pages: number;
+  unit: string;
+  unitCount: number;
 }
+
+/** Options grouped by field for the sort menu — a native <select> keeps
+    the control compact, accessible and instantly familiar on desktop and
+    tablet alike, with no bespoke popover to maintain. */
+const SORT_GROUPS: { label: string; options: { value: LibrarySort; label: string }[] }[] = [
+  { label: "Modified", options: [
+    { value: "modified-desc", label: "Latest first" },
+    { value: "modified-asc", label: "Oldest first" },
+  ] },
+  { label: "Created", options: [
+    { value: "created-desc", label: "Latest first" },
+    { value: "created-asc", label: "Oldest first" },
+  ] },
+  { label: "Name", options: [
+    { value: "name-asc", label: "A → Z" },
+    { value: "name-desc", label: "Z → A" },
+  ] },
+  { label: "Size", options: [
+    { value: "size-desc", label: "Largest first" },
+    { value: "size-asc", label: "Smallest first" },
+  ] },
+];
 
 export function Library() {
   const { docs, settings } = useApp();
@@ -41,20 +69,45 @@ export function Library() {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   // Content-aware: matches body text as well as title/metadata, ranked.
-  // Search results keep their relevance ranking; otherwise the chosen
-  // sort applies — latest modified first, or first created (oldest
-  // first, reading a course front to back).
+  // Search results keep their relevance ranking (order the query decides);
+  // otherwise the chosen sort applies across all fields + directions.
   const filtered = useMemo(() => {
     const q = query.trim();
     const base = q ? searchDocs(docs, q, 200).map((h) => h.doc) : docs;
     const typed = templateFilter === "all" ? base : base.filter((d) => d.template === templateFilter);
-    if (q) return typed;
-    return [...typed].sort((a, b) =>
-      settings.librarySort === "created" ? a.createdAt - b.createdAt : b.updatedAt - a.updatedAt,
-    );
+    return q ? typed : sortDocs(typed, settings.librarySort);
   }, [docs, query, templateFilter, settings.librarySort]);
 
   const favorites = useMemo(() => docs.filter((d) => d.favorite).sort((a, b) => b.updatedAt - a.updatedAt), [docs]);
+
+  // Card metadata is derived from a full body scan (contentStats +
+  // estimatePages), so it's cached per document and only recomputed when
+  // that document actually changes — keeps the grid smooth while typing a
+  // search or re-sorting a large library. One entry per doc (bounded).
+  const metaCache = useRef(new Map<string, DocMeta>());
+  const metaFor = (doc: Doc): DocMeta => {
+    const l = doc.layout;
+    const sig = `${doc.updatedAt}:${doc.body.length}:${l.density}:${l.cover}:${l.toc}:${doc.template}`;
+    const hit = metaCache.current.get(doc.id);
+    if (hit && hit.sig === sig) return hit;
+    const stats = contentStats(doc.body);
+    const pages = estimatePages(
+      stats,
+      l.density,
+      !!l.cover,
+      !!(TEMPLATE_META[doc.template].hasToc && l.toc && stats.headings > 0),
+      doc.template,
+    );
+    const [unit, unitCount] =
+      doc.template === "questions"
+        ? ["questions", stats.questions]
+        : doc.template === "notes"
+          ? ["chapters", stats.h1s]
+          : ["sections", stats.headings];
+    const meta: DocMeta = { sig, words: stats.words, pages, unit, unitCount };
+    metaCache.current.set(doc.id, meta);
+    return meta;
+  };
 
   // Only worth showing the type filter once the library actually mixes
   // document types — a single-type library has nothing to filter.
@@ -149,35 +202,62 @@ export function Library() {
         <IconButton label="Settings" name="settings" size={18} onClick={() => navigate("settings")} />
       </header>
 
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-[27px]">{greeting()}</h1>
-          <p className="mt-1.5 max-w-md text-sm text-faint">
-            Turn your Markdown into a beautifully branded, exam-ready PDF.
-          </p>
-        </div>
-        <div className="flex flex-none flex-wrap gap-2">
-          <Button icon="upload" onClick={() => pickAndImportFiles(toast, (doc) => navigate({ edit: doc.id }))}>
-            Import
-          </Button>
-          <Button icon="eye" onClick={openExamples}>
-            Examples
-          </Button>
-          <Button variant="primary" icon="plus" onClick={() => setPickerOpen(true)}>
-            New document
-          </Button>
-        </div>
+      {/* The Homepage is a workspace, not a landing page: it opens straight
+          on the documents. A single action row (create/import/examples)
+          sits above the library — no greeting, no promo copy. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <h1 className="mr-auto text-lg font-extrabold tracking-tight">
+          Library
+          {docs.length > 0 && <span className="ml-2 text-sm font-semibold text-faint">{docs.length}</span>}
+        </h1>
+        <Button icon="upload" onClick={() => pickAndImportFiles(toast, (doc) => navigate({ edit: doc.id }))}>
+          Import
+        </Button>
+        <Button icon="eye" onClick={openExamples}>
+          Examples
+        </Button>
+        <Button variant="primary" icon="plus" onClick={() => setPickerOpen(true)}>
+          New document
+        </Button>
       </div>
 
-      {docs.length > 3 && (
-        <div className="relative mb-4">
-          <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search titles, content & metadata…"
-            className="w-full rounded-xl border border-edge bg-surface py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-faint focus:border-accent"
-          />
+      {/* Search + sort share one row so finding and ordering feel like one
+          workflow. Search appears once the library is worth searching. */}
+      {docs.length > 1 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {docs.length > 3 && (
+            <div className="relative min-w-[12rem] flex-1">
+              <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search titles, content & metadata…"
+                className="w-full rounded-xl border border-edge bg-surface py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-faint focus:border-accent"
+              />
+            </div>
+          )}
+          {!query.trim() && (
+            <div className="relative ml-auto flex items-center">
+              <Icon name="sort" size={14} className="pointer-events-none absolute left-2.5 text-faint" />
+              <select
+                aria-label="Sort documents"
+                value={settings.librarySort}
+                onChange={(e) => saveSettings({ librarySort: e.target.value as LibrarySort })}
+                className="cursor-pointer appearance-none rounded-lg border border-edge bg-surface py-2 pl-8 pr-8 text-xs font-semibold text-ink-2 outline-none focus:border-accent"
+              >
+                {SORT_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.options.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {g.label} · {o.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <Icon name="chevronDown" size={14} className="pointer-events-none absolute right-2.5 text-faint" />
+            </div>
+          )}
         </div>
       )}
 
@@ -201,20 +281,6 @@ export function Library() {
             ))}
           </div>
         </section>
-      )}
-
-      {docs.length > 1 && (
-        <div className="mb-4 flex items-center justify-end gap-2" role="group" aria-label="Sort documents">
-          <Segmented
-            size="sm"
-            value={settings.librarySort}
-            onChange={(v: LibrarySort) => saveSettings({ librarySort: v })}
-            options={[
-              { value: "modified", label: "Latest modified", hint: "Most recently edited documents first." },
-              { value: "created", label: "First created", hint: "Oldest documents first — read a course front to back." },
-            ]}
-          />
-        </div>
       )}
 
       {templatesInUse.length > 1 && (
@@ -268,7 +334,7 @@ export function Library() {
       ) : (
         <ul className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((doc) => {
-            const stats = contentStats(doc.body);
+            const meta = metaFor(doc);
             const template = TEMPLATE_META[doc.template];
             const isSelected = selected.has(doc.id);
             return (
@@ -358,8 +424,25 @@ export function Library() {
                     )}
                   </div>
                   <h3 className="truncate text-sm font-bold">{doc.title || "Untitled"}</h3>
-                  <p className="mt-1 text-xs text-faint">
-                    {relativeDate(doc.updatedAt)} · {stats.words.toLocaleString()} words
+                  {/* Scan-at-a-glance facts: the exam-ready size (≈ final
+                      pages), the type-specific unit that matters, and word
+                      count — so the contents are legible without opening. */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-ink-2">
+                    <span className="inline-flex items-center gap-1 tabular-nums" title="Estimated final PDF pages">
+                      <Icon name="file" size={11} className="text-faint" />≈{meta.pages}p
+                    </span>
+                    {meta.unitCount > 0 && (
+                      <span className="tabular-nums text-faint">
+                        {meta.unitCount.toLocaleString()} {meta.unit}
+                      </span>
+                    )}
+                    <span className="tabular-nums text-faint">{meta.words.toLocaleString()} words</span>
+                  </div>
+                  <p
+                    className="mt-1 text-[11px] text-faint"
+                    title={`Created ${new Date(doc.createdAt).toLocaleString()} · Modified ${new Date(doc.updatedAt).toLocaleString()}`}
+                  >
+                    Edited {relativeDate(doc.updatedAt)}
                   </p>
                 </div>
               </li>

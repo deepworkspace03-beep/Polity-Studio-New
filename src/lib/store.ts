@@ -156,9 +156,20 @@ export function normalizeDoc(doc: Doc): Doc {
   return out;
 }
 
+// Legacy library-sort values (pre-directional enum) → their explicit
+// equivalents: "modified" was latest-first, "created" was oldest-first.
+const LEGACY_SORTS: Record<string, Settings["librarySort"]> = {
+  modified: "modified-desc",
+  created: "created-asc",
+};
+
 function normalizeSettings(settings: Settings): Settings {
-  const mapped = LEGACY_COVERS[settings.newDocLayout.coverStyle as string];
-  return mapped ? { ...settings, newDocLayout: { ...settings.newDocLayout, coverStyle: mapped } } : settings;
+  let next = settings;
+  const mappedCover = LEGACY_COVERS[next.newDocLayout.coverStyle as string];
+  if (mappedCover) next = { ...next, newDocLayout: { ...next.newDocLayout, coverStyle: mappedCover } };
+  const mappedSort = LEGACY_SORTS[next.librarySort as string];
+  if (mappedSort) next = { ...next, librarySort: mappedSort };
+  return next;
 }
 
 export async function initStore(): Promise<void> {

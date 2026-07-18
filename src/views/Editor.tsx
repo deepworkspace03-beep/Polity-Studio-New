@@ -609,6 +609,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           brand={brand}
           settings={settings}
           estimatedPages={estPages}
+          pagesExact={pagesExact}
           onPagesKnown={onPagesKnown}
           onClose={() => setPublishOpen(false)}
         />

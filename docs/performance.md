@@ -73,6 +73,50 @@ chunked/virtualized pagination redesign (see Roadmap).
    solution-heavy banks, ~84% on short-card banks (see "Smart
    pagination" for why that gap is intentional).
 
+## v4.5 — page-count clarity + pipeline-reuse audit (Phase 7)
+
+No layout-output changes; this phase measured what was already there and
+fixed how it is communicated.
+
+1. **The estimate is not the bug — the label was.** The reported symptom
+   ("Flow says ≈1005 pages, the PDF is 927") looked like a heuristic
+   defect. Re-running `estimatePages` over the exact stress corpora
+   (deterministic bodies, real counts 79/193/384/766/751/154) shows the
+   prose model is within **±0.5%** at every notes size through 766 pages:
+
+   | Corpus | Estimate | Real | Error |
+   |---|--:|--:|--:|
+   | notes-100 | 79 | 79 | 0.0% |
+   | notes-250 | 194 | 193 | +0.5% |
+   | notes-500 | 385 | 384 | +0.3% |
+   | notes-1000 | 768 | 766 | +0.3% |
+   | qb-1500 | 752 | 751 | +0.1% |
+   | qb-300-long | 169 | 154 | +9.7% |
+
+   The only outlier is `qb-300-long`, and it is the tell: a static
+   pre-layout heuristic **overshoots** on content that packs better than
+   it can foresee — long open-box solutions and dense short callouts fill
+   trailing whitespace the estimate charges full price for. The real-world
+   1005 → 927 gap (+8.4%) is this same ±10% floor, on a callout-heavy
+   notes document. Chasing it by tuning constants would regress the ±0.5%
+   cases; the fix is honest labelling, not recalibration. The workspace
+   readout now attaches the "≈" to the estimated **total** ("Page 12 /
+   ≈480"), not the position, and the exact count — once any layout
+   runs — flows into Publish's typesetting progress bar so it drops the
+   "≈" and gives a trustworthy ETA.
+
+2. **Pipeline-reuse audit: the export is already single-pagination.**
+   `exportPaginatedPdf` transcribes the Publish overlay's laid-out DOM;
+   it does not re-run Paged.js. The only double-layout path is
+   Pages-preview → Publish (separate iframes), and it is bounded (one
+   extra layout, only if the reader opened Pages first). True sharing is
+   blocked at the platform level — reparenting an `<iframe>` reloads it,
+   destroying the Paged.js layout — so the Pages layout cannot be handed
+   to Publish without re-paginating regardless. What *is* reusable and now
+   reused is the exact page count (Pages → Publish progress). The lever
+   that makes the layout itself incremental is still roadmap item 1
+   (chunked/virtualized pagination); nothing cheaper moves it.
+
 ## v4.3 — reliability engineering (Phase 5)
 
 Phase 5 attacked the "large exports hang" class of failures with three
