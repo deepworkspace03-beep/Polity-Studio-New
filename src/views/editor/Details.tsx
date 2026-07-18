@@ -28,17 +28,19 @@ const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: str
    emblem and an optional uploaded logo. The flow preview is the live
    canvas: every change re-renders the cover in place. */
 
+/* Premium, subtle textures first; the plainer geometric rules follow.
+   Elegance over decoration — every option stays a faint vector layer. */
 const PATTERN_OPTIONS: { value: CoverPattern; label: string }[] = [
   { value: "none", label: "None" },
-  { value: "grid", label: "Fine Grid" },
   { value: "dots", label: "Dots" },
-  { value: "lines", label: "Lines" },
-  { value: "waves", label: "Waves" },
-  { value: "mesh", label: "Mesh" },
-  { value: "geometry", label: "Geometry" },
   { value: "rings", label: "Rings" },
-  { value: "weave", label: "Weave" },
-  { value: "abstract", label: "Abstract" },
+  { value: "waves", label: "Waves" },
+  { value: "geometry", label: "Geometry" },
+  { value: "mesh", label: "Mesh" },
+  { value: "abstract", label: "Arcs" },
+  { value: "grid", label: "Graph" },
+  { value: "lines", label: "Ruled" },
+  { value: "weave", label: "Crosshatch" },
 ];
 
 const TITLE_SIZES: { value: string; label: string }[] = [
@@ -267,12 +269,12 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         <Field label="Hairline frame">
           <Segmented
             size="sm"
-            value={design.frameStyle ?? (design.frame ? "single" : "none")}
+            value={(design.frameStyle === ("double" as CoverDesign["frameStyle"]) ? "shaded" : design.frameStyle) ?? (design.frame ? "single" : "none")}
             onChange={(frameStyle) => set({ frameStyle, frame: frameStyle !== "none" })}
             options={[
               { value: "none", label: "None" },
-              { value: "single", label: "Single" },
-              { value: "double", label: "Double" },
+              { value: "single", label: "Hairline" },
+              { value: "shaded", label: "Shaded" },
               { value: "accent", label: "Accent" },
             ]}
           />

@@ -45,6 +45,36 @@ body.mode-flow .cv-guide { font-size: clamp(10pt, 3.8cqw, 16.5pt); }
 body.mode-flow .cv-eyebrow { font-size: clamp(7pt, 2.6cqw, 11pt); }
 body.mode-flow .cv-highlights li { font-size: clamp(8pt, 2.8cqw, 12pt); }
 body.mode-flow .cv-pub__words b { font-size: clamp(9pt, 3.2cqw, 14pt); }
+body.mode-flow .cv-pub__words span { font-size: clamp(6.5pt, 2.3cqw, 9.5pt); }
+
+/* Faithful scaled-down A4: the print layout spends ~90mm of fixed mm
+   spacing vertically, which does NOT scale with the pane — so in a narrow
+   flow pane the A4-ratio box is short while the mm gaps stay large, pushing
+   the footer out of the (overflow:hidden) box. The fonts already scale in
+   cqw; scale the spacing the same way (100cqw = the 210mm cover width, so
+   1mm ≈ 0.476cqw) and the whole cover becomes a proportional thumbnail that
+   never clips. Clamped so a very wide pane keeps print-like generosity. */
+body.mode-flow .cover { padding: clamp(9px, 8.3cqw, 18mm) clamp(9px, 8.1cqw, 17mm) clamp(8px, 7.1cqw, 15mm); }
+body.mode-flow .cv-top { margin-top: clamp(3px, 3.3cqw, 7mm); }
+body.mode-flow .cv-pub { gap: clamp(2px, 1.9cqw, 4mm); }
+body.mode-flow .cv-body { padding: clamp(3px, 3.6cqw, 8mm) 0; }
+body.mode-flow .cv-eyebrow { margin-bottom: clamp(2px, 2.7cqw, 6mm); letter-spacing: 0.18em; }
+body.mode-flow .cv-guide { margin-top: clamp(2px, 2.7cqw, 6mm); }
+body.mode-flow .cv-highlights { margin-top: clamp(4px, 5cqw, 11mm); gap: clamp(1.5px, 1.7cqw, 3.6mm); }
+body.mode-flow .cv-highlights li { padding-left: clamp(9px, 4.2cqw, 8mm); }
+/* The diamond bullet is positioned/sized in fixed mm; scale it with the
+   pane too or it collides with the (now scaled) text indent. */
+body.mode-flow .cv-highlights li::before {
+  left: 0;
+  top: 0.34em;
+  width: clamp(4px, 1.5cqw, 3.2mm);
+  height: clamp(4px, 1.5cqw, 3.2mm);
+}
+body.mode-flow .cv-emblem { width: clamp(60px, 15cqw, 32mm); }
+body.mode-flow .cv-langs { margin-bottom: clamp(1.5px, 1.9cqw, 4mm); }
+body.mode-flow .cv-foot { padding-top: clamp(2px, 2.4cqw, 5mm); }
+body.mode-flow .cv-session { height: clamp(7px, 5.7cqw, 12mm); font-size: clamp(6pt, 2.4cqw, 10pt); border-radius: clamp(1px, 1.3cqw, 2.8mm); padding: 0 clamp(2px, 1.6cqw, 3.4mm); }
+body.mode-flow .cv-edition { top: clamp(3px, 3.3cqw, 7mm); right: clamp(3px, 3.3cqw, 7mm); height: clamp(6px, 3.8cqw, 8mm); min-width: clamp(6px, 3.8cqw, 8mm); font-size: clamp(6pt, 2.2cqw, 9.5pt); }
 
 /* Full-bleed background layers (the pattern is an inline SVG generated
    per style — vector in print and in the PDF engine). */
@@ -239,16 +269,20 @@ body.mode-paged .cv-guide--empty { display: none; }
    A restrained, library-grade cover: deep navy ground, warm ivory
    type, and one muted metallic tone — no saturated yellow anywhere. */
 .cover--regal {
-  --cv-bg: linear-gradient(160deg, #0d1930 0%, #16294a 58%, #1d3357 100%);
-  --cv-ink: #f5f2ea;
-  --cv-soft: #b9c6da;
-  --cv-accent: #c9bc9e;
-  --cv-line: rgba(201, 188, 158, 0.38);
+  --cv-bg: linear-gradient(163deg, #0a1324 0%, #122240 52%, #1a2e54 100%);
+  --cv-ink: #f6f3ec;
+  --cv-soft: #bcc8dc;
+  --cv-accent: #cdbd96;
+  --cv-line: rgba(205, 189, 150, 0.42);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
   --cv-edition-tx: #142441;
 }
+/* Soft top-left key light + a deep bottom vignette give the flat gradient
+   dimensionality without any raster texture (both are PDF-engine shadings). */
 .cover--regal .cv-shade {
-  background: radial-gradient(130% 90% at 50% -10%, transparent 45%, rgba(5, 11, 24, 0.5));
+  background:
+    radial-gradient(90% 60% at 22% -8%, rgba(214, 226, 245, 0.10), transparent 60%),
+    radial-gradient(130% 92% at 50% 118%, rgba(4, 9, 20, 0.5), transparent 62%);
 }
 
 /* ── 02 · Aurora (brand gradient) ───────────────────────────────── */
@@ -264,38 +298,38 @@ body.mode-paged .cv-guide--empty { display: none; }
 .cover--aurora .cv-shade { background: radial-gradient(120% 80% at 50% 120%, rgba(0, 0, 0, 0.16), transparent 60%); }
 .cover--aurora .cv-edition { background: #ffffff; }
 
-/* ── 03 · Heritage (porcelain academic) ─────────────────────────────
-   A classical university-press cover: warm porcelain ground with a
-   laid-paper texture, oxford-ink typography, an aged-bronze accent and
-   a fine double frame — quiet, bookish, premium. */
+/* ── 03 · Heritage (ivory press) ────────────────────────────────────
+   A clean university-press cover: a warm porcelain ground, oxford-ink
+   typography and an aged-bronze accent, held by a single refined
+   hairline frame with a whisper of inset shading — the busy double rule
+   is gone. Quiet, bookish, unmistakably premium. */
 .cover--heritage {
-  --cv-bg: linear-gradient(168deg, #faf8f2 0%, #f2eee2 100%);
+  --cv-bg: linear-gradient(168deg, #fcfaf4 0%, #f4f0e6 100%);
   --cv-ink: #1a2740;
-  --cv-soft: #55617a;
-  --cv-accent: #8a6d3b;
-  --cv-line: rgba(26, 39, 64, 0.22);
+  --cv-soft: #58647c;
+  --cv-accent: #90713d;
+  --cv-line: rgba(144, 113, 61, 0.5);
   --cv-title-font: "Literata", "Noto Serif Devanagari", serif;
   --cv-edition-tx: #f8f5ec;
   padding: 22mm 21mm 19mm;
 }
-/* The shade layer becomes the outer frame; ::after draws the inner
-   hairline. Real borders, so both print and the PDF engine keep them
-   crisp vector strokes. */
+/* One crisp bronze hairline (the ::after) plus a soft inset vignette on
+   the shade layer for depth — a CSS gradient the PDF engine replays as a
+   shading, so print and preview match. */
 .cover--heritage .cv-shade {
-  background: none;
-  inset: 8mm;
-  border: 1.1pt solid rgba(138, 109, 59, 0.6);
+  background: radial-gradient(138% 112% at 50% 42%, transparent 60%, rgba(26, 39, 64, 0.06) 100%);
+  inset: 9mm;
 }
 .cover--heritage::after {
   content: "";
   position: absolute;
-  inset: 10mm;
-  border: 0.45pt solid rgba(26, 39, 64, 0.34);
+  inset: 9mm;
+  border: 0.6pt solid var(--cv-line);
   pointer-events: none;
   z-index: 0;
 }
 .cover--heritage .cv-edition { background: #1a2740; }
-.cover--heritage .cv-emblem { opacity: 0.1; right: 16mm; bottom: 27mm; }
+.cover--heritage .cv-emblem { opacity: 0.08; right: 16mm; bottom: 27mm; }
 .cover--heritage .cv-highlights li::before { border-radius: 50%; }
 
 /* ── 04 · Eclipse (graphite & gold) ─────────────────────────────────
@@ -337,28 +371,28 @@ body.mode-paged .cv-guide--empty { display: none; }
   max-width: 42mm;
   object-fit: contain;
 }
-/* Hairline frame variants (Cover Designer → Structure). Real borders on
-   real boxes, so print and the PDF engine keep them crisp vector strokes.
-   The double frame borrows heritage's trick: the (background-free) shade
-   layer draws the inner line. */
+/* Hairline frame variants (Cover Designer → Structure). Real borders on a
+   real box (the ::after), so print and the PDF engine keep them crisp
+   vector strokes. "Shaded" adds depth the way a printed cover does — a soft
+   inset vignette on the shade layer (a CSS gradient, which the PDF engine
+   replays as a shading) that fades inward from the frame edge, reading as a
+   gently embossed panel rather than a second hard line. */
 .cover--frame-single::after,
-.cover--frame-double::after,
+.cover--frame-shaded::after,
 .cover--frame-accent::after {
   content: "";
   position: absolute;
-  inset: 9mm;
-  border: 0.6pt solid var(--cv-line);
+  inset: 8.5mm;
+  border: 0.5pt solid var(--cv-line);
   pointer-events: none;
   z-index: 0;
 }
-.cover--frame-double::after { inset: 8mm; border-width: 0.9pt; }
-.cover--frame-double .cv-shade {
-  background: none;
-  inset: 10mm;
-  border: 0.45pt solid var(--cv-line);
+.cover--frame-shaded .cv-shade {
+  background: radial-gradient(140% 116% at 50% 44%, transparent 58%, color-mix(in srgb, var(--cv-ink) 11%, transparent) 100%);
+  inset: 8.5mm;
 }
 .cover--frame-accent::after {
-  border: 0.8pt solid color-mix(in srgb, var(--cv-accent) 72%, transparent);
+  border: 0.7pt solid color-mix(in srgb, var(--cv-accent) 74%, transparent);
 }
 
 /* Title box — an optional publication-style treatment around the eyebrow,
@@ -403,6 +437,19 @@ body.mode-paged .cv-guide--empty { display: none; }
   padding-bottom: 4mm;
   border-bottom: 0.5pt solid var(--cv-line);
 }
+/* Frame + header rule share the top edge — tuck the rule inside the frame
+   (and give the lockup a little more headroom) so the two never sit on top
+   of each other. Also nudge the emblem clear of the frame line. */
+.cover--frame-single.cover--header-rule::before,
+.cover--frame-shaded.cover--header-rule::before,
+.cover--frame-accent.cover--header-rule::before {
+  top: 14mm;
+  left: 21mm;
+  right: 21mm;
+}
+.cover--frame-single.cover--header-rule .cv-top,
+.cover--frame-shaded.cover--header-rule .cv-top,
+.cover--frame-accent.cover--header-rule .cv-top { margin-top: 11mm; }
 
 .cover--center .cv-body { align-items: center; text-align: center; }
 .cover--center .cv-guide { margin-left: auto; margin-right: auto; }

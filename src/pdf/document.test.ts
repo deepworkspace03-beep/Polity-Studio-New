@@ -185,12 +185,21 @@ describe("buildDocumentHtml", () => {
 
   it("emits frameStyle and titleBox classes, sanitizing junk values", () => {
     const styled = buildDocumentHtml(
-      customCoverDoc({ frameStyle: "double", titleBox: "premium" }),
+      customCoverDoc({ frameStyle: "shaded", titleBox: "premium" }),
       DEFAULT_BRAND,
       { mode: "flow" },
     );
-    expect(styled).toContain("cover--frame-double");
+    expect(styled).toContain("cover--frame-shaded");
     expect(styled).toContain("cover--tbox-premium");
+
+    // Legacy "double" frames migrate to the premium "shaded" frame.
+    const legacy = buildDocumentHtml(
+      customCoverDoc({ frameStyle: "double" as never }),
+      DEFAULT_BRAND,
+      { mode: "flow" },
+    );
+    expect(legacy).toContain("cover--frame-shaded");
+    expect(legacy).not.toContain("cover--frame-double");
 
     const junk = buildDocumentHtml(
       customCoverDoc({

@@ -18,8 +18,9 @@ export type CoverPattern =
   | "mesh"
   | "geometry";
 
-/** Hairline frame inset from the page edge (Cover Designer → Structure). */
-export type CoverHairline = "none" | "single" | "double" | "accent";
+/** Hairline frame inset from the page edge (Cover Designer → Structure).
+    Legacy "double" designs migrate to "shaded" on load (resolveDesign). */
+export type CoverHairline = "none" | "single" | "shaded" | "accent";
 
 /** Optional box treatment behind the title block (Cover Designer). */
 export type CoverTitleBox = "none" | "outline" | "filled" | "premium";

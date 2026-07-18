@@ -46,9 +46,9 @@ const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; marg
 /** Vector pattern layer per cover style (SVG so print stays vector).
     "custom" is absent — its pattern comes from the CoverDesign. */
 const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { kind: CoverPatternKind; color: string }> = {
-  regal: { kind: "grid", color: "rgba(245,242,234,0.045)" },
+  regal: { kind: "dots", color: "rgba(245,242,234,0.05)" },
   aurora: { kind: "rings", color: "rgba(255,255,255,0.09)" },
-  heritage: { kind: "lines", color: "rgba(26,39,64,0.07)" },
+  heritage: { kind: "lines", color: "rgba(26,39,64,0.06)" },
   eclipse: { kind: "rings", color: "rgba(211,166,98,0.08)" },
 };
 
@@ -156,7 +156,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha.toFixed(3)})`;
 }
 
-const FRAME_STYLES = new Set<CoverDesign["frameStyle"]>(["none", "single", "double", "accent"]);
+const FRAME_STYLES = new Set<CoverDesign["frameStyle"]>(["none", "single", "shaded", "accent"]);
 const TITLE_BOXES = new Set<CoverDesign["titleBox"]>(["none", "outline", "filled", "premium"]);
 
 /** Sanitized copy of a stored design over the schema defaults. Values land
@@ -176,8 +176,15 @@ function resolveDesign(design: CoverDesign | undefined): CoverDesign {
     patternSize: clampNum(d.patternSize, 0.5, 2.5, 1),
     titleScale: clampNum(d.titleScale, 0.6, 1.5, 1),
     // frameStyle supersedes the legacy boolean — designs saved before it
-    // existed fall back to `frame` (true = the single hairline).
-    frameStyle: FRAME_STYLES.has(d.frameStyle) ? d.frameStyle : d.frame ? "single" : "none",
+    // existed fall back to `frame` (true = the single hairline). The retired
+    // "double" variant migrates to the premium "shaded" frame.
+    frameStyle: FRAME_STYLES.has(d.frameStyle)
+      ? d.frameStyle
+      : (d.frameStyle as string) === "double"
+        ? "shaded"
+        : d.frame
+          ? "single"
+          : "none",
     titleBox: TITLE_BOXES.has(d.titleBox) ? d.titleBox : "none",
     logo: typeof d.logo === "string" && d.logo.startsWith("data:image/") ? d.logo : undefined,
   };

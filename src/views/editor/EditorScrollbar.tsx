@@ -21,7 +21,7 @@ import { ScrollJump } from "./ScrollJump";
  * position — "Page 18 / 46 · 39%" — using a word-count estimate the host
  * computes; the scrollbar itself only maps its scroll fraction onto it.
  */
-export function EditorScrollbar({ scroller, revision, estimatedPages, pagesExact }: { scroller: HTMLElement | null; revision: number; estimatedPages?: number; pagesExact?: boolean }) {
+export function EditorScrollbar({ scroller, revision, estimatedPages, pagesExact, onSyncScroll }: { scroller: HTMLElement | null; revision: number; estimatedPages?: number; pagesExact?: boolean; onSyncScroll?: (pct: number) => void }) {
   const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
   const [pct, setPct] = useState(0);
   const [active, setActive] = useState(false); // dragging or hovering — shows the readout
@@ -71,11 +71,22 @@ export function EditorScrollbar({ scroller, revision, estimatedPages, pagesExact
     drag.current = { pointerId: e.pointerId, startY: e.clientY, startScroll: scroller.scrollTop, range };
     setActive(true);
   };
+  // Dragging (or track-clicking) the scrollbar is an *intentional* position
+  // change — this is the "shared synchronised scrollbar", so it drives the
+  // preview to the same document fraction. Plain wheel/touch scrolling of the
+  // editor deliberately does NOT sync, so reading one pane never disturbs the
+  // other (see CodeMirror — the passive scroll no longer reports a fraction).
+  const syncFromScrollTop = () => {
+    if (!onSyncScroll) return;
+    const ov = scroller.scrollHeight - scroller.clientHeight;
+    onSyncScroll(ov > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / ov)) : 0);
+  };
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d || d.range <= 0) return;
     const delta = e.clientY - d.startY;
     scroller.scrollTop = d.startScroll + (delta / d.range) * overflow;
+    syncFromScrollTop();
   };
   const endDrag = () => {
     drag.current = null;
@@ -87,15 +98,32 @@ export function EditorScrollbar({ scroller, revision, estimatedPages, pagesExact
     const rect = trackRef.current.getBoundingClientRect();
     const y = e.clientY - rect.top - thumb.height / 2;
     scroller.scrollTop = range > 0 ? (Math.max(0, Math.min(range, y)) / range) * overflow : 0;
+    syncFromScrollTop();
   };
+
+  // Go-to-top / bottom: an *instant* jump (never behavior:"smooth", which
+  // stalls near the start on a 700k px virtualized scroller). Re-assert the
+  // bottom across a couple of frames because CodeMirror grows scrollHeight as
+  // it renders the newly-revealed lines, so a single write can land short.
+  const jumpTop = () => scroller.scrollTo({ top: 0 });
+  const jumpBottom = () => {
+    scroller.scrollTop = scroller.scrollHeight;
+    requestAnimationFrame(() => {
+      scroller.scrollTop = scroller.scrollHeight;
+      requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight));
+    });
+  };
+  // Held button → a steady per-frame glide (smooth incremental movement).
+  const nudge = (dir: -1 | 1) => scroller.scrollBy({ top: dir * Math.max(10, scroller.clientHeight * 0.035) });
+  // Viewport-aware visibility: show a button once you're ~a screen from that
+  // end, regardless of how long the document is.
+  const nearEdge = Math.max(120, scroller.clientHeight * 0.6);
+  const atTop = scroller.scrollTop <= nearEdge;
+  const atBottom = overflow - scroller.scrollTop <= nearEdge;
 
   return (
     <>
-    <ScrollJump
-      pct={pct}
-      onTop={() => scroller.scrollTo({ top: 0, behavior: "smooth" })}
-      onBottom={() => scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" })}
-    />
+    <ScrollJump pct={pct} atTop={atTop} atBottom={atBottom} onTop={jumpTop} onBottom={jumpBottom} onNudge={nudge} />
     <div
       ref={trackRef}
       onPointerDown={onTrackPointerDown}

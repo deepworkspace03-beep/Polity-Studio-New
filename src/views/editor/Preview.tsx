@@ -87,6 +87,10 @@ export function Preview({
   const [pages, setPages] = useState<number | null>(null);
   const [current, setCurrent] = useState(1);
   const [flowPct, setFlowPct] = useState(0);
+  // Viewport-aware near-edge flags for the flow view's Go-Top/Bottom buttons
+  // (reported by the harness), so they appear a screen from an end rather
+  // than a fixed fraction of a possibly-enormous document.
+  const [flowEdge, setFlowEdge] = useState({ top: true, bottom: false });
   const [paginating, setPaginating] = useState(false);
   const [layoutPages, setLayoutPages] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -235,6 +239,7 @@ export function Preview({
         setCurrent(d.page);
       } else if (d.type === "flow-scroll" && typeof d.pct === "number") {
         setFlowPct(d.pct);
+        if (typeof d.atTop === "boolean" && typeof d.atBottom === "boolean") setFlowEdge({ top: d.atTop, bottom: d.atBottom });
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
         setZoom(d.zoom);
         const nextMode: ZoomMode = d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom";
@@ -285,6 +290,8 @@ export function Preview({
 
   /** Jump the preview itself to the very top / bottom of the document. */
   const jumpPreview = (pct: number) => post({ type: "scroll-to-pct", pct });
+  /** Held Go-Top/Bottom → a steady per-frame glide inside the iframe. */
+  const nudgePreview = (dir: -1 | 1) => post({ type: "scroll-nudge", dir });
 
   const isPages = mode === "pages";
   const isDark = theme === "dark";
@@ -385,7 +392,14 @@ export function Preview({
           className="h-full w-full border-0 bg-white"
           sandbox="allow-same-origin allow-scripts"
         />
-        <ScrollJump pct={previewPct} onTop={() => jumpPreview(0)} onBottom={() => jumpPreview(1)} />
+        <ScrollJump
+          pct={previewPct}
+          atTop={isPages ? current <= 1 : flowEdge.top}
+          atBottom={isPages ? !!pages && current >= pages : flowEdge.bottom}
+          onTop={() => jumpPreview(0)}
+          onBottom={() => jumpPreview(1)}
+          onNudge={nudgePreview}
+        />
         {selectedImage && (
           <div className="absolute left-1/2 top-2 z-10 flex max-w-[94%] -translate-x-1/2 items-start gap-1 rounded-xl border border-edge bg-surface px-3 py-2 shadow-xl">
             <ImageEditControls

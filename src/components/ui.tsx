@@ -155,12 +155,39 @@ export function IconButton({
 export const inputClass =
   "w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-faint focus:border-accent";
 
+/** On-demand hint affordance — a small info glyph beside a field label that
+    reveals the explanation on hover (desktop `title`) and touch long-press
+    (the shared HintBubble), instead of a permanently-visible caption. This
+    keeps the settings pane short and scannable while the guidance stays one
+    tap away — the same reason icon-only controls use it. */
+export function HintInfo({ text }: { text: string }) {
+  const hint = useLongPressHint();
+  return (
+    <span
+      role="note"
+      aria-label={text}
+      title={text}
+      // Inside a <label>; swallow the activation so revealing the hint never
+      // focuses the field or toggles its control.
+      onClick={(e) => e.preventDefault()}
+      onMouseDown={(e) => e.preventDefault()}
+      className="relative inline-flex cursor-help text-faint/70 hover:text-accent"
+      {...hint.handlers}
+    >
+      <Icon name="help" size={13} />
+      <HintBubble show={hint.show} text={text} />
+    </span>
+  );
+}
+
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-semibold text-ink-2">{label}</span>
+      <span className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-ink-2">
+        {label}
+        {hint && <HintInfo text={hint} />}
+      </span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-faint">{hint}</span>}
     </label>
   );
 }

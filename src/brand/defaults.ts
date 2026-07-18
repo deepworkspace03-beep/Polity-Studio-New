@@ -53,12 +53,12 @@ export const DEFAULT_LAYOUT: DocLayout = {
    the author was using, so the designer never opens on a blank slate. */
 
 export const DEFAULT_COVER_DESIGN: CoverDesign = {
-  bg1: "#0d1930",
-  bg2: "#1d3357",
-  angle: 160,
-  ink: "#f5f2ea",
-  accent: "#c9bc9e",
-  pattern: "grid",
+  bg1: "#0a1324",
+  bg2: "#1a2e54",
+  angle: 163,
+  ink: "#f6f3ec",
+  accent: "#cdbd96",
+  pattern: "dots",
   patternOpacity: 0.05,
   patternDensity: 1,
   patternSize: 1,
@@ -76,7 +76,7 @@ export const DEFAULT_COVER_DESIGN: CoverDesign = {
 export function seedCoverDesign(from: CoverStyle): CoverDesign {
   const seeds: Partial<Record<CoverStyle, Partial<CoverDesign>>> = {
     aurora: { bg1: "#123c93", bg2: "#0a9f80", angle: 158, ink: "#ffffff", accent: "#eafff6", pattern: "rings", patternOpacity: 0.09, titleFont: "sans" },
-    heritage: { bg1: "#faf8f2", bg2: "#f2eee2", angle: 168, ink: "#1a2740", accent: "#8a6d3b", pattern: "lines", patternOpacity: 0.07, frame: true, frameStyle: "double" },
+    heritage: { bg1: "#fcfaf4", bg2: "#f4f0e6", angle: 168, ink: "#1a2740", accent: "#90713d", pattern: "lines", patternOpacity: 0.06, frame: true, frameStyle: "shaded" },
     eclipse: { bg1: "#0c1017", bg2: "#1a2434", angle: 172, ink: "#f0f3f9", accent: "#d3a662", pattern: "rings", patternOpacity: 0.08, frame: true, frameStyle: "accent" },
   };
   return { ...DEFAULT_COVER_DESIGN, ...seeds[from] };
