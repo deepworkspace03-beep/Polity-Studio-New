@@ -222,6 +222,34 @@ fields, headings to their source line in the Markdown (the `#`s are
 preserved). While an element is focused the host pauses content swaps so
 typing is never clobbered.
 
+## Editor ⇄ preview synchronisation
+
+Synchronisation is **intentional-only** — reading one pane never moves the
+other. The preview follows the editor on exactly two deliberate gestures:
+
+- **Cursor placement.** Clicking (or arrowing) in the editor reports the
+  1-based line; `Preview` posts `scroll-to-line`, and each harness picks the
+  nearest sourced `[data-line]` element and brings it into view.
+- **The shared scrollbar.** Dragging (or track-clicking) the editor's fat
+  overlay scrollbar (`EditorScrollbar`) calls `onScrollFraction`, which posts
+  `scroll-to-pct` with a `body` flag so the fraction maps onto the *authored
+  content* only (the generated cover/TOC pages don't skew it).
+
+Plain wheel/touch/keyboard scrolling of the editor is deliberately **not**
+reported (`CodeMirror` no longer has a passive scroll→fraction listener), so
+manual scrolling is independent and a 500-page note doesn't post preview
+updates every frame. Preview → editor is the mirror: clicking a sourced
+element in either preview reports its line and the host moves the cursor.
+
+`ScrollJump` (shared by both panes) is **tap = instant jump, hold = smooth
+glide**: a single click sets `scrollTop` directly (a `behavior:"smooth"` jump
+stalls near the start on a 700k px virtualised editor scroller — the old
+"first-click hang"); press-and-hold runs a per-frame `onNudge`. Button
+visibility is viewport-aware (a screen from an end, reported by the harness),
+not a fixed document fraction, and the arrows carry a `tone` so they stay
+legible over the editor (app theme), the flow paper (document theme) and the
+dark paged desk.
+
 ## Page chrome
 
 - Header — exam/book (left) · running topic (center) · `page / pages`
@@ -239,21 +267,39 @@ typing is never clobbered.
   gets a mapping in `LEGACY_TEMPLATES` (`lib/store.ts`) so stored
   documents and backups migrate on load — that is how the old
   mcq/pyq/flashcards types became Question Bank and Universal.
-- **New cover style** — add a `.cover--<id>` block in
+- **Cover styles.** Three curated premium presets ship — **Meridian**
+  (academic oxford-navy + gold, IR globe motif), **Aurora** (brand
+  gradient) and **Eclipse** (graphite + gold) — plus **custom**. Each
+  preset is a CSS palette with a built-in elegant hairline frame and a
+  vignette/key-light `.cv-shade` (both CSS gradients, so the vector PDF
+  engine replays them as shadings). To add one: a `.cover--<id>` block in
   `pdf/styles/covers.css`, a pattern entry in `COVER_PATTERNS`
   (`pdf/document.ts`) and an entry in the `COVER_STYLES` list in
-  `views/editor/Details.tsx`. Retired ids get a mapping in
-  `LEGACY_COVERS` (`lib/store.ts`) so stored documents migrate.
+  `views/editor/Details.tsx`. Retired ids get a mapping in `LEGACY_COVERS`
+  (`lib/store.ts`) so stored documents migrate (that is how Regal/Heritage
+  fold into Meridian).
+- **Cover patterns** are a small, curated set — `geometry`, `abstract`
+  (arcs) and `globe` (a meridian wireframe) — generated as inline SVG by
+  `coverPatternSvg` (`brand/marks.ts`) so they stay vector in print/PDF.
+  `resolveDesign` (`pdf/document.ts`) coerces any retired pattern id
+  (grid/dots/lines/rings/weave/waves/mesh) to the nearest survivor.
 - **The "custom" cover** is not a CSS palette: it is a full
   per-document design (`CoverDesign` in `lib/types.ts` — gradient,
-  ink/accent, pattern, typography, alignment, frame, emblem, logo)
-  written as inline `--cv-*` variables by `customCoverVars()`
+  ink/accent, pattern, typography, alignment, frame, title-box, emblem,
+  logo) written as inline `--cv-*` variables by `customCoverVars()`
   (`pdf/document.ts`) onto the shared cover skeleton, and edited in
   the Cover Designer (`views/editor/Details.tsx`), seeded from the
-  preset the author was using. Colors from restored backups are
-  sanitized (`resolveDesign`) before they reach the srcdoc. Extend it
-  by adding a field to `CoverDesign`, a control in `CoverDesigner`,
-  and a variable/class in `customCoverVars()` + `covers.css`.
+  preset the author was using. Colors and every enum from restored
+  backups are sanitized (`resolveDesign`) before they reach the srcdoc.
+  Extend it by adding a field to `CoverDesign`, a control in
+  `CoverDesigner`, and a variable/class in `customCoverVars()` +
+  `covers.css`.
+- **Saved cover designs** (`lib/coverDesigns.ts`) are a browser-local
+  library of named `CoverDesign` snapshots — UI convenience, not document
+  data, so they live in localStorage and never travel in a backup (same
+  contract as `lib/presets.ts`). They render in the cover picker directly
+  beside the presets; applying one just switches the document to the
+  `custom` style with that design.
 - **New callout type** — one entry in `CALLOUTS` (`markdown/renderer.ts`)
   plus a `.callout--<type>` color rule in `pdf/styles/print-base.css`.
 - **New example** — one entry in `templates/demos.ts`.

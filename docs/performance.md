@@ -1,7 +1,7 @@
 # Performance & reliability — the knowledge base
 
 The single reference for how Polity Studio performs at scale, why it is
-built the way it is, what has been optimized (v4.0 → v4.4), what is at
+built the way it is, what has been optimized (v4.0 → v4.6), what is at
 its structural floor, and where the next real levers are. Earlier
 session logs (`perf-inside-pages.md`, `perf-1000-page-session.md`) are
 consolidated here (and removed — git history keeps the full write-ups);
@@ -72,6 +72,36 @@ chunked/virtualized pagination redesign (see Roadmap).
    0 blank pages everywhere; fill is ~96–97% on notes and
    solution-heavy banks, ~84% on short-card banks (see "Smart
    pagination" for why that gap is intentional).
+
+## v4.6 — large-document navigation (workspace redesign)
+
+Two navigation costs that only bite at scale, both reproduced on a real
+~193k-word / **1069-page** body in the production build:
+
+1. **Go-to-Top/Bottom: the "first-click hang" was smooth scroll.** At
+   500+ pages CodeMirror hands the scroller a **~700k px `scrollHeight`**
+   (21 lines rendered, the rest virtualised). `scrollTo({top: scrollHeight,
+   behavior:"smooth"})` reached only **6,964 px (1%) and then stalled** —
+   the browser caps smooth-scroll velocity and CM re-measures line heights
+   as it travels, so the target keeps moving and the animation gives up.
+   Measured: smooth = stuck at 1% after ~280 ms; **instant `scrollTop =
+   scrollHeight` = full bottom (100%) in 12 ms**. The fix is an instant jump
+   on a single tap (re-asserted a couple of frames for the growing
+   `scrollHeight`), with press-and-hold for a smooth per-frame glide.
+
+2. **Manual scroll no longer posts to the preview.** The editor previously
+   reported a scroll fraction to the preview on *every* wheel/touch frame
+   (rAF-throttled, but still a `postMessage` + an iframe scroll per frame on
+   a 700k px scroller). Reading is now independent; sync fires only on
+   cursor placement and an explicit scrollbar drag, removing that per-frame
+   work from the hot path entirely.
+
+Button visibility also became viewport-aware (a screen from an end, reported
+by the harness) instead of a fixed 6% fraction — on a 700k px scroller 6% is
+~50 screens, which hid the buttons on exactly the documents that need them.
+Pages-view fit-width + zoom preference persist across sessions
+(`ps2:preview:zoom`). None of this touches the pagination or export path, so
+the v4.4 benchmarks below stand unchanged.
 
 ## v4.5 — page-count clarity + pipeline-reuse audit (Phase 7)
 
