@@ -297,6 +297,7 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         <Field label="Hairline frame">
           <Segmented
             size="sm"
+            columns={2}
             value={(design.frameStyle === ("double" as CoverDesign["frameStyle"]) ? "shaded" : design.frameStyle) ?? (design.frame ? "single" : "none")}
             onChange={(frameStyle) => set({ frameStyle, frame: frameStyle !== "none" })}
             options={[
@@ -310,6 +311,7 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         <Field label="Title box">
           <Segmented
             size="sm"
+            columns={2}
             value={design.titleBox ?? "none"}
             onChange={(titleBox) => set({ titleBox })}
             options={[
@@ -901,6 +903,7 @@ function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc
           <Segmented
             value={doc.lang}
             onChange={(lang) => onChange({ lang })}
+            columns={2}
             options={[
               { value: "en", label: "English" },
               { value: "hi", label: "हिन्दी" },
@@ -951,6 +954,7 @@ function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc
           <Segmented
             value={doc.layout.density}
             onChange={(density) => layout({ density })}
+            columns={2}
             options={[
               { value: "ultra", label: "Ultra" },
               { value: "compact", label: "Compact" },
@@ -963,6 +967,7 @@ function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc
           <Segmented
             value={doc.layout.pageSize}
             onChange={(pageSize) => layout({ pageSize })}
+            columns={3}
             options={[
               { value: "a4", label: "A4" },
               { value: "a5", label: "A5" },
@@ -980,6 +985,7 @@ function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc
             <Segmented
               value={doc.layout.answers}
               onChange={(answers) => layout({ answers })}
+              columns={3}
               options={[
                 { value: "inline", label: "Inline" },
                 { value: "end", label: "At the end" },

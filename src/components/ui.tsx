@@ -223,11 +223,16 @@ function SegmentedOption<T extends string>({
   option,
   active,
   size,
+  grid,
   onSelect,
 }: {
   option: { value: T; label: string; icon?: IconName; hint?: string };
   active: boolean;
   size: "sm" | "md";
+  /** Laid out as an equal-width grid cell rather than a content-width chip —
+      centres its label and paints a solid ground so the container's hairline
+      gaps read as dividers. */
+  grid?: boolean;
   onSelect: () => void;
 }) {
   const longPress = useLongPressHint();
@@ -238,14 +243,15 @@ function SegmentedOption<T extends string>({
       title={option.hint}
       onClick={onSelect}
       className={cx(
-        "relative flex items-center gap-1.5 font-medium transition-colors",
+        "relative flex min-w-0 items-center gap-1.5 font-medium transition-colors",
+        grid ? "justify-center text-center" : "",
         size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
-        active ? "bg-accent text-accent-ink" : "text-ink-2 hover:bg-raised",
+        active ? "bg-accent text-accent-ink" : grid ? "bg-surface text-ink-2 hover:bg-raised" : "text-ink-2 hover:bg-raised",
       )}
       {...(option.hint ? longPress.handlers : undefined)}
     >
-      {option.icon && <Icon name={option.icon} size={13} />}
-      {option.label}
+      {option.icon && <Icon name={option.icon} size={13} className="flex-none" />}
+      <span className="truncate">{option.label}</span>
       {option.hint && <HintBubble show={longPress.show} text={option.hint} />}
     </button>
   );
@@ -256,12 +262,31 @@ export function Segmented<T extends string>({
   value,
   onChange,
   size = "md",
+  columns,
 }: {
   options: { value: T; label: string; icon?: IconName; /** Long-press (touch) / hover (desktop) description. */ hint?: string }[];
   value: T;
   onChange: (v: T) => void;
   size?: "sm" | "md";
+  /** When set, options lay out as a full-width equal-column grid (e.g. four
+      options as a 2×2) instead of one non-wrapping row — so long option sets
+      fit a narrow settings pane instead of overflowing its width. The 1px
+      grid gaps over an edge-coloured ground render as clean dividers. */
+  columns?: number;
 }) {
+  if (columns) {
+    return (
+      <div
+        className="grid w-full gap-px overflow-hidden rounded-lg border border-edge bg-edge"
+        role="radiogroup"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {options.map((o) => (
+          <SegmentedOption key={o.value} option={o} active={value === o.value} size={size} grid onSelect={() => onChange(o.value)} />
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="inline-flex overflow-hidden rounded-lg border border-edge bg-surface" role="radiogroup">
       {options.map((o) => (

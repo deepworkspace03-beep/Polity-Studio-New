@@ -380,8 +380,14 @@ existing `tableToMd` still owns real table reconstruction.
 Search (`lib/search.ts`) is a scored linear scan — the whole corpus is
 already in memory, so an index would be pure overhead at this scale. Content
 hits carry a snippet and line number; the palette (Ctrl+K, `CommandPalette.tsx`)
-and Library search both use it, and opening a content hit deep-links
-`#/edit/:id/:line` to place the cursor on the match.
+and Library search both use it. The Library prints a compact
+"N matches across M documents" summary above the results (totalled over the
+on-screen, type-filtered set so it always agrees with the per-card counts).
+Opening a content hit deep-links `#/edit/:id/:line`, which **centres** the
+matched line in the editor viewport and flashes it — the same `flashLine`
+gesture a preview click uses (`views/editor/syncHighlight.ts`) — rather than
+the old bare `scrollIntoView` that left the match at the top or did nothing
+when it was already on screen.
 
 ## Storage & data safety
 
