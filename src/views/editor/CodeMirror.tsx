@@ -10,6 +10,7 @@ import { insertLink, wrapSelection } from "./commands";
 import { smartPaste } from "../../lib/importer";
 import { EditorScrollbar } from "./EditorScrollbar";
 import { searchHighlightField } from "./searchHighlight";
+import { syncHighlightField } from "./syncHighlight";
 import { Icon } from "../../components/Icon";
 import { cx } from "../../lib/utils";
 
@@ -100,6 +101,17 @@ const editorTheme = EditorView.theme({
     backgroundColor: "color-mix(in srgb, var(--accent) 48%, transparent)",
     boxShadow: "inset 0 -2px 0 var(--accent)",
   },
+  // Preview → editor sync flash — the whole line pulses when the reader
+  // clicks the matching spot in the preview, mirroring the preview's own
+  // `.preview-here` pulse. Fades out on its own via the field's timer.
+  ".cm-sync-here": {
+    animation: "cm-sync-here 1.5s ease-out",
+    borderRadius: "3px",
+  },
+  "@keyframes cm-sync-here": {
+    "0%": { backgroundColor: "color-mix(in srgb, var(--accent) 34%, transparent)" },
+    "100%": { backgroundColor: "transparent" },
+  },
 });
 
 export interface CodeMirrorProps {
@@ -187,6 +199,7 @@ export function CodeMirror({ value, onChange, onCursorLine, onSaveShortcut, onSm
           ]),
           search({ top: true }),
           searchHighlightField,
+          syncHighlightField,
           // Smart Paste: rich clipboard content (Word, Google Docs, web,
           // AI chats) is converted to the app's Markdown before insert.
           // Returns false when conversion adds nothing, so the default

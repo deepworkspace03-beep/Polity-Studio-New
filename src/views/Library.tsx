@@ -5,7 +5,7 @@ import { contentStats, cx, estimatePages, relativeDate, sortDocs } from "../lib/
 import { TEMPLATE_META, TEMPLATE_META_LIST } from "../templates/meta";
 import type { DemoDoc } from "../templates/demos";
 import type { Doc, LibrarySort, TemplateId } from "../lib/types";
-import { searchDocs } from "../lib/search";
+import { documentBreakdown, searchDocs, type SearchHit } from "../lib/search";
 import { pickAndImportFiles, stageAndReview } from "../components/ImportReview";
 import { Button, DropOverlay, IconButton, Modal, useFileDrop, useToast } from "../components/ui";
 import { Icon, TempleMark } from "../components/Icon";
@@ -17,6 +17,54 @@ function TemplateGlyph({ id, className }: { id: TemplateId; className?: string }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <g dangerouslySetInnerHTML={{ __html: TEMPLATE_META[id].icon }} />
     </svg>
+  );
+}
+
+/** The expandable "where does this term appear?" panel shown under a search
+    result. Body occurrences are grouped by heading section (reusing the
+    editor's in-document scanner) and each row deep-links to the first match
+    on that section's source line; title/metadata hits are summarised on top.
+    The breakdown is computed on demand — only for the one open card — so a
+    live search over a large library stays smooth. */
+function SearchBreakdown({ doc, query, estPages, where }: { doc: Doc; query: string; estPages: number; where?: { title: number; meta: number; body: number } }) {
+  const breakdown = useMemo(() => documentBreakdown(doc, query, estPages), [doc, query, estPages]);
+  const fieldHits = [
+    where && where.title > 0 ? `title (${where.title})` : "",
+    where && where.meta > 0 ? `details (${where.meta})` : "",
+    breakdown.total > 0 ? `content (${breakdown.total}${breakdown.capped ? "+" : ""})` : "",
+  ].filter(Boolean);
+
+  return (
+    <div className="mt-3 rounded-lg border border-edge bg-raised/60 p-2.5" onClick={(e) => e.stopPropagation()}>
+      {fieldHits.length > 0 && (
+        <p className="mb-2 text-[11px] font-semibold text-ink-2">
+          Found in <span className="text-accent">{fieldHits.join(" · ")}</span>
+        </p>
+      )}
+      {breakdown.sections.length === 0 ? (
+        <p className="text-[11px] text-faint">
+          {breakdown.total > 0 ? "Match is in the document body." : "Match is in the title or details only."}
+        </p>
+      ) : (
+        <ul className="max-h-52 space-y-0.5 overflow-y-auto">
+          {breakdown.sections.map((s, i) => (
+            <li key={i}>
+              <button
+                onClick={() => navigate({ edit: doc.id, line: s.matchLine })}
+                title={`Open at “${s.title || "Introduction"}” (≈ page ${s.page})`}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] transition-colors hover:bg-surface"
+              >
+                <span className="min-w-0 flex-1 truncate font-medium text-ink-2">
+                  {s.title || <span className="italic text-faint">Introduction</span>}
+                </span>
+                <span className="flex-none tabular-nums text-faint">≈p{s.page}</span>
+                <span className="flex-none rounded-full bg-accent/15 px-1.5 py-0.5 font-semibold tabular-nums text-accent">{s.count}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -67,16 +115,27 @@ export function Library() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  // Which result card has its "where does it appear?" breakdown open. One at
+  // a time keeps the grid calm and the (per-doc) breakdown scan cheap.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Content-aware: matches body text as well as title/metadata, ranked.
+  // Content-aware: matches body text as well as title/metadata, ranked. The
+  // full hits (with per-field occurrence tallies) are kept so each card can
+  // show a match count and an expandable breakdown of where the term appears.
+  const hits = useMemo(() => (query.trim() ? searchDocs(docs, query, 200) : null), [docs, query]);
+  const hitById = useMemo(() => {
+    const m = new Map<string, SearchHit>();
+    if (hits) for (const h of hits) m.set(h.doc.id, h);
+    return m;
+  }, [hits]);
+
   // Search results keep their relevance ranking (order the query decides);
   // otherwise the chosen sort applies across all fields + directions.
   const filtered = useMemo(() => {
-    const q = query.trim();
-    const base = q ? searchDocs(docs, q, 200).map((h) => h.doc) : docs;
+    const base = hits ? hits.map((h) => h.doc) : docs;
     const typed = templateFilter === "all" ? base : base.filter((d) => d.template === templateFilter);
-    return q ? typed : sortDocs(typed, settings.librarySort);
-  }, [docs, query, templateFilter, settings.librarySort]);
+    return hits ? typed : sortDocs(typed, settings.librarySort);
+  }, [docs, hits, templateFilter, settings.librarySort]);
 
   const favorites = useMemo(() => docs.filter((d) => d.favorite).sort((a, b) => b.updatedAt - a.updatedAt), [docs]);
 
@@ -230,7 +289,10 @@ export function Library() {
               <Icon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setExpandedId(null);
+                }}
                 placeholder="Search titles, content & metadata…"
                 className="w-full rounded-xl border border-edge bg-surface py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-faint focus:border-accent"
               />
@@ -337,6 +399,8 @@ export function Library() {
             const meta = metaFor(doc);
             const template = TEMPLATE_META[doc.template];
             const isSelected = selected.has(doc.id);
+            const hit = hitById.get(doc.id);
+            const isExpanded = expandedId === doc.id;
             return (
               <li key={doc.id}>
                 <div
@@ -444,6 +508,26 @@ export function Library() {
                   >
                     Edited {relativeDate(doc.updatedAt)}
                   </p>
+                  {hit && !selectMode && (hit.matchCount ?? 0) > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedId((cur) => (cur === doc.id ? null : doc.id));
+                      }}
+                      aria-expanded={isExpanded}
+                      className="mt-2 flex w-full items-center gap-1.5 rounded-md border border-edge bg-raised/40 px-2 py-1 text-[11px] font-semibold text-ink-2 transition-colors hover:border-accent hover:text-accent"
+                    >
+                      <Icon name="search" size={11} className="flex-none" />
+                      <span className="tabular-nums">
+                        {hit.matchCount} match{hit.matchCount === 1 ? "" : "es"}
+                      </span>
+                      <span className="flex-1" />
+                      <Icon name="chevronDown" size={13} className={cx("flex-none transition-transform", isExpanded && "rotate-180")} />
+                    </button>
+                  )}
+                  {hit && isExpanded && !selectMode && (
+                    <SearchBreakdown doc={doc} query={query} estPages={meta.pages} where={hit.where} />
+                  )}
                 </div>
               </li>
             );

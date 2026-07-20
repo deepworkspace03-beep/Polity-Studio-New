@@ -258,6 +258,11 @@ reasoning; this is the quick-reference version:
   — `CoverPatternKind`. `resolveDesign` validates `pattern` against a
   `PATTERNS` set and coerces anything unknown (including retired kinds) to
   `geometry`, so trimming the set never crashes a stored design.
+- **New interior colour palette** → add a `ColorPalette` to `DEFAULT_PALETTES`
+  in `lib/palettes.ts` (five `BrandConfig.colors`); the chip picker in
+  `Details.tsx` (`InteriorPalettes`) and `saveBrand` pick it up. Custom palettes
+  and favorited/saved cover designs are localStorage-only (never in a backup),
+  same contract as `lib/presets.ts`.
 - **New callout type** → one entry in `CALLOUTS` (`markdown/renderer.ts`)
   + a `.callout--<type>` rule in `pdf/styles/print-base.css`.
 - **New toolbar action** → a command in `views/editor/commands.ts` +

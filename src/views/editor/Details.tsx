@@ -3,7 +3,8 @@ import type { BrandConfig, CoverColors, CoverDesign, CoverPattern, Doc, DocLayou
 import { saveBrand, saveSettings, useApp } from "../../lib/store";
 import { DEFAULT_BRAND, DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
 import { canSavePreset, deletePreset, duplicatePreset, MAX_PRESETS, renamePreset, savePreset, usePresets } from "../../lib/presets";
-import { canSaveCoverDesign, deleteCoverDesign, MAX_COVER_DESIGNS, saveCoverDesign, useCoverDesigns } from "../../lib/coverDesigns";
+import { canSaveCoverDesign, deleteCoverDesign, favoriteCoverDesigns, MAX_COVER_DESIGNS, saveCoverDesign, toggleFavoriteCoverDesign, useCoverDesigns } from "../../lib/coverDesigns";
+import { canSavePalette, DEFAULT_PALETTES, deleteCustomPalette, MAX_PALETTES, samePalette, saveCustomPalette, useCustomPalettes, type PaletteColors } from "../../lib/palettes";
 import { TEMPLATE_META } from "../../templates/meta";
 import { parseMcq, validateMcq } from "../../markdown/mcq";
 import { Button, Field, HintBubble, IconButton, Modal, Segmented, Toggle, inputClass, useFocusTrap, useLongPressHint, useToast } from "../../components/ui";
@@ -18,7 +19,7 @@ const COVER_STYLES: { id: Exclude<DocLayout["coverStyle"], "custom">; label: str
 
 const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: string }[] = [
   { key: "bg", label: "Background", fallback: "#12203a" },
-  { key: "ink", label: "Heading & title", fallback: "#f5f2ea" },
+  { key: "ink", label: "Heading", fallback: "#f5f2ea" },
   { key: "accent", label: "Accent", fallback: "#c9bc9e" },
 ];
 
@@ -159,11 +160,19 @@ function SwatchButton({ label, swatch, onClick }: { label: string; swatch: strin
   );
 }
 
+/** Compact inline colour control — a small swatch beside its label so a
+    row of colours stays on one low line instead of a grid of tall boxes. */
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <label className="flex flex-col items-center gap-1 rounded-lg border border-edge p-2">
-      <input type="color" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="h-7 w-full cursor-pointer rounded border-0 bg-transparent p-0" />
-      <span className="text-center text-[10.5px] font-semibold text-ink-2">{label}</span>
+    <label className="flex items-center gap-1.5" title={label}>
+      <input
+        type="color"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-6 w-7 flex-none cursor-pointer rounded border border-edge bg-transparent p-0"
+      />
+      <span className="text-[10.5px] font-medium text-ink-2">{label}</span>
     </label>
   );
 }
@@ -219,7 +228,7 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
       />
 
       <FieldGroup label="Colors">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-wrap gap-x-3 gap-y-2">
           <ColorField label="Background 1" value={design.bg1} onChange={(bg1) => set({ bg1 })} />
           <ColorField label="Background 2" value={design.bg2} onChange={(bg2) => set({ bg2 })} />
           <ColorField label="Text" value={design.ink} onChange={(ink) => set({ ink })} />
@@ -364,27 +373,22 @@ function CoverColorPicker({ doc, onChange }: { doc: Doc; onChange: (patch: Parti
     onChange({ layout: { ...doc.layout, coverColors: Object.keys(next).length ? next : undefined } });
   }
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {COVER_COLOR_FIELDS.map((f) => {
         const active = !!colors?.[f.key];
         return (
-          <div key={f.key} className="flex flex-col items-center gap-1.5 rounded-lg border border-edge p-2">
+          <div key={f.key} className="flex items-center gap-1.5" title={active ? `${f.label} (overridden)` : `${f.label} — using style default`}>
             <input
               type="color"
               aria-label={f.label}
               value={colors?.[f.key] || f.fallback}
               onChange={(e) => set(f.key, e.target.value)}
-              className="h-7 w-full cursor-pointer rounded border-0 bg-transparent p-0"
+              className={cx("h-6 w-7 flex-none cursor-pointer rounded border bg-transparent p-0", active ? "border-accent" : "border-edge")}
             />
-            <span className="text-center text-[10.5px] font-semibold text-ink-2">{f.label}</span>
-            <button
-              type="button"
-              disabled={!active}
-              onClick={() => set(f.key, undefined)}
-              className="text-[10px] font-medium text-faint underline decoration-dotted disabled:opacity-0"
-            >
-              Use style default
-            </button>
+            <span className="text-[10.5px] font-medium text-ink-2">{f.label}</span>
+            {active && (
+              <IconButton label={`Reset ${f.label} to the style default`} name="refresh" size={11} className="p-0.5 text-faint hover:text-accent" onClick={() => set(f.key, undefined)} />
+            )}
           </div>
         );
       })}
@@ -533,26 +537,256 @@ const BRAND_COLOR_LABELS: Record<keyof BrandConfig["colors"], string> = {
   gold: "Highlight",
 };
 
+/** A compact swatch chip — the shared building block for the Cover design
+    and Interior palette pickers, so both read as one system and stay to a
+    single low row rather than a tall grid. */
+function SwatchChip({ active, swatch, label, title, onClick }: { active: boolean; swatch: string; label: string; title?: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title ?? label}
+      aria-pressed={active}
+      className={cx(
+        "inline-flex max-w-[9.5rem] items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors",
+        active ? "border-accent bg-accent/5 text-accent" : "border-edge text-ink-2 hover:border-faint",
+      )}
+    >
+      <span className="h-3.5 w-3.5 flex-none rounded border border-black/15" style={{ background: swatch }} />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+/** Cover design picker — compact chips instead of a tall swatch grid: the
+    three built-in presets, the author's top favorited custom designs, and a
+    "Custom" entry, all on one wrapping row. "Manage designs" expands the
+    full saved library where any design can be starred (to surface it here)
+    or deleted. */
+function CoverPicker({ doc, onChange, isDark }: { doc: Doc; onChange: (patch: Partial<Doc>) => void; isDark: boolean }) {
+  const savedDesigns = useCoverDesigns();
+  const favorites = favoriteCoverDesigns(savedDesigns);
+  const [manageOpen, setManageOpen] = useState(false);
+  const set = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
+  const isActiveCustom = (design: CoverDesign) => doc.layout.coverStyle === "custom" && sameDesign(doc.layout.coverDesign, design);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-bold uppercase tracking-wide text-faint">Cover design</span>
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-faint" title="The cover follows the global light/dark reading theme — no separate toggle.">
+          <Icon name={isDark ? "moon" : "sun"} size={11} />
+          Adapts to {isDark ? "dark" : "light"}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {COVER_STYLES.map((s) => (
+          <SwatchChip key={s.id} active={doc.layout.coverStyle === s.id} swatch={s.swatch} label={s.label} onClick={() => set({ coverStyle: s.id })} />
+        ))}
+        {favorites.map((d) => (
+          <SwatchChip
+            key={d.id}
+            active={isActiveCustom(d.design)}
+            swatch={`linear-gradient(150deg, ${d.design.bg1}, ${d.design.bg2})`}
+            label={d.name}
+            title={`Apply “${d.name}”`}
+            onClick={() => set({ coverStyle: "custom", coverDesign: { ...d.design } })}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            set({
+              coverStyle: "custom",
+              // First visit seeds the designer from the preset the author was on.
+              coverDesign: doc.layout.coverDesign ?? seedCoverDesign(doc.layout.coverStyle),
+            })
+          }
+          aria-pressed={doc.layout.coverStyle === "custom"}
+          className={cx(
+            "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors",
+            doc.layout.coverStyle === "custom" && !favorites.some((d) => isActiveCustom(d.design))
+              ? "border-accent bg-accent/5 text-accent"
+              : "border-edge text-ink-2 hover:border-faint",
+          )}
+        >
+          <Icon name="plus" size={12} />
+          Custom
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={() => setManageOpen((v) => !v)}
+        className="flex items-center gap-1 text-[10.5px] font-semibold text-faint hover:text-accent"
+      >
+        <Icon name="chevronDown" size={12} className={cx("transition-transform", !manageOpen && "-rotate-90")} />
+        Manage saved designs{savedDesigns.length ? ` (${savedDesigns.length})` : ""}
+      </button>
+      {manageOpen &&
+        (savedDesigns.length === 0 ? (
+          <p className="text-[10.5px] text-faint">No saved designs yet — open Custom and “Save this design” to build your library. Star up to 3 to pin them beside the presets.</p>
+        ) : (
+          <ul className="space-y-1">
+            {savedDesigns.map((d) => (
+              <li key={d.id} className="flex items-center gap-1.5 rounded-lg border border-edge px-2 py-1">
+                <span className="h-4 w-4 flex-none rounded border border-black/15" style={{ background: `linear-gradient(150deg, ${d.design.bg1}, ${d.design.bg2})` }} />
+                <button
+                  type="button"
+                  onClick={() => set({ coverStyle: "custom", coverDesign: { ...d.design } })}
+                  className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-ink-2 hover:text-accent"
+                >
+                  {d.name}
+                </button>
+                <IconButton
+                  label={d.favorite ? "Unstar (hide from the picker)" : "Star to show in the picker"}
+                  name="star"
+                  size={13}
+                  className={cx("p-1", d.favorite ? "text-warn" : "text-faint hover:text-warn")}
+                  iconClassName={d.favorite ? "fill-current" : undefined}
+                  onClick={() => toggleFavoriteCoverDesign(d.id)}
+                />
+                <IconButton label={`Delete “${d.name}”`} name="trash" size={13} className="p-1 hover:text-danger" onClick={() => deleteCoverDesign(d.id)} />
+              </li>
+            ))}
+          </ul>
+        ))}
+    </div>
+  );
+}
+
+/** Interior colour palettes — the studio-wide PDF ink/accent/highlight
+    scheme, as compact chips (mirroring the Cover design picker): three
+    premium defaults, then the author's saved customs, then a Customise
+    fold-out (per-colour pickers) and Save. Applying writes BrandConfig.colors,
+    exactly like the manual pickers this replaces, so every PDF re-colours.
+    Light/dark is handled by the global reading theme, not here. */
+function InteriorPalettes() {
+  const { brand } = useApp();
+  const customPalettes = useCustomPalettes();
+  const toast = useToast();
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [savePrompt, setSavePrompt] = useState(false);
+  const apply = (colors: PaletteColors) => saveBrand({ colors: { ...colors } });
+  const paletteSwatch = (c: PaletteColors) => `linear-gradient(90deg, ${c.primary} 0 40%, ${c.accent} 40% 72%, ${c.gold} 72% 100%)`;
+
+  return (
+    <div className="space-y-2.5 border-t border-edge/70 pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-bold uppercase tracking-wide text-faint">Interior colours — all documents</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {DEFAULT_PALETTES.map((p) => (
+          <SwatchChip key={p.id} active={samePalette(brand.colors, p)} swatch={paletteSwatch(p.colors)} label={p.name} onClick={() => apply(p.colors)} />
+        ))}
+      </div>
+      {customPalettes.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {customPalettes.map((p) => (
+            <span key={p.id} className="group relative inline-flex">
+              <SwatchChip active={samePalette(brand.colors, p)} swatch={paletteSwatch(p.colors)} label={p.name} onClick={() => apply(p.colors)} />
+              <button
+                type="button"
+                onClick={() => deleteCustomPalette(p.id)}
+                title={`Delete “${p.name}”`}
+                aria-label={`Delete ${p.name}`}
+                className="absolute -right-1 -top-1 hidden rounded-full bg-ink/75 p-0.5 text-bg group-hover:block"
+              >
+                <Icon name="x" size={9} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setCustomizeOpen((v) => !v)}
+          className="inline-flex items-center gap-1 rounded-lg border border-edge px-2 py-1 text-[11px] font-semibold text-ink-2 hover:border-faint"
+        >
+          <Icon name="sliders" size={12} />
+          {customizeOpen ? "Hide colours" : "Customise"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!canSavePalette()) {
+              toast(`Palette limit reached (${MAX_PALETTES}) — delete one first`, "info");
+              return;
+            }
+            setSavePrompt(true);
+          }}
+          className="inline-flex items-center gap-1 rounded-lg border border-edge px-2 py-1 text-[11px] font-semibold text-ink-2 hover:border-accent hover:text-accent"
+        >
+          <Icon name="star" size={12} />
+          Save palette
+        </button>
+      </div>
+      {customizeOpen && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-edge p-2">
+          {(Object.keys(BRAND_COLOR_LABELS) as (keyof PaletteColors)[]).map((key) => (
+            <label key={key} className="flex items-center gap-1.5" title={BRAND_COLOR_LABELS[key]}>
+              <input
+                type="color"
+                aria-label={BRAND_COLOR_LABELS[key]}
+                value={brand.colors[key]}
+                onChange={(e) => saveBrand({ colors: { ...brand.colors, [key]: e.target.value } })}
+                className="h-6 w-7 flex-none cursor-pointer rounded border border-edge bg-transparent p-0"
+              />
+              <span className="text-[10.5px] font-medium text-ink-2">{BRAND_COLOR_LABELS[key]}</span>
+            </label>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              saveBrand({ colors: { ...DEFAULT_BRAND.colors } });
+              toast("Interior colours reset to defaults", "ok");
+            }}
+            className="ml-auto rounded-md border border-edge px-2 py-1 text-[10.5px] font-semibold text-ink-2 hover:border-faint"
+          >
+            Reset
+          </button>
+        </div>
+      )}
+      <p className="text-[10.5px] leading-relaxed text-faint">
+        Headings, accents and highlights in every PDF. Names, links and the watermark live in{" "}
+        <a href="#/settings" className="underline decoration-dotted">Studio Settings</a>.
+      </p>
+      <NamePromptModal
+        open={savePrompt}
+        title="Name this palette"
+        initial="My palette"
+        onClose={() => setSavePrompt(false)}
+        onSubmit={(name) => {
+          saveCustomPalette(name, brand.colors);
+          toast(`Saved palette “${name}”`, "ok");
+        }}
+      />
+    </div>
+  );
+}
+
 /** The settings form itself — shared verbatim by the mobile modal and the
     desktop pane so the two stay in lockstep with zero duplicated markup.
 
-    Four groups for scanning, not scrolling: Publication and Cover (the two
-    everyday groups) open by default; Layout & PDF and Advanced fold away
-    until needed. Every cover-related control — brand/institute, session,
-    edition, language, highlights and the cover design — lives under Cover;
-    the studio-wide PDF colors, reading theme and filename pattern sit in
-    Advanced.
+    Exactly three collapsible sections, in order:
+      1. Publication — every cover-page text/metadata field in one place
+         (name, subtitle, feature tags, exam, unit, session, edition,
+         language, author);
+      2. Cover — include/exclude, the compact cover-design picker (presets +
+         favorited customs, auto-adapting to the global light/dark theme) and
+         its colour/designer controls;
+      3. Interior — text density, page size, TOC, watermark, answers, the
+         interior colour palettes, layout presets and the filename pattern.
 
-    `onCoverEditing` fires with true while focus is anywhere inside the
-    Publication/Cover groups (every field there appears on the cover) and
-    false when it leaves — the host uses it to peek the preview at the
-    cover so the author sees their edit land, then restores the position. */
-function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: (patch: Partial<Doc>) => void; onCoverEditing?: (active: boolean) => void }) {
+    Publication and Cover open by default; Interior folds away until needed.
+    `onCoverEditing` fires true while focus is anywhere inside Publication or
+    Cover (every field there appears on the cover) and false when it leaves —
+    the host peeks the preview at the cover so the author sees the edit land. */
+function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc: Doc; onChange: (patch: Partial<Doc>) => void; onCoverEditing?: (active: boolean) => void; onLayoutEditing?: (active: boolean) => void }) {
   const { brand, settings } = useApp();
-  const savedDesigns = useCoverDesigns();
-  const toast = useToast();
   const template = TEMPLATE_META[doc.template];
   const layout = (patch: Partial<DocLayout>) => onChange({ layout: { ...doc.layout, ...patch } });
+  const isDark = settings.docTheme === "dark";
 
   const mcqIssues = useMemo(() => {
     if (doc.template !== "questions") return [];
@@ -574,9 +808,28 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
             : undefined
         }
       >
+      {/* 1 · Publication — all cover text & metadata, grouped and ordered. */}
       <CollapsibleGroup title="Publication" storageKey="ps2:details:publication" defaultOpen>
-        <Field label="Subtitle">
+        <Field label="Publication name" hint="The booklet's title — also the large title on the cover. Shown in the editor header too.">
+          <input className={inputClass} value={doc.title} onChange={(e) => onChange({ title: e.target.value })} placeholder="Untitled document" />
+        </Field>
+        <Field label="Subtitle / subheading">
           <input className={inputClass} value={doc.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} placeholder="Shown under the title on the cover" />
+        </Field>
+        <Field label="Unit / Institute" hint="Name shown in the cover lockup. Leave blank to use the studio-wide brand name.">
+          <input className={inputClass} value={doc.institute ?? ""} onChange={(e) => onChange({ institute: e.target.value || undefined })} placeholder={brand.name} />
+        </Field>
+        <Field label="Feature tags" hint="One line per tag, e.g. “Premium Study Notes”, “Exam-Ready Coverage”, “TYK-Oriented”. Leave empty to use the template's defaults.">
+          <textarea
+            className={inputClass + " resize-none"}
+            rows={2}
+            value={(doc.coverLines ?? []).join("\n")}
+            onChange={(e) => {
+              const raw = e.target.value;
+              onChange({ coverLines: raw.trim() === "" ? undefined : raw.split("\n") });
+            }}
+            placeholder={"Premium Study Notes\nExam-Ready Coverage"}
+          />
         </Field>
         <Field label="Exam">
           <input className={inputClass} list="exam-options" value={doc.exam} onChange={(e) => onChange({ exam: e.target.value })} placeholder="e.g. UGC-NET Political Science" />
@@ -589,119 +842,40 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
         <Field label="Paper / Unit">
           <input className={inputClass} value={doc.paper} onChange={(e) => onChange({ paper: e.target.value })} placeholder="Paper 2 · Unit 1" />
         </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Session" hint="e.g. June 2026. Shown as a pill in the cover's top-right.">
+            <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="June 2026" />
+          </Field>
+          <Field label="Edition" hint="Small badge in the cover's extreme top-right corner — e.g. 1e, 2e, 3e.">
+            <input className={inputClass} value={doc.edition} onChange={(e) => onChange({ edition: e.target.value })} placeholder="1e" />
+          </Field>
+        </div>
+        <Field label="Language badge" hint="Cover page only — controls which language badge appears on the cover. Your document content is never translated or changed.">
+          <Segmented
+            value={doc.lang}
+            onChange={(lang) => onChange({ lang })}
+            options={[
+              { value: "en", label: "English" },
+              { value: "hi", label: "हिन्दी" },
+              { value: "both", label: "Both" },
+              { value: "none", label: "None" },
+            ]}
+          />
+        </Field>
         <Field label="Author">
           <input className={inputClass} value={doc.author} onChange={(e) => onChange({ author: e.target.value })} />
         </Field>
       </CollapsibleGroup>
 
-      {/* Cover — every cover-page setting in one place: the lockup name,
-          session, edition, language, highlights and the cover design. */}
+      {/* 2 · Cover — inclusion, the compact design picker and its controls. */}
       <CollapsibleGroup title="Cover" storageKey="ps2:details:cover" defaultOpen>
-        <Toggle label="Cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
+        <Toggle label="Include cover page" checked={doc.layout.cover} onChange={(v) => layout({ cover: v })} />
         {doc.layout.cover && (
           <>
-            <Field label="Brand / Institute" hint="Name shown in the cover lockup. Leave blank to use the studio-wide brand name.">
-              <input className={inputClass} value={doc.institute ?? ""} onChange={(e) => onChange({ institute: e.target.value || undefined })} placeholder={brand.name} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Session" hint="e.g. June 2026. Shown as a pill in the cover's top-right.">
-                <input className={inputClass} value={doc.session} onChange={(e) => onChange({ session: e.target.value })} placeholder="June 2026" />
-              </Field>
-              <Field label="Edition" hint="Small badge in the cover's extreme top-right corner — e.g. 1e, 2e, 3e.">
-                <input className={inputClass} value={doc.edition} onChange={(e) => onChange({ edition: e.target.value })} placeholder="1e" />
-              </Field>
-            </div>
-            <Field label="Language badge" hint="Cover page only — controls which language badge appears on the cover. Your document content is never translated or changed.">
-              <Segmented
-                value={doc.lang}
-                onChange={(lang) => onChange({ lang })}
-                options={[
-                  { value: "en", label: "English" },
-                  { value: "hi", label: "हिन्दी" },
-                  { value: "both", label: "Both" },
-                  { value: "none", label: "None" },
-                ]}
-              />
-            </Field>
-            <Field label="Cover highlights" hint="One line per highlight. Leave empty to use the template's defaults.">
-              <textarea
-                className={inputClass + " resize-none"}
-                rows={2}
-                value={(doc.coverLines ?? []).join("\n")}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  onChange({ coverLines: raw.trim() === "" ? undefined : raw.split("\n") });
-                }}
-                placeholder={"Premium Study Notes\nExam-Ready Coverage"}
-              />
-            </Field>
-            <div>
-              <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">Cover design</span>
-              <div className="grid grid-cols-2 gap-2">
-                {COVER_STYLES.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => layout({ coverStyle: s.id })}
-                    className={cx(
-                      "flex flex-col items-center gap-1.5 rounded-lg border p-1.5 text-[11px] font-semibold",
-                      doc.layout.coverStyle === s.id ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
-                    )}
-                  >
-                    <span className="h-10 w-full rounded-md border border-black/10" style={{ background: s.swatch }} />
-                    {s.label}
-                  </button>
-                ))}
-                {/* Saved custom designs sit right beside the defaults — one tap
-                    to apply, exactly like choosing a preset. */}
-                {savedDesigns.map((d) => (
-                  <div key={d.id} className="group relative">
-                    <button
-                      onClick={() => layout({ coverStyle: "custom", coverDesign: { ...d.design } })}
-                      title={`Apply “${d.name}”`}
-                      className={cx(
-                        "flex w-full flex-col items-center gap-1.5 rounded-lg border p-1.5 text-[11px] font-semibold",
-                        doc.layout.coverStyle === "custom" && sameDesign(doc.layout.coverDesign, d.design)
-                          ? "border-accent text-accent"
-                          : "border-edge text-ink-2 hover:border-faint",
-                      )}
-                    >
-                      <span
-                        className="h-10 w-full rounded-md border border-black/10"
-                        style={{ background: `linear-gradient(150deg, ${d.design.bg1}, ${d.design.bg2})` }}
-                      />
-                      <span className="max-w-full truncate">{d.name}</span>
-                    </button>
-                    <button
-                      onClick={() => deleteCoverDesign(d.id)}
-                      title="Delete this saved design"
-                      aria-label={`Delete ${d.name}`}
-                      className="absolute right-1 top-1 hidden rounded-full bg-ink/70 p-0.5 text-bg group-hover:block"
-                    >
-                      <Icon name="x" size={11} />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={() =>
-                    layout({
-                      coverStyle: "custom",
-                      // First visit seeds the designer from the preset the author
-                      // was on; afterwards their design is kept as-is.
-                      coverDesign: doc.layout.coverDesign ?? seedCoverDesign(doc.layout.coverStyle),
-                    })
-                  }
-                  className={cx(
-                    "col-span-2 flex items-center justify-center gap-2 rounded-lg border p-1.5 text-[11px] font-semibold",
-                    doc.layout.coverStyle === "custom" ? "border-accent text-accent" : "border-edge text-ink-2 hover:border-faint",
-                  )}
-                >
-                  <Icon name="plus" size={13} />
-                  Custom — design your own
-                </button>
-              </div>
-            </div>
-            {doc.layout.coverStyle === "custom" && <CoverDesigner doc={doc} onChange={onChange} />}
-            {doc.layout.coverStyle !== "custom" && (
+            <CoverPicker doc={doc} onChange={onChange} isDark={isDark} />
+            {doc.layout.coverStyle === "custom" ? (
+              <CoverDesigner doc={doc} onChange={onChange} />
+            ) : (
               <div>
                 <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">Cover colors (optional)</span>
                 <CoverColorPicker doc={doc} onChange={onChange} />
@@ -712,7 +886,20 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
       </CollapsibleGroup>
       </div>
 
-      <CollapsibleGroup title="Layout & PDF" storageKey="ps2:details:layout" defaultOpen={false}>
+      {/* 3 · Interior — page structure, palettes and export layout. Focus
+          anywhere here peeks the preview at the last-viewed inside page so a
+          density/size/TOC/palette change is visible as it's made. */}
+      <div
+        onFocusCapture={onLayoutEditing ? () => onLayoutEditing(true) : undefined}
+        onBlurCapture={
+          onLayoutEditing
+            ? (e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onLayoutEditing(false);
+              }
+            : undefined
+        }
+      >
+      <CollapsibleGroup title="Interior" storageKey="ps2:details:interior" defaultOpen={false}>
         <Field label="Text density" hint="Spacing and rhythm for the whole document. Ultra packs the most onto each page — spacing, margins and layout tighten together, not just the font.">
           <Segmented
             value={doc.layout.density}
@@ -754,56 +941,15 @@ function DetailsFields({ doc, onChange, onCoverEditing }: { doc: Doc; onChange: 
             />
           </Field>
         )}
+        <InteriorPalettes />
         <div className="border-t border-edge/70 pt-3">
           <LayoutPresets layout={doc.layout} onApply={(l) => onChange({ layout: l })} />
-        </div>
-      </CollapsibleGroup>
-
-      <CollapsibleGroup title="Advanced" storageKey="ps2:details:advanced" defaultOpen={false}>
-        <Field label="Document reading theme" hint="Dark renders the document itself — previews, PDF and HTML exports — on an eye-friendly dark palette. Covers keep their own design. Applies to all documents.">
-          <Segmented
-            value={settings.docTheme}
-            onChange={(docTheme) => saveSettings({ docTheme })}
-            options={[
-              { value: "light", label: "Light", icon: "sun" },
-              { value: "dark", label: "Dark", icon: "moon" },
-            ]}
-          />
-        </Field>
-        <div>
-          <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">PDF colors — all documents</span>
-          <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(BRAND_COLOR_LABELS) as (keyof BrandConfig["colors"])[]).map((key) => (
-              <label key={key} className="flex items-center gap-2 rounded-lg border border-edge px-2 py-1.5">
-                <input
-                  type="color"
-                  value={brand.colors[key]}
-                  onChange={(e) => saveBrand({ colors: { ...brand.colors, [key]: e.target.value } })}
-                  className="h-6 w-7 flex-none cursor-pointer rounded border-0 bg-transparent p-0"
-                />
-                <span className="text-[11px] text-ink-2">{BRAND_COLOR_LABELS[key]}</span>
-              </label>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                saveBrand({ colors: { ...DEFAULT_BRAND.colors } });
-                toast("PDF colors reset to defaults", "ok");
-              }}
-              className="rounded-lg border border-edge px-2 py-1.5 text-[11px] font-semibold text-ink-2 hover:border-faint"
-            >
-              Reset to defaults
-            </button>
-          </div>
-          <p className="mt-1.5 text-[10.5px] leading-relaxed text-faint">
-            Headings, accents and highlights in every PDF. Names, links and the watermark live in{" "}
-            <a href="#/settings" className="underline decoration-dotted">Studio Settings</a>.
-          </p>
         </div>
         <Field label="PDF filename pattern" hint="Used for every export — {title}, {brand} and {date} are replaced automatically.">
           <input className={inputClass} value={settings.fileNamePattern} onChange={(e) => saveSettings({ fileNamePattern: e.target.value })} />
         </Field>
       </CollapsibleGroup>
+      </div>
 
       {mcqIssues.length > 0 && (
         <div className="space-y-1.5 rounded-xl border border-edge bg-raised p-4">
@@ -896,6 +1042,7 @@ export function DetailsPane({
   onUndo,
   canUndo,
   onCoverEditing,
+  onLayoutEditing,
 }: {
   doc: Doc;
   onChange: (patch: Partial<Doc>) => void;
@@ -906,10 +1053,12 @@ export function DetailsPane({
   /** Cover peek — see DetailsFields. Desktop pane only: the mobile modal
       covers the preview anyway, so peeking there would be invisible. */
   onCoverEditing?: (active: boolean) => void;
+  /** Interior (layout) peek — see DetailsFields. Desktop pane only. */
+  onLayoutEditing?: (active: boolean) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
-      <header className="flex flex-none items-center justify-between gap-2 border-b border-edge px-4 py-2.5">
+      <header className="flex h-10 flex-none items-center justify-between gap-2 border-b border-edge px-4">
         <h2 className="text-xs font-extrabold uppercase tracking-wider text-faint">Settings</h2>
         <div className="flex items-center gap-0.5">
           {onUndo && (
@@ -922,7 +1071,7 @@ export function DetailsPane({
         </div>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <DetailsFields doc={doc} onChange={onChange} onCoverEditing={onCoverEditing} />
+        <DetailsFields doc={doc} onChange={onChange} onCoverEditing={onCoverEditing} onLayoutEditing={onLayoutEditing} />
       </div>
     </div>
   );

@@ -18,6 +18,9 @@ export interface SavedCoverDesign {
   id: string;
   name: string;
   design: CoverDesign;
+  /** Starred designs surface in the compact cover picker (top 3 shown
+      beside the built-in presets). Absent = not favorited. */
+  favorite?: boolean;
 }
 
 const KEY = "ps2:coverDesigns";
@@ -77,6 +80,22 @@ export function saveCoverDesign(name: string, design: CoverDesign): SavedCoverDe
 
 export function renameCoverDesign(id: string, name: string): void {
   write(read().map((d) => (d.id === id ? { ...d, name: name.trim() || d.name } : d)));
+}
+
+/** Max favorited designs shown inline beside the presets. */
+export const MAX_FAVORITE_COVERS = 3;
+
+/** Star/unstar a saved design. Starring past the display cap is still
+    allowed — the picker just shows the most-recently-saved favorites; the
+    full library stays available in "Manage designs". */
+export function toggleFavoriteCoverDesign(id: string): void {
+  write(read().map((d) => (d.id === id ? { ...d, favorite: !d.favorite } : d)));
+}
+
+/** The favorited designs shown inline in the compact picker (newest first,
+    capped at MAX_FAVORITE_COVERS). */
+export function favoriteCoverDesigns(list: SavedCoverDesign[]): SavedCoverDesign[] {
+  return list.filter((d) => d.favorite).slice(0, MAX_FAVORITE_COVERS);
 }
 
 export function deleteCoverDesign(id: string): void {

@@ -70,6 +70,7 @@ export function Preview({
   getView,
   scrollSyncRef,
   coverPeekRef,
+  layoutPeekRef,
 }: {
   doc: Doc;
   brand: BrandConfig;
@@ -105,6 +106,11 @@ export function Preview({
       calls with true while a cover/publication field has focus: the
       preview shows the cover, then returns to where the reader was. */
   coverPeekRef?: React.MutableRefObject<((active: boolean) => void) | null>;
+  /** Interior (layout) peek — the mirror of cover peek for the Interior
+      settings section: while a page/layout field has focus, park the preview
+      on the last-viewed inside page (or the first body page if none) so the
+      author sees the layout change land, then return to where they were. */
+  layoutPeekRef?: React.MutableRefObject<((active: boolean) => void) | null>;
 }) {
   const [mode, setMode] = useState<PreviewMode>("flow");
   const [srcDoc, setSrcDoc] = useState("");
@@ -127,6 +133,10 @@ export function Preview({
   const shellKeyRef = useRef("");
   const cursorRef = useRef(cursorLine);
   cursorRef.current = cursorLine;
+  // Mirror of `mode` for the (deps-[]) message handler and the peek helper,
+  // which must read the live mode without being re-created on every switch.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const onEditRef = useRef(onInlineEdit);
   onEditRef.current = onInlineEdit;
   const onFocusLineRef = useRef(onFocusLine);
@@ -146,31 +156,56 @@ export function Preview({
   // zoom before paged-done fires, which would clobber zoomCmdRef itself —
   // this frozen copy survives that.
   const pendingZoomRestoreRef = useRef<ZoomMode | number | null>(null);
-  // Cover peek — while a cover/publication field is focused the preview
-  // parks on the cover; the position the reader was at is restored when
-  // focus moves on. Refs, not state: peeking must never re-render.
-  const peekingRef = useRef(false);
+  // Settings peek — while a settings field has focus the preview parks on the
+  // relevant surface ("cover" for Publication/Cover fields, "interior" for the
+  // Interior/layout section) so the author sees the edit land; the reader's
+  // own position is restored when focus moves on. Refs, not state: peeking
+  // must never re-render. The last inside page/position the reader actually
+  // viewed is remembered so the interior peek lands there rather than the top.
+  const peekingRef = useRef<null | "cover" | "interior">(null);
   const peekReturnRef = useRef<number | null>(null); // flow pct or page number
+  const lastInteriorPageRef = useRef<number | null>(null); // pages mode
+  const lastInteriorPctRef = useRef<number | null>(null); // flow mode
 
   const post = (message: unknown) => frameRef.current?.contentWindow?.postMessage(message, "*");
 
-  // Cover peek — (re)assigned every render so the closure always sees the
-  // live mode and position (the same pattern as the refs above).
-  if (coverPeekRef) {
-    coverPeekRef.current = (active: boolean) => {
-      if (active === peekingRef.current) return;
-      peekingRef.current = active;
-      if (active) {
-        peekReturnRef.current = mode === "pages" ? current : flowPct;
-        post(mode === "pages" ? { type: "go-to-page", page: 1 } : { type: "scroll-to-pct", pct: 0 });
-      } else {
-        const back = peekReturnRef.current;
-        peekReturnRef.current = null;
-        if (back == null) return;
-        post(mode === "pages" ? { type: "go-to-page", page: Math.max(1, Math.round(back)) } : { type: "scroll-to-pct", pct: back });
-      }
-    };
-  }
+  // Move the preview onto a peek target. Extracted so a repagination that
+  // completes mid-peek can re-apply the same target (see paged-done).
+  const postPeekTarget = (target: "cover" | "interior") => {
+    if (target === "cover") {
+      post(modeRef.current === "pages" ? { type: "go-to-page", page: 1 } : { type: "scroll-to-pct", pct: 0 });
+      return;
+    }
+    // Interior — the last inside page/position, else the first body page.
+    if (modeRef.current === "pages") {
+      const last = lastInteriorPageRef.current;
+      post(last && last > 1 ? { type: "go-to-page", page: last } : { type: "scroll-to-pct", pct: 0, body: true });
+    } else {
+      const last = lastInteriorPctRef.current;
+      post(last != null && last > 0.001 ? { type: "scroll-to-pct", pct: last } : { type: "scroll-to-pct", pct: 0, body: true });
+    }
+  };
+
+  // (Re)assigned every render so the closure always sees the live mode and
+  // position (the same pattern as the refs above). Cover and interior peek
+  // share one state — focus is only ever in one settings section at a time.
+  const setPeek = (target: null | "cover" | "interior") => {
+    if (peekingRef.current === target) return;
+    if (target !== null && peekingRef.current === null) {
+      peekReturnRef.current = mode === "pages" ? current : flowPct;
+    }
+    peekingRef.current = target;
+    if (target) {
+      postPeekTarget(target);
+    } else {
+      const back = peekReturnRef.current;
+      peekReturnRef.current = null;
+      if (back == null) return;
+      post(mode === "pages" ? { type: "go-to-page", page: Math.max(1, Math.round(back)) } : { type: "scroll-to-pct", pct: back });
+    }
+  };
+  if (coverPeekRef) coverPeekRef.current = (active: boolean) => setPeek(active ? "cover" : null);
+  if (layoutPeekRef) layoutPeekRef.current = (active: boolean) => setPeek(active ? "interior" : null);
 
   // Content pipeline — full shell rebuild only when the shell itself
   // (fonts, page geometry, template CSS, mode) changes.
@@ -232,6 +267,13 @@ export function Preview({
     setSelectedImageLine(null);
   }, [doc.id, mode]);
 
+  // A new document has its own inside pages — forget the previous doc's
+  // last-viewed page so the interior layout-peek doesn't land on a stale one.
+  useEffect(() => {
+    lastInteriorPageRef.current = null;
+    lastInteriorPctRef.current = null;
+  }, [doc.id]);
+
   // Frame → host messages.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -239,9 +281,10 @@ export function Preview({
       const d = e.data || {};
       if (d.type === "preview-ready") {
         readyRef.current = true;
-        // While peeking at the cover, a fresh iframe already sits on it —
-        // following the cursor would immediately scroll away again.
-        if (cursorRef.current > 1 && !peekingRef.current) post({ type: "scroll-to-line", line: cursorRef.current });
+        // A settings peek in progress re-parks on its target (a fresh iframe
+        // starts at the top); otherwise follow the editor cursor.
+        if (peekingRef.current) postPeekTarget(peekingRef.current);
+        else if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "paged-done") {
         readyRef.current = true;
         setPaginating(false);
@@ -256,15 +299,18 @@ export function Preview({
           post({ type: "set-zoom", zoom: pendingZoomRestoreRef.current });
           pendingZoomRestoreRef.current = null;
         }
-        if (peekingRef.current) post({ type: "go-to-page", page: 1 });
+        if (peekingRef.current) postPeekTarget(peekingRef.current);
         else if (cursorRef.current > 1) post({ type: "scroll-to-line", line: cursorRef.current });
       } else if (d.type === "paged-progress" && typeof d.pages === "number") {
         setLayoutPages(d.pages);
       } else if (d.type === "page-visible") {
         setCurrent(d.page);
+        // Remember the last inside page for the interior layout-peek.
+        if (!peekingRef.current && d.body && d.page > 1) lastInteriorPageRef.current = d.page;
       } else if (d.type === "flow-scroll" && typeof d.pct === "number") {
         setFlowPct(d.pct);
         if (typeof d.atTop === "boolean" && typeof d.atBottom === "boolean") setFlowEdge({ top: d.atTop, bottom: d.atBottom });
+        if (!peekingRef.current && d.body) lastInteriorPctRef.current = d.pct;
       } else if (d.type === "zoom" && typeof d.zoom === "number") {
         setZoom(d.zoom);
         const nextMode: ZoomMode = d.mode === "fit-width" || d.mode === "fit-page" ? d.mode : "custom";
@@ -337,81 +383,91 @@ export function Preview({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* One compact row, matching the editor toolbar's height and rhythm.
-          Fit-width/fit-page live on in the harness (double-tap toggles
-          fit ⇄ 100%, pinch/± zoom freely) — the two buttons were redundant. */}
-      <div className="flex items-center gap-1 overflow-hidden border-b border-edge bg-surface px-1.5 py-1">
-        <Segmented
-          size="sm"
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: "flow", label: "Flow", hint: "Continuous live view — click or tap any line to edit it inline, updates instantly as you type." },
-            { value: "pages", label: "Pages", hint: "Exact paginated view with running headers, footers and watermark — this is what you'll publish. Pinch, double-tap or use +/− to zoom." },
-          ]}
-        />
+      {/* One height-locked row (h-10, matching the editor toolbar and the
+          settings header so the three pane tops sit on one clean line).
+          Three zones — mode switch (fixed), a flexible middle that shrinks
+          and truncates, and the pinned view controls — so nothing ever
+          overlaps or wraps as the pane narrows; lower-priority bits (zoom,
+          the % readout) drop out by breakpoint before anything essential. */}
+      <div className="flex h-10 flex-none items-center gap-1 overflow-hidden border-b border-edge bg-surface px-1.5">
+        <div className="flex-none">
+          <Segmented
+            size="sm"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "flow", label: "Flow", hint: "Continuous live view — click or tap any line to edit it inline, updates instantly as you type." },
+              { value: "pages", label: "Pages", hint: "Exact paginated view with running headers, footers and watermark — this is what you'll publish. Pinch, double-tap or use +/− to zoom." },
+            ]}
+          />
+        </div>
 
-        {isPages && pages ? (
-          <>
-            <div className="hidden items-center gap-0 md:flex" role="group" aria-label="Zoom">
-              <IconButton label="Zoom out" name="zoomOut" size={14} onClick={() => post({ type: "zoom-by", factor: 0.9 })} />
-              <button
-                type="button"
-                title="Reset zoom to fit width"
-                className="min-w-9 text-center text-[11px] font-semibold tabular-nums text-ink-2"
-                onClick={() => post({ type: "set-zoom", zoom: "fit-width" })}
-              >
-                {Math.round(zoom * 100)}%
-              </button>
-              <IconButton label="Zoom in" name="zoomIn" size={14} onClick={() => post({ type: "zoom-by", factor: 1.1 })} />
-            </div>
-            <div className="flex min-w-0 items-center gap-0" role="group" aria-label="Page navigation">
-              <IconButton label="Previous page" name="chevronLeft" size={14} onClick={() => goTo(current - 1)} />
-              <span className="min-w-11 text-center text-[11px] font-semibold tabular-nums text-ink-2">{current} / {pages}</span>
-              <IconButton label="Next page" name="chevronRight" size={14} onClick={() => goTo(current + 1)} />
-              <span className="hidden min-w-8 text-center text-[11px] font-semibold tabular-nums text-faint sm:inline">{pagesPercent}%</span>
-            </div>
-          </>
-        ) : !isPages ? (
-          <span
-            className="min-w-0 truncate text-[11px] tabular-nums text-ink-2"
-            aria-live="polite"
-            title={pagesExact ? "Exact pages — from the latest full layout" : "Estimated position — exact pages appear in the Pages view"}
-          >
-            {flowTotal ? (
-              <><span className="font-semibold">Page {flowPage} / {pagesExact ? "" : "≈"}{flowTotal}</span> <span className="text-faint">· {flowPercent}%</span></>
-            ) : (
-              <span className="text-faint">Live preview · tap a title to edit</span>
-            )}
-          </span>
-        ) : (
-          <span className="text-xs tabular-nums text-faint" aria-live="polite">
-            {paginating
-              ? layoutPages > 0
-                ? `Laying out pages… ${layoutPages}${estimatedPages && estimatedPages > 1 ? ` / ≈${estimatedPages}` : ""}`
-                : "Laying out pages…"
-              : ""}
-          </span>
-        )}
+        {/* Flexible middle — shrinks first, truncates rather than pushing the
+            pinned controls off the edge. */}
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+          {isPages && pages ? (
+            <>
+              <div className="hidden flex-none items-center gap-0 lg:flex" role="group" aria-label="Zoom">
+                <IconButton label="Zoom out" name="zoomOut" size={14} onClick={() => post({ type: "zoom-by", factor: 0.9 })} />
+                <button
+                  type="button"
+                  title="Reset zoom to fit width"
+                  className="min-w-9 text-center text-[11px] font-semibold tabular-nums text-ink-2"
+                  onClick={() => post({ type: "set-zoom", zoom: "fit-width" })}
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <IconButton label="Zoom in" name="zoomIn" size={14} onClick={() => post({ type: "zoom-by", factor: 1.1 })} />
+              </div>
+              <div className="flex min-w-0 flex-none items-center gap-0" role="group" aria-label="Page navigation">
+                <IconButton label="Previous page" name="chevronLeft" size={14} onClick={() => goTo(current - 1)} />
+                <span className="min-w-11 text-center text-[11px] font-semibold tabular-nums text-ink-2">{current} / {pages}</span>
+                <IconButton label="Next page" name="chevronRight" size={14} onClick={() => goTo(current + 1)} />
+                <span className="hidden min-w-8 text-center text-[11px] font-semibold tabular-nums text-faint sm:inline">{pagesPercent}%</span>
+              </div>
+            </>
+          ) : !isPages ? (
+            <span
+              className="min-w-0 truncate text-center text-[11px] tabular-nums text-ink-2"
+              aria-live="polite"
+              title={pagesExact ? "Exact pages — from the latest full layout" : "Estimated position — exact pages appear in the Pages view"}
+            >
+              {flowTotal ? (
+                <><span className="font-semibold">Page {flowPage} / {pagesExact ? "" : "≈"}{flowTotal}</span> <span className="text-faint">· {flowPercent}%</span></>
+              ) : (
+                <span className="text-faint">Live preview · tap a title to edit</span>
+              )}
+            </span>
+          ) : (
+            <span className="min-w-0 truncate text-xs tabular-nums text-faint" aria-live="polite">
+              {paginating
+                ? layoutPages > 0
+                  ? `Laying out pages… ${layoutPages}${estimatedPages && estimatedPages > 1 ? ` / ≈${estimatedPages}` : ""}`
+                  : "Laying out pages…"
+                : ""}
+            </span>
+          )}
+        </div>
 
-        <IconButton
-          label={isDark ? "Switch document to light reading theme" : "Switch document to dark reading theme"}
-          name={isDark ? "sun" : "moon"}
-          size={15}
-          className="ml-auto flex-none"
-          onClick={() => saveSettings({ docTheme: isDark ? "light" : "dark" })}
-        />
-        <IconButton
-          label={fullscreen ? "Exit full screen" : "Full screen"}
-          name={fullscreen ? "collapse" : "expand"}
-          size={15}
-          active={fullscreen}
-          className="flex-none"
-          onClick={onToggleFullscreen}
-        />
-        {onCollapse && !fullscreen && (
-          <IconButton label="Collapse preview panel" name="chevronRight" size={15} className="hidden flex-none md:inline-flex" onClick={onCollapse} />
-        )}
+        {/* Pinned view controls — always reachable, never clipped. */}
+        <div className="flex flex-none items-center">
+          <IconButton
+            label={isDark ? "Switch document to light reading theme" : "Switch document to dark reading theme"}
+            name={isDark ? "sun" : "moon"}
+            size={15}
+            onClick={() => saveSettings({ docTheme: isDark ? "light" : "dark" })}
+          />
+          <IconButton
+            label={fullscreen ? "Exit full screen" : "Full screen"}
+            name={fullscreen ? "collapse" : "expand"}
+            size={15}
+            active={fullscreen}
+            onClick={onToggleFullscreen}
+          />
+          {onCollapse && !fullscreen && (
+            <IconButton label="Collapse preview panel" name="chevronRight" size={15} className="hidden md:inline-flex" onClick={onCollapse} />
+          )}
+        </div>
       </div>
       <div className="relative min-h-0 flex-1">
         <iframe

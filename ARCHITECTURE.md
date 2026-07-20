@@ -107,7 +107,13 @@ src/
 │  │                     tables, hyperlinks via relationships)
 │  ├─ search.ts          universal search: scored linear scan over the
 │  │                     in-memory corpus (title > metadata > body), with
-│  │                     snippet + line for editor deep links
+│  │                     snippet + line for editor deep links, per-field
+│  │                     occurrence counts, and documentBreakdown() (reuses
+│  │                     docSearch.ts) for the Library's per-result "where
+│  │                     does it appear?" section-grouped breakdown
+│  ├─ palettes.ts        interior PDF colour palettes: 3 premium defaults +
+│  │                     user-savable customs (localStorage, like presets/
+│  │                     coverDesigns). Applying writes BrandConfig.colors
 │  └─ utils.ts           uid, cx, debounce, dates, download, stats
 ├─ brand/
 │  ├─ defaults.ts        default Polity Made Simple branding + settings
@@ -168,10 +174,14 @@ src/
    │                     editor · preview), mobile write/preview tabs,
    │                     focus mode (hides toolbar + settings pane)
    ├─ editor/            CodeMirror wrapper (incl. find & replace via
-   │                     @codemirror/search), commands, Toolbar, Preview
+   │                     @codemirror/search + syncHighlight.ts's preview→
+   │                     editor flash), commands, Toolbar, Preview
    │                     (flow/pages + doc-theme toggle), Details sheet
-   │                     (cover color overrides + the Cover Designer),
-   │                     Publish overlay
+   │                     (Settings in 3 sections — Publication · Cover ·
+   │                     Interior — the compact cover picker, cover colour
+   │                     overrides, the Cover Designer and interior palettes),
+   │                     Publish overlay. All three pane headers share one
+   │                     height (h-10) so their controls align on one row.
    ├─ Settings.tsx       appearance (incl. document reading theme),
    │                     branding, defaults, save/restore, your data
    └─ Help.tsx           the manual: Markdown syntax, a guide + tuned AI
@@ -239,7 +249,23 @@ Plain wheel/touch/keyboard scrolling of the editor is deliberately **not**
 reported (`CodeMirror` no longer has a passive scroll→fraction listener), so
 manual scrolling is independent and a 500-page note doesn't post preview
 updates every frame. Preview → editor is the mirror: clicking a sourced
-element in either preview reports its line and the host moves the cursor.
+element in **either** preview (Flow or Pages) reports its line and the host
+(`onFocusLine` → `flashLine`, `views/editor/syncHighlight.ts`) moves the
+cursor, scrolls that line to a centred band via `EditorView.scrollIntoView`
+and pulses a full-line highlight (`.cm-sync-here`) — the exact mirror of the
+editor→preview `.preview-here` pulse. This replaced the old bare
+`scrollIntoView: true` ("nearest"), which no-op'd when the line was already
+on screen and never highlighted, so a preview click often looked like it did
+nothing.
+
+**Settings peek.** While a settings field has focus the preview parks on the
+surface that field affects, then restores the reader's position when focus
+leaves (`setPeek`/`postPeekTarget` in `Preview.tsx`, one shared peek state
+since focus is only ever in one section): Publication/Cover fields peek the
+**cover**; Interior/layout fields peek the last-viewed **inside page** (or the
+first body page — the harness tags `page-visible`/`flow-scroll` with a `body`
+flag so the host can remember it), so a density/size/TOC/palette change is
+visible as it's made.
 
 `ScrollJump` (shared by both panes) is **tap = instant jump, hold = smooth
 glide**: a single click sets `scrollTop` directly (a `behavior:"smooth"` jump
@@ -297,9 +323,23 @@ dark paged desk.
 - **Saved cover designs** (`lib/coverDesigns.ts`) are a browser-local
   library of named `CoverDesign` snapshots — UI convenience, not document
   data, so they live in localStorage and never travel in a backup (same
-  contract as `lib/presets.ts`). They render in the cover picker directly
-  beside the presets; applying one just switches the document to the
+  contract as `lib/presets.ts`). The compact cover picker (`CoverPicker` in
+  `Details.tsx`) shows the 3 presets plus the **top 3 favorited** customs as
+  chips; "Manage saved designs" expands the full library where any design is
+  starred (`favorite`) or deleted. Applying one switches the document to the
   `custom` style with that design.
+- **Interior colour palettes** (`lib/palettes.ts`) are the studio-wide PDF
+  ink/accent/highlight scheme (the five `BrandConfig.colors`). Three premium
+  defaults ship built-in; user customs save to localStorage (same contract as
+  above). Applying writes `BrandConfig.colors` via `saveBrand`, so the whole
+  print pipeline re-colours with no extra plumbing; light/dark is handled by
+  the reading theme's `themeVars`, so palettes carry no light/dark variants.
+- **Cover light/dark adaptation.** Covers auto-adapt to the global reading
+  theme: `body.doc-dark .cover .cv-shade` composites a dark veil onto the
+  shade layer (which the PDF engine already replays as a shading), deepening
+  every ground — presets and custom alike — so the cover sits calmly against
+  dark interior pages. It's a tonal dim, not a full recolour, and needs no
+  separate toggle (the picker shows an "Adapts to light/dark" hint).
 - **New callout type** — one entry in `CALLOUTS` (`markdown/renderer.ts`)
   plus a `.callout--<type>` color rule in `pdf/styles/print-base.css`.
 - **New example** — one entry in `templates/demos.ts`.
