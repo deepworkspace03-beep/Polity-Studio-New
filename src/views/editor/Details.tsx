@@ -454,6 +454,10 @@ function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layou
   const presets = usePresets();
   const toast = useToast();
   const [prompt, setPrompt] = useState<PresetPrompt | null>(null);
+  // Deleting a preset is not covered by document Undo (presets live in
+  // localStorage, not the doc), so a one-tap trash icon is too easy to
+  // regret — confirm first, matching the app's other destructive actions.
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
 
   return (
     <div className="space-y-2 rounded-xl border border-edge p-3">
@@ -506,8 +510,25 @@ function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layou
                 size={13}
                 onClick={() => setPrompt({ mode: "rename", id: p.id, current: p.name })}
               />
-              <IconButton label="Duplicate preset" name="copy" size={13} onClick={() => duplicatePreset(p.id)} />
-              <IconButton label="Delete preset" name="trash" size={13} onClick={() => deletePreset(p.id)} />
+              <IconButton
+                label="Duplicate preset"
+                name="copy"
+                size={13}
+                onClick={() => {
+                  if (!canSavePreset()) {
+                    toast(`Preset limit reached (${MAX_PRESETS}) — delete one first`, "info");
+                    return;
+                  }
+                  duplicatePreset(p.id);
+                  toast(`Duplicated “${p.name}”`, "ok");
+                }}
+              />
+              <IconButton
+                label="Delete preset"
+                name="trash"
+                size={13}
+                onClick={() => setConfirmDelete({ id: p.id, name: p.name })}
+              />
             </li>
           ))}
         </ul>
@@ -525,6 +546,32 @@ function LayoutPresets({ layout, onApply }: { layout: DocLayout; onApply: (layou
           }
         }}
       />
+      <Modal
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        title={confirmDelete ? `Delete “${confirmDelete.name}”?` : "Delete preset?"}
+      >
+        <p className="text-sm text-ink-2">
+          This layout preset will be removed from this browser. Documents already using this layout are not
+          changed, and this cannot be undone.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button
+            variant="primary"
+            className="bg-danger text-white"
+            onClick={() => {
+              if (confirmDelete) {
+                deletePreset(confirmDelete.id);
+                toast(`Deleted “${confirmDelete.name}”`, "info");
+              }
+              setConfirmDelete(null);
+            }}
+          >
+            Delete preset
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
