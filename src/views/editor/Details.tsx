@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { BrandConfig, CoverColors, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
+import type { BrandConfig, CoverDesign, CoverPattern, Doc, DocLayout } from "../../lib/types";
 import { saveBrand, saveSettings, useApp } from "../../lib/store";
 import { DEFAULT_BRAND, DEFAULT_COVER_DESIGN, DEFAULT_LAYOUT, seedCoverDesign } from "../../brand/defaults";
 import { canSavePreset, deletePreset, duplicatePreset, MAX_PRESETS, renamePreset, savePreset, usePresets } from "../../lib/presets";
@@ -15,12 +15,6 @@ const COVER_STYLES: { id: Exclude<DocLayout["coverStyle"], "custom">; label: str
   { id: "meridian", label: "Meridian", swatch: "linear-gradient(150deg,#0a1526,#16305a 62%,#d8b878 205%)" },
   { id: "aurora", label: "Aurora", swatch: "linear-gradient(140deg,#123c93,#0d76b2 52%,#0a9f80)" },
   { id: "eclipse", label: "Eclipse", swatch: "linear-gradient(160deg,#0c1017,#1a2434 62%,#d3a662 210%)" },
-];
-
-const COVER_COLOR_FIELDS: { key: keyof CoverColors; label: string; fallback: string }[] = [
-  { key: "bg", label: "Background", fallback: "#12203a" },
-  { key: "ink", label: "Heading", fallback: "#f5f2ea" },
-  { key: "accent", label: "Accent", fallback: "#c9bc9e" },
 ];
 
 /* ── Cover Designer (the "Custom" style) ──────────────────────────────
@@ -357,41 +351,6 @@ function CoverDesigner({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<
         </div>
         <p className="text-[10.5px] leading-relaxed text-faint">The logo replaces the temple mark next to the publication name. Everything here previews live on the cover.</p>
       </FieldGroup>
-    </div>
-  );
-}
-
-/** Optional per-document overrides on top of the chosen cover style's own
-    palette — each field is independent and falls back to the style's own
-    color until the author picks one. */
-function CoverColorPicker({ doc, onChange }: { doc: Doc; onChange: (patch: Partial<Doc>) => void }) {
-  const colors = doc.layout.coverColors;
-  function set(key: keyof CoverColors, value: string | undefined) {
-    const next: CoverColors = { ...colors };
-    if (value) next[key] = value;
-    else delete next[key];
-    onChange({ layout: { ...doc.layout, coverColors: Object.keys(next).length ? next : undefined } });
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      {COVER_COLOR_FIELDS.map((f) => {
-        const active = !!colors?.[f.key];
-        return (
-          <div key={f.key} className="flex items-center gap-1.5" title={active ? `${f.label} (overridden)` : `${f.label} — using style default`}>
-            <input
-              type="color"
-              aria-label={f.label}
-              value={colors?.[f.key] || f.fallback}
-              onChange={(e) => set(f.key, e.target.value)}
-              className={cx("h-6 w-7 flex-none cursor-pointer rounded border bg-transparent p-0", active ? "border-accent" : "border-edge")}
-            />
-            <span className="text-[10.5px] font-medium text-ink-2">{f.label}</span>
-            {active && (
-              <IconButton label={`Reset ${f.label} to the style default`} name="refresh" size={11} className="p-0.5 text-faint hover:text-accent" onClick={() => set(f.key, undefined)} />
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -820,8 +779,8 @@ function InteriorPalettes() {
          (name, subtitle, feature tags, exam, unit, session, edition,
          language, author);
       2. Cover — include/exclude, the compact cover-design picker (presets +
-         favorited customs, auto-adapting to the global light/dark theme) and
-         its colour/designer controls;
+         favorited customs, auto-adapting to the global light/dark theme) and,
+         for the "Custom" style, the full Cover Designer;
       3. Interior — text density, page size, TOC, watermark, answers, the
          interior colour palettes, layout presets and the filename pattern.
 
@@ -920,14 +879,12 @@ function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc
         {doc.layout.cover && (
           <>
             <CoverPicker doc={doc} onChange={onChange} isDark={isDark} />
-            {doc.layout.coverStyle === "custom" ? (
-              <CoverDesigner doc={doc} onChange={onChange} />
-            ) : (
-              <div>
-                <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-faint">Cover colors (optional)</span>
-                <CoverColorPicker doc={doc} onChange={onChange} />
-              </div>
-            )}
+            {/* A preset cover is a curated, premium palette on purpose; to
+                recolour it the author switches to "Custom" (seeded from the
+                current preset) and uses the full Cover Designer below — so the
+                old raw bg/ink/accent override, which duplicated a slice of
+                that designer, is gone. */}
+            {doc.layout.coverStyle === "custom" && <CoverDesigner doc={doc} onChange={onChange} />}
           </>
         )}
       </CollapsibleGroup>

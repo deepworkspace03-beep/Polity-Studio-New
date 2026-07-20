@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.7.0";
+const STUDIO_VERSION = "4.7.1";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -395,7 +395,17 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Search, Settings & Sync)`} intro="Universal homepage search, a Settings panel reorganised into three clear sections, aligned three-pane headers, and click-anywhere sync that works both ways.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Search & Settings polish)`} intro="Refinements to the homepage search, the Settings panel and the two-way preview sync.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>Search results summary</b> — a search now shows a clear tally above the results (e.g. “12 matches across 3 documents”), so you see the overall picture before scanning the cards. The per-document match counts stay as they were.</li>
+            <li><b>Jump straight to the match</b> — clicking a search result now opens the document scrolled to the first match, with the term highlighted near the middle of the screen rather than leaving you at the top to hunt for it.</li>
+            <li><b>Tidier settings controls</b> — four-choice controls (Text density, Language badge and the cover designer's size/frame/title options) now lay out as a neat 2×2 grid, so nothing gets cut off the edge in a narrow settings panel.</li>
+            <li><b>Fewer, clearer cover options</b> — the redundant raw “cover colours” override for the ready-made cover styles is gone; to recolour a cover, switch to <b>Custom</b> (it starts from your current style) and use the full Cover Designer.</li>
+            <li><b>Preview follows the section you're editing</b> — editing a Cover/Publication field shows the cover; editing an Interior field shows an inside page, so every change is visible as you make it.</li>
+          </ul>
+        </Section>
+
+        <Section title="Version 4.7 — Search, Settings & Sync" intro="Universal homepage search, a Settings panel reorganised into three clear sections, aligned three-pane headers, and click-anywhere sync that works both ways.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Universal homepage search</b> — the Library search now looks inside every document's title, full content <i>and</i> metadata (exam, unit, session, author), not just titles. Each result shows how many times your term appears; open the <b>matches</b> breakdown to see where — grouped by heading with an estimated page — and tap any row to jump straight to that spot in the editor.</li>
             <li><b>Settings in three sections</b> — the editor's Settings pane is now <b>Publication</b> (all cover text &amp; metadata), <b>Cover</b> (the compact design picker) and <b>Interior</b> (page layout, colour palettes, presets). Cleaner to scan, less scrolling.</li>

@@ -128,6 +128,10 @@ export function Library() {
     if (hits) for (const h of hits) m.set(h.doc.id, h);
     return m;
   }, [hits]);
+  // A single at-a-glance tally above the result list — total occurrences
+  // across every matched document — so the reader sees the search's overall
+  // weight before scanning the per-document cards below.
+  const matchTotal = useMemo(() => (hits ? hits.reduce((n, h) => n + (h.matchCount ?? 0), 0) : 0), [hits]);
 
   // Search results keep their relevance ranking (order the query decides);
   // otherwise the chosen sort applies across all fields + directions.
@@ -205,6 +209,14 @@ export function Library() {
     if (!merged) return;
     exitSelectMode();
     navigate({ edit: merged.id });
+  }
+
+  /** Open a document. When it was clicked from a search result that has a
+      body match, deep-link to that first match's line (#/edit/:id/:line) so
+      the editor opens scrolled to the term, centred and highlighted, rather
+      than at the top. Title/metadata-only hits (no body line) just open. */
+  function openDoc(doc: Doc, hit?: SearchHit) {
+    navigate(hit?.line ? { edit: doc.id, line: hit.line } : { edit: doc.id });
   }
 
   function handleCreate(template: TemplateId) {
@@ -394,6 +406,19 @@ export function Library() {
           {query ? `No documents match “${query}”.` : "No documents of this type."}
         </p>
       ) : (
+        <>
+        {/* Search summary — a compact tally of the whole result set, set
+            apart from the per-document cards below. Shown only while a search
+            is active and something matched. */}
+        {hits && matchTotal > 0 && (
+          <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-ink-2">
+            <Icon name="search" size={13} className="flex-none text-accent" />
+            <span className="tabular-nums text-accent">{matchTotal.toLocaleString()}</span>
+            {matchTotal === 1 ? "match" : "matches"} across
+            <span className="tabular-nums text-accent">{filtered.length.toLocaleString()}</span>
+            {filtered.length === 1 ? "document" : "documents"}
+          </p>
+        )}
         <ul className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((doc) => {
             const meta = metaFor(doc);
@@ -406,11 +431,11 @@ export function Library() {
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={() => (selectMode ? toggleSelected(doc.id) : navigate({ edit: doc.id }))}
+                  onClick={() => (selectMode ? toggleSelected(doc.id) : openDoc(doc, hit))}
                   onKeyDown={(e) => {
                     if (e.key !== "Enter") return;
                     if (selectMode) toggleSelected(doc.id);
-                    else navigate({ edit: doc.id });
+                    else openDoc(doc, hit);
                   }}
                   className={cx(
                     "group relative cursor-pointer rounded-xl border bg-surface p-4 transition-colors",
@@ -533,6 +558,7 @@ export function Library() {
             );
           })}
         </ul>
+        </>
       )}
 
       {selectMode && (

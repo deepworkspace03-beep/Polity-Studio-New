@@ -123,9 +123,11 @@ function pickBadgeInk(hex: string): string {
   return L > 0.5 ? "#141414" : "#ffffff";
 }
 
-/** Inline custom-property overrides for the author's optional cover
-    color overrides (Details → Cover colors) — absent fields fall
-    through to the chosen style's own palette untouched. */
+/** Inline custom-property overrides for the optional per-document cover
+    colors. The Settings UI no longer exposes these (recolouring a cover is
+    the Custom Cover Designer's job now), but the field is still honoured for
+    documents/backups that already carry it — absent fields fall through to
+    the chosen style's own palette untouched. */
 function coverColorVars(colors: CoverColors | undefined): string {
   if (!colors) return "";
   const vars: string[] = [];

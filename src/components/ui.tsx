@@ -223,11 +223,15 @@ function SegmentedOption<T extends string>({
   option,
   active,
   size,
+  grid,
   onSelect,
 }: {
   option: { value: T; label: string; icon?: IconName; hint?: string };
   active: boolean;
   size: "sm" | "md";
+  /** Grid (2×2) layout — centre each cell and give it a solid background so
+      the 1px dividers between cells read cleanly. */
+  grid: boolean;
   onSelect: () => void;
 }) {
   const longPress = useLongPressHint();
@@ -239,8 +243,14 @@ function SegmentedOption<T extends string>({
       onClick={onSelect}
       className={cx(
         "relative flex items-center gap-1.5 font-medium transition-colors",
+        grid && "justify-center",
         size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
-        active ? "bg-accent text-accent-ink" : "text-ink-2 hover:bg-raised",
+        // A grid cell needs a solid background so the 1px `gap-px` dividers
+        // read as hairlines; the active fill provides its own, so bg-surface
+        // is inactive-only (both are `background-color` utilities — applying
+        // both to the active cell lets Tailwind's source order decide, which
+        // hid the active state).
+        active ? "bg-accent text-accent-ink" : cx("text-ink-2 hover:bg-raised", grid && "bg-surface"),
       )}
       {...(option.hint ? longPress.handlers : undefined)}
     >
@@ -262,10 +272,22 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   size?: "sm" | "md";
 }) {
+  // Four options don't fit on one row inside the narrow settings pane (they
+  // clipped the last choice off the edge), so a 4-option control lays out as
+  // a full-width 2×2 grid instead. Two/three-option controls keep the compact
+  // inline row. The `gap-px` over a `bg-edge` container draws the hairline
+  // dividers between the grid cells.
+  const grid = options.length === 4;
   return (
-    <div className="inline-flex overflow-hidden rounded-lg border border-edge bg-surface" role="radiogroup">
+    <div
+      className={cx(
+        "overflow-hidden rounded-lg border border-edge",
+        grid ? "grid grid-cols-2 gap-px bg-edge" : "inline-flex bg-surface",
+      )}
+      role="radiogroup"
+    >
       {options.map((o) => (
-        <SegmentedOption key={o.value} option={o} active={value === o.value} size={size} onSelect={() => onChange(o.value)} />
+        <SegmentedOption key={o.value} option={o} active={value === o.value} size={size} grid={grid} onSelect={() => onChange(o.value)} />
       ))}
     </div>
   );

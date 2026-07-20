@@ -303,13 +303,16 @@ export function Editor({ id, line }: { id: string; line?: number }) {
     return () => clearTimeout(timer);
   }, [id, cursorLine]);
 
-  // Deep link from universal search (#/edit/:id/:line): put the cursor
-  // on the matched line. Child effects run first, so the view exists.
+  // Deep link from universal / homepage search (#/edit/:id/:line): jump to
+  // the matched line and make it obvious. `flashLine` centres the line in
+  // the viewport (not top/bottom) and pulses a full-line highlight — the
+  // same treatment a preview click gets — so a search result opens with the
+  // match clearly marked near the vertical centre rather than a silent cursor
+  // move. Child effects run first, so the view already exists.
   useEffect(() => {
     const view = viewRef.current;
     if (!line || !view) return;
-    const ln = Math.min(view.state.doc.lines, line);
-    view.dispatch({ selection: { anchor: view.state.doc.line(ln).from }, scrollIntoView: true });
+    flashLine(view, line, true);
   }, [id, line]);
 
   /** Insert one or more images at the cursor as self-contained data-URI
@@ -442,19 +445,22 @@ export function Editor({ id, line }: { id: string; line?: number }) {
           aria-label="Document title"
         />
         <span className="hidden text-xs text-faint lg:inline">{stats.words.toLocaleString()} words · autosaved</span>
-        <IconButton label="Find in this document (Ctrl+F) — search the Markdown editor" name="search" size={17} onClick={searchInEditor} />
+        {/* All header controls share one icon size (18) so they sit on a
+            single baseline with even visual weight, matching StudioNav. */}
+        <IconButton label="Find in this document (Ctrl+F) — search the Markdown editor" name="search" size={18} onClick={searchInEditor} />
         {/* Lower-priority actions yield first when the row gets tight on
             phones — the guide lives one tap away via Ctrl+K / Library. */}
-        <IconButton label="Markdown guide" name="help" size={17} className="hidden sm:inline-flex" onClick={() => navigate("help")} />
+        <IconButton label="Markdown guide" name="help" size={18} className="hidden sm:inline-flex" onClick={() => navigate("help")} />
         <IconButton
           label={uiDark ? "Switch to light theme" : "Switch to dark theme"}
           name={uiDark ? "sun" : "moon"}
-          size={17}
+          size={18}
           onClick={() => saveSettings({ theme: uiDark ? "light" : "dark" })}
         />
         <IconButton
           label="Document details & layout"
           name="sliders"
+          size={18}
           active={!effSettingsCollapsed}
           onClick={() => {
             setDetailsOpen(true); // mobile: opens the slide-over modal
@@ -464,6 +470,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
         <IconButton
           label={focusMode ? "Exit Full Workspace mode" : "Full Workspace mode — hides the toolbar, settings pane and browser chrome for distraction-free writing"}
           name="focus"
+          size={18}
           active={focusMode}
           className="hidden sm:inline-flex"
           onClick={toggleFocusMode}

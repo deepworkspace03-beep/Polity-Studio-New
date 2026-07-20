@@ -178,10 +178,13 @@ src/
    │                     editor flash), commands, Toolbar, Preview
    │                     (flow/pages + doc-theme toggle), Details sheet
    │                     (Settings in 3 sections — Publication · Cover ·
-   │                     Interior — the compact cover picker, cover colour
-   │                     overrides, the Cover Designer and interior palettes),
+   │                     Interior — the compact cover picker, the Cover
+   │                     Designer (Custom style) and interior palettes),
    │                     Publish overlay. All three pane headers share one
    │                     height (h-10) so their controls align on one row.
+   │                     Four-option Segmented controls (density, language,
+   │                     designer size/frame/title-box) lay out as a 2×2 grid
+   │                     so they never clip in the narrow pane.
    ├─ Settings.tsx       appearance (incl. document reading theme),
    │                     branding, defaults, save/restore, your data
    └─ Help.tsx           the manual: Markdown syntax, a guide + tuned AI
