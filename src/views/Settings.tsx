@@ -223,11 +223,12 @@ export function Settings() {
             <Toggle label="Table of contents" checked={settings.newDocLayout.toc} onChange={(v) => saveSettings({ newDocLayout: { ...settings.newDocLayout, toc: v } })} />
             <Toggle label="Watermark" checked={settings.newDocLayout.watermark} onChange={(v) => saveSettings({ newDocLayout: { ...settings.newDocLayout, watermark: v } })} />
           </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Page size">
               <Segmented
                 value={settings.newDocLayout.pageSize}
                 onChange={(pageSize) => saveSettings({ newDocLayout: { ...settings.newDocLayout, pageSize } })}
+                columns={3}
                 options={[
                   { value: "a4", label: "A4" },
                   { value: "a5", label: "A5" },
@@ -239,6 +240,7 @@ export function Settings() {
               <Segmented
                 value={settings.newDocLayout.density}
                 onChange={(density) => saveSettings({ newDocLayout: { ...settings.newDocLayout, density } })}
+                columns={2}
                 options={[
                   { value: "ultra", label: "Ultra" },
                   { value: "compact", label: "Compact" },

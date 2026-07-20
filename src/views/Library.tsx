@@ -137,6 +137,16 @@ export function Library() {
     return hits ? typed : sortDocs(typed, settings.librarySort);
   }, [docs, hits, templateFilter, settings.librarySort]);
 
+  // Compact "N matches across M documents" summary for the active search —
+  // totalled over exactly the results on screen (after any type filter), so
+  // it always agrees with the per-card counts below it.
+  const searchSummary = useMemo(() => {
+    if (!hits) return null;
+    let matches = 0;
+    for (const d of filtered) matches += hitById.get(d.id)?.matchCount ?? 0;
+    return { matches, docs: filtered.length };
+  }, [hits, filtered, hitById]);
+
   const favorites = useMemo(() => docs.filter((d) => d.favorite).sort((a, b) => b.updatedAt - a.updatedAt), [docs]);
 
   // Card metadata is derived from a full body scan (contentStats +
@@ -239,26 +249,31 @@ export function Library() {
   return (
     <div className="relative mx-auto flex h-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8" {...drop.handlers}>
       <DropOverlay show={drop.over} label="Drop files to import as documents" />
+      {/* All header toggles share one tight, evenly-spaced group so they sit
+          on a single baseline with consistent gaps (icon size + padding are
+          uniform across every control). */}
       <header className="mb-8 flex items-center gap-2.5">
         <TempleMark size={26} className="flex-none text-accent" />
         <span className="min-w-0 truncate text-[15px] font-extrabold tracking-tight">Polity Studio</span>
         <span className="flex-1" />
-        <IconButton label="Search everything (Ctrl+K)" name="search" size={18} onClick={openPalette} />
-        <StudioNav home={false} />
-        {docs.length > 0 &&
-          (selectMode ? (
-            <Button onClick={exitSelectMode}>Cancel</Button>
-          ) : (
-            <IconButton label="Select documents" name="checklist" size={18} onClick={() => setSelectMode(true)} />
-          ))}
-        <IconButton label="Markdown guide & help" name="help" size={18} onClick={() => navigate("help")} />
-        <IconButton
-          label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-          name={isDark ? "sun" : "moon"}
-          size={18}
-          onClick={() => saveSettings({ theme: isDark ? "light" : "dark" })}
-        />
-        <IconButton label="Settings" name="settings" size={18} onClick={() => navigate("settings")} />
+        <div className="flex items-center gap-0.5">
+          <IconButton label="Search everything (Ctrl+K)" name="search" size={18} onClick={openPalette} />
+          <StudioNav home={false} />
+          {docs.length > 0 &&
+            (selectMode ? (
+              <Button onClick={exitSelectMode}>Cancel</Button>
+            ) : (
+              <IconButton label="Select documents" name="checklist" size={18} onClick={() => setSelectMode(true)} />
+            ))}
+          <IconButton label="Markdown guide & help" name="help" size={18} onClick={() => navigate("help")} />
+          <IconButton
+            label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+            name={isDark ? "sun" : "moon"}
+            size={18}
+            onClick={() => saveSettings({ theme: isDark ? "light" : "dark" })}
+          />
+          <IconButton label="Settings" name="settings" size={18} onClick={() => navigate("settings")} />
+        </div>
       </header>
 
       {/* The Homepage is a workspace, not a landing page: it opens straight
@@ -394,6 +409,17 @@ export function Library() {
           {query ? `No documents match “${query}”.` : "No documents of this type."}
         </p>
       ) : (
+        <>
+        {searchSummary && searchSummary.docs > 0 && (
+          <div className="mb-3 flex items-center gap-2 border-b border-edge pb-3 text-sm">
+            <Icon name="search" size={15} className="flex-none text-accent" />
+            <span className="font-semibold text-ink">
+              <span className="tabular-nums text-accent">{searchSummary.matches.toLocaleString()}</span> match{searchSummary.matches === 1 ? "" : "es"}
+              <span className="font-medium text-faint"> across </span>
+              <span className="tabular-nums text-accent">{searchSummary.docs.toLocaleString()}</span> document{searchSummary.docs === 1 ? "" : "s"}
+            </span>
+          </div>
+        )}
         <ul className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((doc) => {
             const meta = metaFor(doc);
@@ -533,6 +559,7 @@ export function Library() {
             );
           })}
         </ul>
+        </>
       )}
 
       {selectMode && (

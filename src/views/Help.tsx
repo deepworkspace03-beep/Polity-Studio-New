@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.7.0";
+const STUDIO_VERSION = "4.7.1";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
