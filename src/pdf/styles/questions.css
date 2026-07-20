@@ -4,10 +4,21 @@
    sets. Header row is label-free: number · topic · source, with topic
    and source as quiet rounded badges. The card stays deliberately light
    to render — no card background fill (the page already provides the
-   paper) and one paint operation per badge; measured cost of the badge
-   pair: zero pagination-time change, +9% PDF size on a solution-heavy
-   300-question bank (1199 → 1305 KB, ~0.7 KB/page) — accepted as the
-   price of the header hierarchy, page counts unchanged.
+   paper) and one paint operation per badge.
+
+   Pagination contract (redesigned for maximum page fill):
+     · the header and the stem (.q__main) never separate;
+     · each option row (.q__opt) is atomic, but the option grid may
+       continue onto the next page;
+     · solutions flow freely across pages;
+     · every continuation half (Paged.js data-split-from) opens as an
+       "open book" box — spine and side rules run on — and carries a
+       small "Qn · continued" tag so ownership is never ambiguous.
+
+   Page economy: Question Banks get tighter page-content padding than
+   prose templates (see the body.tpl-questions rules at the end) and
+   their own reduced @page margins from the document builder — banks are
+   consulted, not read cover-to-cover, so density is a feature.
    ═══════════════════════════════════════════════════════════════════ */
 
 .mcq-preamble {
@@ -19,7 +30,7 @@
   font-size: 0.94em;
 }
 
-/* Section divider */
+/* Section divider — number · title · question-count chip. */
 .mcq-section {
   display: flex;
   align-items: center;
@@ -43,30 +54,47 @@
   border-bottom: 1.6pt solid var(--c-primary);
   font-size: 1.3em;
 }
+.mcq-section__count {
+  flex: none;
+  align-self: center;
+  font-family: "Manrope", sans-serif;
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  border: 0.7pt solid var(--c-edge);
+  border-radius: 999pt;
+  padding: 1.6pt 7pt 1.9pt;
+}
 .mcq-section__intro { font-size: 0.94em; color: var(--c-muted); margin-bottom: 1em; }
+
+/* Unit pagination — every "##" unit opens on a fresh page (the
+   examination-book convention; Details → Interior can turn it off).
+   The opener sits flush at the page top: its resting margin is gone. */
+.mcq--breaks .mcq-section { break-before: page; margin-top: 0; }
+.mcq--breaks .mcq-section:first-child { break-before: auto; }
 
 /* ── Question card ───────────────────────────────────────────────── */
 
 .q {
-  border: 0.7pt solid color-mix(in srgb, var(--c-edge) 88%, var(--c-primary));
+  position: relative;
+  border: 0.8pt solid color-mix(in srgb, var(--c-edge) 76%, var(--c-primary));
   /* A confident spine gives the card its textbook identity without a fill —
-     one extra stroke per card, nothing more. Restored to a deliberate,
-     legible accent (the tightened refinement pass had faded it to near
-     invisibility) so a page of cards reads as a crafted examination book. */
+     one extra stroke per card, nothing more. */
   border-left: 2.5pt solid color-mix(in srgb, var(--c-primary) 62%, var(--c-edge));
   border-radius: 7pt;
   padding: 0.72em 0.95em 0.75em;
-  margin: 0 0 0.75em;
+  margin: 0 0 0.85em;
 }
 
-/* Pagination contract: a *question* (header + stem + options, .q__main)
-   is never split across pages; a long worked solution may continue onto
-   the next page. The card itself can therefore break — Paged.js marks the
-   halves with data-split-to (ends open) and data-split-from (continues
-   open), and the borders below turn that split into a quiet "open book"
-   continuation: the spine and side rules run on, no continuation labels,
-   no orphaned white space at the bottom of the page. */
-.q__main { break-inside: avoid; break-after: avoid; }
+/* Pagination: the header + stem (.q__main) stay together; the option
+   grid and the solution may continue onto the next page. Paged.js marks
+   the halves with data-split-to (ends open) and data-split-from
+   (continues open); the borders below turn that split into a quiet
+   "open book" continuation, and the ::before tag stamps the owner. */
+.q__main { break-inside: avoid; }
+.q__opt { break-inside: avoid; }
 .q[data-split-to] {
   border-bottom: none;
   border-bottom-left-radius: 0;
@@ -78,22 +106,44 @@
   border-top: none;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  padding-top: 0.45em;
+  padding-top: 0.5em;
+}
+/* Ownership tag on the continuation half — "Q12 · continued" floats in
+   the page's top breathing room, zero flow impact (absolutely
+   positioned, so it can never push content off the page). The PDF
+   engine materializes it like any other pseudo-element. */
+.q[data-split-from]::before {
+  /* !important: Paged.js ships its own high-specificity "content: none"
+     suppressor for ::before on split-from fragments (to stop generated
+     content duplicating). Here the generated content exists *only* on
+     the continuation, so the suppressor must lose. */
+  content: attr(data-q) " · continued" !important;
+  position: absolute;
+  top: -0.6em;
+  right: 0.9em;
+  font-family: "Manrope", sans-serif;
+  font-size: 0.6em;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  background: var(--c-paper);
+  padding: 0 0.6em;
+  line-height: 1;
 }
 .q__sol[data-split-from] { border-top: none; margin-top: 0; padding-top: 0; }
 
 /* Header row — one compact line: Q number · topic badge reading left,
    source badge anchored right, a dotted leader bridging the two so the
    line always spans the card (classic exam-book rhythm, no dead center
-   gap, no "Topic:" labels). Topic and source are quiet rounded badges —
-   one soft fill / one hairline each, so a thousand cards cost the PDF
-   two extra operations per card (measured: within noise on pagination
-   time and ~1% on file size). */
+   gap, no "Topic:" labels). */
 .q__head {
   display: flex;
   align-items: baseline;
   gap: 0.55em;
   margin-bottom: 0.45em;
+  break-after: avoid;
+  break-inside: avoid;
 }
 .q__num {
   font-family: "Manrope", sans-serif;
@@ -113,7 +163,7 @@
 /* Topic — a soft-filled pill: present but quieter than the number. */
 .q__topic {
   flex: none;
-  max-width: 46%;
+  max-width: 40%;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-size: 0.72em;
   font-weight: 700;
@@ -129,17 +179,16 @@
   align-self: center;
 }
 /* The leader is an empty span: align-self centers its zero-height box in
-   the row, so the dots bridge the badges at their vertical middle (the
-   old baseline + translateY trick drew them along the row's top edge
-   once the badges gained height). */
+   the row, so the dots bridge the badges at their vertical middle. */
 .q__lead {
   flex: 1;
   min-width: 1.2em;
   align-self: center;
   border-bottom: 0.6pt dotted color-mix(in srgb, var(--c-edge) 72%, var(--c-muted));
 }
-/* Source — a hairline-outlined pill in the brand gold: the provenance
-   mark, lightest of the three. */
+/* Source — a soft gold-filled pill, the provenance mark: same premium
+   filled treatment as the topic so the header's three badges read as
+   one crafted family (number strongest, topic mid, source warm). */
 .q__src {
   flex: none;
   display: inline-flex;
@@ -150,11 +199,11 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--c-gold);
-  border: 0.7pt solid color-mix(in srgb, var(--c-gold) 42%, var(--c-mix, white));
+  color: color-mix(in srgb, var(--c-gold) 68%, var(--c-text));
+  background: color-mix(in srgb, var(--c-gold) 14%, var(--c-mix, white));
   border-radius: 999pt;
-  padding: 1.4pt 6.5pt 1.7pt;
-  max-width: 42%;
+  padding: 1.7pt 6.5pt 2pt;
+  max-width: 38%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -162,12 +211,68 @@
 }
 .q__marks { font-weight: 700; color: var(--c-muted); text-transform: none; letter-spacing: 0.02em; }
 
+/* "Answer →" — the jump chip to the back-of-book key/explanation (end
+   mode only). A real internal link: clickable in previews, the PDF and
+   the HTML export; quiet enough to ignore on paper. */
+.q__jump {
+  flex: none;
+  align-self: center;
+  font-family: "Manrope", sans-serif;
+  font-size: 0.66em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  background: color-mix(in srgb, var(--c-accentSoft) 60%, var(--c-mix, white));
+  border-radius: 999pt;
+  border-bottom: none;
+  padding: 1.7pt 6.5pt 2pt;
+  white-space: nowrap;
+}
+
 /* The question itself is the visual focus: its opening line reads a
    step stronger than the rest of the stem; options sit lighter still
    (see .q__opt-text), so the hierarchy is obvious at a glance. */
 .q__text { font-weight: 500; }
 .q__text > p:first-child { font-weight: 600; }
 .q__text p { margin-bottom: 0.5em; }
+.q__text > :last-child { margin-bottom: 0; }
+
+/* Header-less compact card (Details → Interior → hide topics): the
+   number chip floats into the question's first line and provenance
+   rides inline at the stem's end — a full row saved per question. */
+.q--flat .q__num {
+  float: left;
+  margin: 0.05em 0.55em 0.1em 0;
+}
+.q--flat .q__text { min-height: 1.7em; }
+.q__text .q__src,
+.q__text .q__jump { vertical-align: baseline; max-width: none; }
+.q__srcline { text-align: right; margin-top: 0.25em; }
+
+/* Assertion–Reason / Statement pairs — independent labeled blocks
+   instead of one run-on sentence. */
+.q__st {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  margin: 0.3em 0 0.35em;
+  break-inside: avoid;
+}
+.q__st-label {
+  flex: none;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 0.72em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-primary) 78%, var(--c-text));
+  background: color-mix(in srgb, var(--c-primarySoft) 14%, var(--c-mix, white));
+  border-radius: 4pt;
+  padding: 1.5pt 6pt 1.8pt;
+}
+.q__st-body { flex: 1; }
+.q__st-tail { margin: 0.4em 0 0; }
 
 .q__options {
   list-style: none;
@@ -177,9 +282,14 @@
   grid-template-columns: 1fr 1fr;
   gap: 2.5pt 10pt;
 }
-/* Long options fall back to a single column via the harness adding
-   .q__options--long when any option exceeds ~55 characters. */
+/* Layout is classified at build time (templates/index.ts) so flow
+   preview, paged preview and PDF always agree:
+   --long = any option past ~55 chars → one readable column;
+   --row  = four tiny options → a single 4-across line. */
 .q__options--long { grid-template-columns: 1fr; }
+.q__options--row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* A5 pages are too narrow for 4-across — fold to a 2×2. */
+body.size-a5 .q__options--row { grid-template-columns: 1fr 1fr; }
 
 .q__opt {
   display: flex;
@@ -227,7 +337,9 @@
 .q__tick svg { width: 0.85em; height: 0.85em; display: block; }
 
 /* Worked solution — rendered only when one exists; absent solutions
-   reserve no space at all. */
+   reserve no space at all. The label is a premium soft-filled chip
+   (same family as the topic/source badges) so the solution block is
+   identifiable at a glance. */
 .q__sol {
   margin-top: 0.6em;
   border-top: 0.7pt solid var(--c-edge);
@@ -238,23 +350,16 @@
   display: inline-flex;
   align-items: center;
   break-after: avoid;
-  gap: 0.5em;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
   font-weight: 800;
-  font-size: 0.72em;
-  letter-spacing: 0.1em;
+  font-size: 0.68em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--c-accent);
-  margin-bottom: 0.35em;
-}
-/* A short accent rule before the label — a subtle, book-style flourish
-   that costs one extra stroke and reads as a considered section mark. */
-.q__sol-label::before {
-  content: "";
-  width: 1.1em;
-  height: 1.6pt;
-  border-radius: 1pt;
-  background: color-mix(in srgb, var(--c-accent) 65%, transparent);
+  color: color-mix(in srgb, var(--c-accent) 80%, var(--c-text));
+  background: color-mix(in srgb, var(--c-accentSoft) 60%, var(--c-mix, white));
+  border-radius: 999pt;
+  padding: 1.7pt 7pt 2pt;
+  margin-bottom: 0.4em;
 }
 .q__sol-body > :first-child { margin-top: 0; }
 .q__sol-body > :last-child { margin-bottom: 0; }
@@ -262,6 +367,43 @@
 .q__sol-body table { font-size: 0.86em; margin: 0.7em 0; }
 .q__sol-body th { padding: 4pt 6pt; }
 .q__sol-body td { padding: 3.5pt 6pt; }
+
+/* Smart solution referencing — a duplicated detailed solution renders
+   once; every later twin carries this one-line clickable reference, and
+   the original lists its sharers so navigation works both ways. */
+.q__sol--ref { display: flex; align-items: center; gap: 0.7em; }
+.q__sol--ref .q__sol-label { margin-bottom: 0; }
+.q__sol-ref {
+  font-size: 0.94em;
+  font-weight: 600;
+  color: var(--c-accent);
+  border-bottom: none;
+}
+.q__sol-shared {
+  margin-top: 0.4em;
+  font-family: "Manrope", sans-serif;
+  font-size: 0.78em;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+.q__sol-shared a { border-bottom: none; font-weight: 700; }
+
+/* ── Two-column examination layout (Details → Interior) ──────────────
+   The whole bank flows in two columns per page — the classic printed
+   PYQ-book format, near-doubling questions per page for short banks.
+   Section openers span both columns; option grids fold one step
+   narrower so rows never cramp. No column-rule: the PDF engine
+   transcribes elements, not multicol paint, and preview must equal
+   print. */
+.mcq--2col {
+  columns: 2;
+  column-gap: 7mm;
+  column-fill: auto;
+}
+.mcq--2col .mcq-section,
+.mcq--2col .mcq-section__intro { column-span: all; }
+.mcq--2col .q__options { grid-template-columns: 1fr; }
+.mcq--2col .q__options--row { grid-template-columns: 1fr 1fr; }
 
 /* ── Answer key (practice mode: answers at the end) ──────────────── */
 
@@ -280,7 +422,9 @@
   padding: 3pt 7pt;
   break-inside: avoid;
 }
-.key__q { font-family: "Manrope", sans-serif; font-weight: 600; font-size: 0.86em; color: var(--c-muted); }
+/* The number is a link back to its question — quiet on paper, live in
+   the PDF/HTML. */
+.key__q { font-family: "Manrope", sans-serif; font-weight: 600; font-size: 0.86em; color: var(--c-muted); border-bottom: none; }
 .key__a { font-family: "Manrope", sans-serif; font-weight: 800; color: var(--c-primary); }
 
 /* ── Explanations (practice mode) ────────────────────────────────── */
@@ -320,25 +464,55 @@
   color: var(--c-muted);
 }
 .exp__answer strong { color: var(--c-good); }
+/* Return link — the mirror of the card's "Answer →". */
+.exp__back {
+  margin-left: auto;
+  font-family: "Manrope", sans-serif;
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--c-accent);
+  border-bottom: none;
+  white-space: nowrap;
+}
 .exp__body p:last-child { margin-bottom: 0; }
+
+/* ── Page economy — Question Banks pack tighter than prose ─────────
+   The shared foundation gives every template 6mm/5mm of page-content
+   breathing room; banks trade most of it for an extra question row
+   per page while the header/footer rules keep the frame looking
+   deliberate. (These override print-base by specificity + order.) */
+body.tpl-questions .pagedjs_page:not(.pagedjs_cover_page) .pagedjs_page_content {
+  padding-top: 3.5mm;
+  padding-bottom: 3mm;
+}
 
 /* ── Ultra Compact — question-bank-specific tightening ───────────── */
 
 /* Ultra keeps every premium cue — the spine, the softened 6pt corners,
    the badges, the framed correct option — and only tightens the spacing,
    so a dense page still reads as a crafted book rather than a
-   stripped-down list. */
-body.density-ultra .q { padding: 0.58em 0.8em 0.62em; margin-bottom: 0.6em; border-radius: 6pt; }
+   stripped-down list. The card gap deliberately tightens LESS than the
+   in-card spacing: neighbouring questions must stay clearly separate
+   even at maximum density. */
+body.density-ultra .q { padding: 0.55em 0.8em 0.6em; margin-bottom: 0.7em; border-radius: 6pt; }
 body.density-ultra .q__head { margin-bottom: 0.35em; gap: 0.5em; }
 body.density-ultra .q__topic { padding: 1.3pt 5.5pt 1.6pt; }
-body.density-ultra .q__src { padding: 1.1pt 5.5pt 1.4pt; }
+body.density-ultra .q__src { padding: 1.3pt 5.5pt 1.6pt; }
+body.density-ultra .q__jump { padding: 1.3pt 5.5pt 1.6pt; }
 body.density-ultra .q__text p { margin-bottom: 0.35em; }
+body.density-ultra .q__st { margin: 0.22em 0 0.26em; }
 body.density-ultra .q__options { gap: 1.5pt 8pt; margin-top: 0.25em; }
 body.density-ultra .q__opt { padding: 1.2pt 3pt; }
 body.density-ultra .q__opt--correct { padding: 0.5pt 2.3pt; } /* offsets the 0.7pt frame so keys stay aligned */
 body.density-ultra .q__sol { margin-top: 0.45em; padding-top: 0.4em; }
 body.density-ultra .q__sol-label { margin-bottom: 0.25em; }
 body.density-ultra .mcq-section { margin: 1.1em 0 0.7em; }
+body.density-ultra .mcq--breaks .mcq-section { margin-top: 0; }
 body.density-ultra .mcq-section__intro { margin-bottom: 0.7em; }
 body.density-ultra .mcq-preamble { margin-bottom: 1em; padding: 0.65em 0.85em; }
 body.density-ultra .exp { padding: 0.45em 0.75em 0.5em; margin-bottom: 0.5em; }
+body.density-ultra.tpl-questions .pagedjs_page:not(.pagedjs_cover_page) .pagedjs_page_content {
+  padding-top: 2.5mm;
+  padding-bottom: 2mm;
+}

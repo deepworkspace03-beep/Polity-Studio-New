@@ -68,6 +68,9 @@ describe("withDefaults", () => {
         ...DEFAULT_LAYOUT,
         coverColors: { bg: "#123456", ink: "#abcdef" },
         coverDesign: { ...DEFAULT_LAYOUT.coverDesign, bg1: "#000000" } as never,
+        qbUnitBreaks: false,
+        qbTopics: false,
+        qbColumns: 2,
       },
     };
     // Simulate the IndexedDB/backup round trip: serialize then parse.
@@ -79,6 +82,11 @@ describe("withDefaults", () => {
     expect(merged.favorite).toBe(true);
     expect(merged.layout.coverColors).toEqual({ bg: "#123456", ink: "#abcdef" });
     expect((merged.layout.coverDesign as { bg1: string } | undefined)?.bg1).toBe("#000000");
+    // The Question Bank layout switches are optional fields too — losing
+    // them on reload would silently flip a bank back to defaults.
+    expect(merged.layout.qbUnitBreaks).toBe(false);
+    expect(merged.layout.qbTopics).toBe(false);
+    expect(merged.layout.qbColumns).toBe(2);
   });
 
   it("LAYOUT_OPTIONAL_KEYS alone preserves coverColors/coverDesign on a direct layout merge", () => {

@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.7.1";
+const STUDIO_VERSION = "4.8.0";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -395,7 +395,23 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Search, Settings & Sync)`} intro="Universal homepage search, a Settings panel reorganised into three clear sections, aligned three-pane headers, and click-anywhere sync that works both ways.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Question Bank redesign)`} intro="A publication-grade Question Bank: denser pages with nothing lost, structured Assertion–Reason blocks, smart option rows, clickable answer navigation, a two-column format, and a pageless web export.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>Every page works harder</b> — Question Banks now use a tighter page frame of their own, and a question's options may continue onto the next page under a clearly tagged <i>"Qn · continued"</i> open card (solutions already flowed). Half-empty pages from questions that "didn't fit" are gone; every density mode benefits, Ultra Compact most.</li>
+            <li><b>Units open on fresh pages</b> — each <code className="font-mono text-xs">##</code> unit starts a new page, like a printed book's sections (Settings → Interior can turn it off). Unit headers also show a question-count chip.</li>
+            <li><b>Assertion–Reason, properly typeset</b> — write <code className="font-mono text-xs">Assertion (A): …</code> and <code className="font-mono text-xs">Reason (R): …</code> on their own lines and they render as independent labeled blocks (Statement I/II works too). And "(R)" now always prints literally — no more stray ® symbols.</li>
+            <li><b>Smart option rows</b> — four very short options ("1909 · 1919 · 1935 · 1947") sit on a single line automatically; long options take a full column; everything else keeps the classic two-column grid. Identical in preview, PDF and HTML.</li>
+            <li><b>Premium source &amp; solution styling</b> — the source is now a soft gold-filled pill matching the topic's treatment, and every solution opens with a filled Solution chip, so the card hierarchy reads at a glance.</li>
+            <li><b>Clickable answer navigation</b> — in "answers at the end" mode every question carries a quiet <i>Answer →</i> chip that jumps to its explanation (or key cell), and every explanation carries <i>↩ Question</i> back — live in the previews, the exported PDF and the HTML export.</li>
+            <li><b>Shared solutions, printed once</b> — when several questions share one detailed explanation it prints once; the others show a clickable <i>"See Question N for the detailed explanation"</i>, and the original lists the questions it also answers.</li>
+            <li><b>Hide topics for maximum density</b> — a new setting drops the per-question header row entirely: the number folds into the question line and the source rides at the stem's end. A full row saved on every question.</li>
+            <li><b>Two-column examination layout</b> — the classic printed-PYQ-book format, one tap in Settings → Interior: about 20% fewer pages on medium banks, with unit headers spanning both columns.</li>
+            <li><b>Pageless web export</b> — Publish gains a second HTML button: a continuous-scroll, script-free reading page (fonts embedded) for websites and phones — no pagination at all.</li>
+            <li><b>Android tablet fix</b> — the three-pane workspace headers now sit on one clean line on touch devices; a tablet-only rule was inflating the Flow/Pages switch past its row. Header icon spacing is consistent across all views.</li>
+          </ul>
+        </Section>
+
+        <Section title="Version 4.7 (Search, Settings & Sync)" intro="Universal homepage search, a Settings panel reorganised into three clear sections, aligned three-pane headers, and click-anywhere sync that works both ways.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Universal homepage search</b> — the Library search now looks inside every document's title, full content <i>and</i> metadata (exam, unit, session, author), not just titles. Each result shows how many times your term appears; open the <b>matches</b> breakdown to see where — grouped by heading with an estimated page — and tap any row to jump straight to that spot in the editor.</li>
             <li><b>Settings in three sections</b> — the editor's Settings pane is now <b>Publication</b> (all cover text &amp; metadata), <b>Cover</b> (the compact design picker) and <b>Interior</b> (page layout, colour palettes, presets). Cleaner to scan, less scrolling.</li>
@@ -577,9 +593,16 @@ export function Help() {
                 <code className="font-mono">Topic:</code> and <code className="font-mono">Source:</code> fill the label-free
                 header row as rounded badges (number · topic · source); <code className="font-mono">Solution:</code> (or{" "}
                 <code className="font-mono">Explanation:</code>) adds the optional worked solution. Use{" "}
-                <code className="font-mono">##</code> headings to split into sections. The <em>Answers &amp; solutions</em>{" "}
-                setting switches between the inline study layout (✓ on the correct option, solution under the question),
-                a back-of-book key, or a clean question paper.
+                <code className="font-mono">##</code> headings to split into units — each unit opens on a fresh page (a
+                setting can turn this off). Assertion–Reason and Statement I/II questions format themselves: write{" "}
+                <code className="font-mono">Assertion (A): …</code> and <code className="font-mono">Reason (R): …</code> on
+                their own lines and they render as independent labeled blocks. Four very short options automatically sit on
+                one line; identical detailed solutions print once, with later questions carrying a clickable{" "}
+                <em>See Question N</em> reference. The <em>Answers &amp; solutions</em> setting switches between the inline
+                study layout (✓ on the correct option, solution under the question), a back-of-book key with clickable{" "}
+                <em>Answer →</em> / <em>↩ Question</em> navigation, or a clean question paper. Settings can also hide the
+                per-question topic row (the source folds into the question line) and switch the whole bank to the classic
+                two-column examination layout.
               </span>
             }
             prompt={QUESTIONS_PROMPT}

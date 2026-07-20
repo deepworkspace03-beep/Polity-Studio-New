@@ -43,6 +43,17 @@ const PAGE_GEOMETRY: Record<PageSize, { w: number; h: number; size: string; marg
   letter: { w: 216, h: 279, size: "216mm 279mm", margin: "21mm 16mm 23mm 16mm", marginUltra: "17mm 13mm 19mm 13mm" },
 };
 
+/** Question Banks maximize questions per page: their page frame is
+    trimmed further than prose templates (banks are consulted, not read
+    cover-to-cover). The running header (~5mm) and footer lockup (~8mm)
+    still sit comfortably inside these margins — verified against the
+    chrome metrics in print-base.css. */
+const QB_PAGE_MARGINS: Record<PageSize, { margin: string; marginUltra: string }> = {
+  a4: { margin: "18mm 13mm 20mm 13mm", marginUltra: "15mm 11mm 17mm 11mm" },
+  a5: { margin: "14mm 10mm 16mm 10mm", marginUltra: "12mm 9mm 14mm 9mm" },
+  letter: { margin: "18mm 14mm 20mm 14mm", marginUltra: "15mm 12mm 17mm 12mm" },
+};
+
 /** Vector pattern layer per cover style (SVG so print stays vector).
     "custom" is absent — its pattern comes from the CoverDesign. */
 const COVER_PATTERNS: Record<Exclude<Doc["layout"]["coverStyle"], "custom">, { kind: CoverPatternKind; color: string }> = {
@@ -439,7 +450,17 @@ export function buildShellKey(doc: Doc, brand: BrandConfig, theme: "light" | "da
     tracked separately so an unchanged-body match can report the count
     as exact rather than calibrated. */
 export function pageFactKey(doc: Doc, brand: BrandConfig, theme: "light" | "dark" = "light"): string {
-  return [doc.id, buildShellKey(doc, brand, theme), doc.layout.cover, doc.layout.toc, doc.layout.answers].join("|");
+  return [
+    doc.id,
+    buildShellKey(doc, brand, theme),
+    doc.layout.cover,
+    doc.layout.toc,
+    doc.layout.answers,
+    // Question-bank layout switches all move real page breaks.
+    doc.layout.qbUnitBreaks !== false,
+    doc.layout.qbTopics !== false,
+    doc.layout.qbColumns ?? 1,
+  ].join("|");
 }
 
 export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOptions): string {
@@ -451,12 +472,14 @@ export function buildDocumentHtml(doc: Doc, brand: BrandConfig, options: BuildOp
   const density = DENSITY[doc.layout.density];
   const paged = mode === "paged";
 
+  const ultra = doc.layout.density === "ultra";
+  const frame = doc.template === "questions" ? QB_PAGE_MARGINS[doc.layout.pageSize] : geometry;
   const css = `
 :root { ${themeVars(brand, theme)}
   --body-size: ${density.size};
   --body-leading: ${density.leading};
 }
-@page { size: ${geometry.size}; margin: ${doc.layout.density === "ultra" ? geometry.marginUltra : geometry.margin}; }
+@page { size: ${geometry.size}; margin: ${ultra ? frame.marginUltra : frame.margin}; }
 ${printBaseCss}
 ${coversCss}
 ${template.css}
@@ -476,13 +499,19 @@ ${paged ? PAGED_PREVIEW_CSS : FLOW_PREVIEW_CSS}`;
   // when a document first uses them — this makes that first layout
   // deterministic too. The 5 s race keeps a failed font from stalling
   // layout forever (fonts.ready resolves on failure, belt and braces).
+  // Flow + export is the script-free build: the print fallback and the
+  // standalone web (pageless) HTML export must carry no inline-editing
+  // harness — an exported reading file with contenteditable headings
+  // would be a defect, not a feature.
   const scripts = paged
     ? `<script>window.PagedConfig = { auto: true, before: function () {
   return Promise.race([document.fonts.ready, new Promise(function (r) { setTimeout(r, 5000); })]);
 } };</script>
 <script src="/vendor/paged.polyfill.min.js"></script>
 <script>${HARNESS_JS}</script>`
-    : `<script>${PREVIEW_JS}</script>`;
+    : purpose === "export"
+      ? ""
+      : `<script>${PREVIEW_JS}</script>`;
 
   const content = `${coverHtml(doc, brand, body.coverLines)}
 ${paged ? runnersHtml(doc, brand) : ""}
@@ -501,7 +530,7 @@ ${body.html}`;
 <style>${css}</style>
 ${watermarkTemplate}
 </head>
-<body class="tpl-${doc.template} mode-${mode} purpose-${purpose} density-${doc.layout.density}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
+<body class="tpl-${doc.template} mode-${mode} purpose-${purpose} density-${doc.layout.density} size-${doc.layout.pageSize}${theme === "dark" ? " doc-dark" : ""}" data-watermark="${doc.layout.watermark ? "1" : "0"}" data-purpose="${purpose}">
 ${paged ? content : `<div id="doc-root">${content}</div>`}
 ${scripts}
 </body>

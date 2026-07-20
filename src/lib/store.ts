@@ -91,7 +91,7 @@ export async function restartStudio(): Promise<void> {
 export const DOC_OPTIONAL_KEYS = ["institute", "coverLines", "favorite"] as const satisfies readonly (keyof Doc)[];
 /** Optional `DocLayout` fields (`coverColors?`, `coverDesign?`) — same
     contract as DOC_OPTIONAL_KEYS, one level down. */
-export const LAYOUT_OPTIONAL_KEYS = ["coverColors", "coverDesign"] as const satisfies readonly (keyof DocLayout)[];
+export const LAYOUT_OPTIONAL_KEYS = ["coverColors", "coverDesign", "qbUnitBreaks", "qbTopics", "qbColumns"] as const satisfies readonly (keyof DocLayout)[];
 
 /** Merges a stored object over the defaults, keeping only keys the
     current schema knows about — old fields (removed features) are

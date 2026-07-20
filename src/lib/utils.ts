@@ -115,12 +115,16 @@ export function estimatePages(
     // Question Banks are cards, not prose: each card carries fixed layout
     // cost (header row, options grid, padding, card gap) on top of its
     // words, so a words-per-page constant lands wildly short (~50% under,
-    // the "Flow says 80, Pages says 168" mismatch). Calibrated against
-    // real Paged.js layouts at compact density; browser text-shaping
-    // differences put a ±10% floor under any static card constant, which
-    // the calibrated tier of the authority chain absorbs after the first
-    // real layout.
-    body = (stats.questions * 0.372 + stats.words / 742) * (500 / wpp);
+    // the "Flow says 80, Pages says 168" mismatch). Constants refit for
+    // the v4.8 QB frame (tighter margins, separable options, units
+    // opening on fresh pages — the heading term charges each unit's
+    // average half-page rounding): measured 602 pages @1500q short-card
+    // and 116 @300q solution-heavy, predicted 573/125 — inside the ±10%
+    // floor browser text shaping puts under any static card constant.
+    // The model assumes the default single-column layout; two-column and
+    // hidden-topic banks land fewer pages, which the calibrated tier of
+    // the authority chain absorbs after the first real layout.
+    body = (stats.questions * 0.298 + stats.words / 1300) * (500 / wpp) + stats.headings * 0.5;
   } else {
     // Structure costs vertical space no words-per-page constant can see —
     // the old words+headings model ran ~23% short on structured study

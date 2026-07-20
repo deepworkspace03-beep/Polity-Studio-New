@@ -109,3 +109,21 @@ export async function buildStandaloneHtml(paginated: Document, fileTitle: string
 
   return `<!DOCTYPE html>\n${root.outerHTML}`;
 }
+
+/** Pageless (flow) HTML export — the document as one continuous,
+    responsive reading page: no pagination, no page chrome, no scripts.
+    Ideal for web publishing and small-screen reading, and the natural
+    home for Question Banks consumed digitally. The builder's
+    flow+export mode is already script-free (no inline-editing harness);
+    all this adds is offline fonts. */
+export async function buildFlowHtml(html: string, fileTitle: string): Promise<string> {
+  const root = new DOMParser().parseFromString(html, "text/html");
+  root.querySelectorAll("link[rel='stylesheet']").forEach((el) => el.remove());
+  const title = root.querySelector("title");
+  if (title) title.textContent = fileTitle;
+  const fontCss = await inlineFontFaces(root.body.textContent ?? "");
+  const style = root.createElement("style");
+  style.textContent = fontCss;
+  root.head.appendChild(style);
+  return `<!DOCTYPE html>\n${root.documentElement.outerHTML}`;
+}

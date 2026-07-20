@@ -978,21 +978,48 @@ function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc
         {template.hasToc && <Toggle label="Table of contents" checked={doc.layout.toc} onChange={(v) => layout({ toc: v })} />}
         <Toggle label="Watermark on every page" checked={doc.layout.watermark} onChange={(v) => layout({ watermark: v })} />
         {template.hasAnswers && (
-          <Field
-            label="Answers & solutions"
-            hint="Inline highlights the correct option (✓) with the solution under each question — the study layout. At the end collects a key + explanations at the back for practice tests. Hidden prints a clean question paper."
-          >
-            <Segmented
-              value={doc.layout.answers}
-              onChange={(answers) => layout({ answers })}
-              columns={3}
-              options={[
-                { value: "inline", label: "Inline" },
-                { value: "end", label: "At the end" },
-                { value: "none", label: "Hidden" },
-              ]}
+          <div className="space-y-4 border-t border-edge/70 pt-3">
+            <span className="block text-[10.5px] font-bold uppercase tracking-wide text-faint">Question Bank</span>
+            <Field
+              label="Answers & solutions"
+              hint="Inline highlights the correct option (✓) with the solution under each question — the study layout. At the end collects a key + explanations at the back for practice tests, with clickable Answer → and ↩ Question links both ways. Hidden prints a clean question paper."
+            >
+              <Segmented
+                value={doc.layout.answers}
+                onChange={(answers) => layout({ answers })}
+                columns={3}
+                options={[
+                  { value: "inline", label: "Inline" },
+                  { value: "end", label: "At the end" },
+                  { value: "none", label: "Hidden" },
+                ]}
+              />
+            </Field>
+            <Field
+              label="Question columns"
+              hint="Two columns is the classic printed PYQ-book format — roughly twice the questions per page. Best on A4 with short-to-medium questions; long solutions still read fine as they flow down the column."
+            >
+              <Segmented
+                value={String(doc.layout.qbColumns ?? 1)}
+                onChange={(v) => layout({ qbColumns: v === "2" ? 2 : 1 })}
+                columns={2}
+                options={[
+                  { value: "1", label: "Single" },
+                  { value: "2", label: "Two columns" },
+                ]}
+              />
+            </Field>
+            <Toggle
+              label="Each unit starts on a new page"
+              checked={doc.layout.qbUnitBreaks !== false}
+              onChange={(v) => layout({ qbUnitBreaks: v })}
             />
-          </Field>
+            <Toggle
+              label="Show topic on every question"
+              checked={doc.layout.qbTopics !== false}
+              onChange={(v) => layout({ qbTopics: v })}
+            />
+          </div>
         )}
         <InteriorPalettes />
         <div className="border-t border-edge/70 pt-3">

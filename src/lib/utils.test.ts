@@ -106,18 +106,19 @@ describe("estimatePages", () => {
 
   it("uses the card-calibrated model for question banks", async () => {
     const { estimatePages } = await import("./utils");
-    // Calibration points measured against real Paged.js layouts (A4,
-    // compact): 300 questions / 41,197 words → 154–168 pages incl. cover
-    // (browser text shaping varies a few % between engine versions);
-    // 1,500 questions / 143k words → ~750. The estimate must land within
-    // ±12% of the measured band — the words-only model was ~50% short.
+    // Calibration points measured against real Paged.js layouts of the
+    // v4.8 QB frame (A4, compact, stress harness): 300 questions /
+    // 41,197 words / 6 units → 116 pages incl. cover; 1,500 questions /
+    // 143k words / 30 units → 602. The estimate must land within ±12%
+    // (browser text shaping varies a few % between engine versions) —
+    // the words-only model was ~50% short.
     const base = { headings: 6, h1s: 0, pagebreaks: 0, listItems: 0, callouts: 0 };
     const small = estimatePages({ ...base, words: 41197, questions: 300 }, "compact", true, false, "questions");
-    expect(small).toBeGreaterThan(154 * 0.95);
-    expect(small).toBeLessThan(168 * 1.12);
-    const large = estimatePages({ ...base, words: 142957, questions: 1500 }, "compact", true, false, "questions");
-    expect(large).toBeGreaterThan(751 * 0.88);
-    expect(large).toBeLessThan(751 * 1.12);
+    expect(small).toBeGreaterThan(116 * 0.88);
+    expect(small).toBeLessThan(116 * 1.12);
+    const large = estimatePages({ ...base, headings: 30, words: 142957, questions: 1500 }, "compact", true, false, "questions");
+    expect(large).toBeGreaterThan(602 * 0.88);
+    expect(large).toBeLessThan(602 * 1.12);
     // No question markers → fall back to the prose model.
     expect(estimatePages({ ...base, words: 4100, questions: 0 }, "comfort", false, false, "questions")).toBe(11);
   });

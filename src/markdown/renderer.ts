@@ -244,6 +244,29 @@ function getRenderer(): MarkdownIt {
     }
   });
 
+  // The stock typographer "replacements" rule turns (c)/(r)/(tm) into
+  // ©/®/™ — hostile to exam content, where "(R)", "(C)" are Reason
+  // labels and option keys ("…labelled Assertion (A) and Reason (R)"
+  // printed a ® mid-sentence). Disable it and keep only the typography
+  // that helps study material: en/em dashes, ellipsis and ±. Smart
+  // quotes are a separate rule and stay on.
+  md.disable("replacements");
+  md.core.ruler.before("replacements", "studio_typography", (state) => {
+    for (const token of state.tokens) {
+      if (token.type !== "inline" || !token.children) continue;
+      for (const child of token.children) {
+        if (child.type !== "text") continue;
+        const c = child.content;
+        if (!c.includes("--") && !c.includes("...") && !c.includes("+-")) continue;
+        child.content = c
+          .replace(/(^|[^-])---(?!-)/g, "$1—")
+          .replace(/(^|[^-])--(?!-)/g, "$1–")
+          .replace(/\.{3,}/g, "…")
+          .replace(/\+-/g, "±");
+      }
+    }
+  });
+
   // `\pagebreak` (or `\newpage`) alone on a line forces a page break.
   md.core.ruler.push("studio_pagebreak", (state) => {
     const tokens = state.tokens;
