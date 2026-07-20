@@ -39,6 +39,34 @@ cost has been made non-blocking, observable and interruption-safe
 (v4.3) — the O(pages) layout time itself only moves with a
 chunked/virtualized pagination redesign (see Roadmap).
 
+## v4.8 — Question Bank redesign (page economy + navigation)
+
+The QB layout contract changed (see "Smart pagination" below for the
+what and why). Re-measured on the same harness scenarios, same machine
+class, production build:
+
+| Scenario | v4.4 baseline | v4.8 | Δ |
+|---|--:|--:|--:|
+| QB 1500q — pages | 751 | 602 | **−20%** |
+| QB 1500q — fill | 84% | 95% | +11 pts |
+| QB 1500q — paginate | 67.2 s (~89 ms/page) | 47.7 s (~79 ms/page) | −29% wall |
+| QB 1500q — PDF size | 5.0 MB | 4.5 MB | −11% |
+| QB 300q long sols — pages | 154 | 116 | **−25%** |
+| QB 300q long sols — PDF size | 1.3 MB | 0.95 MB | −29% |
+| Blank pages / export success | 0 / ✅ | 0 / ✅ | unchanged |
+
+Same content, meaningfully fewer pages and smaller files; the per-page
+pagination constant is unchanged (the wall saving is simply fewer
+pages). The gains come from three static levers — the QB-specific
+`@page` frame, separable option grids with atomic rows, and unit-break
+defaults — all resolved in the normal single layout pass, so v4.4's
+linearity holds. The optional two-column mode adds a further −22%
+pages on a 300-question ultra bank (108 → 84) at a modestly higher
+per-page layout cost (multicol measurement), and exports fine through
+the vector engine (multicol positions come from real client rects).
+The QB card estimate model (`estimatePages`) was recalibrated to the
+new frame (predictions 593/121 vs actual 602/116).
+
 ## v4.4 — pagination made linear + deterministic (Phase 6)
 
 1. **The superlinearity root cause: CSS `target-counter` TOC page
@@ -307,31 +335,40 @@ Reading the table honestly:
 - Rejected after measurement (v4.2.1): `text-rendering: optimizeSpeed`
   — zero improvement, typographic risk.
 
-## Smart pagination (whitespace) — investigated, deliberately bounded
+## Smart pagination (whitespace) — contract revised in v4.8
 
-Measured fill: ~96% on notes, ~97% on solution-heavy banks (whose long
-solutions flow as open boxes), ~84% on short-card banks (`qb-1500`).
-The 84% is exactly the arithmetic of the atomic-question contract: at
-~2.7 cards/page, the page bottom loses on average about half a card
-(~0.15–0.2 page) because a question that doesn't fit moves whole. The
-candidate "improvements" were evaluated and rejected:
+**History.** Up to v4.7 the whole question (header + stem + options) was
+one atomic block; measured fill was ~96% on notes, ~97% on
+solution-heavy banks, but only ~84% on short-card banks (`qb-1500`) —
+at ~2.7 cards/page the page bottom lost about half a card because a
+question that didn't fit moved whole. That trade-off was documented
+here as "deliberately bounded": splitting was rejected to protect the
+exam-book reading contract.
 
-- **Splitting questions/options across pages** is the only lever that
-  could claim that remainder, and it destroys the exam-book reading
-  contract — a question you can't see whole is a usability regression,
-  not a win.
-- **Adaptive per-page spacing compression** (shrinking margins/gaps so
-  one more card fits) makes visually inconsistent pages, breaks
-  "preview = PDF" identity, and would need a second layout pass per
-  page (undoing the v4.4 linearity).
-- **The v4.3 open-box solution/explanation continuation** was the real
-  win here (long solutions no longer drag whole cards to the next page,
-  −16% pages on solution-heavy banks) and stays — it is why
-  solution-heavy banks reach 97%.
+**v4.8 reverses that decision as an explicit product call** — Question
+Banks are consulted, not read linearly, and page economy was promoted
+to a first-class requirement. The redesign claims the remainder while
+repairing the readability cost the old analysis feared:
 
-Verdict: the remaining whitespace is the atomic-question guarantee
-itself, not waste. Every approach that could claim part of it costs
-correctness, consistency or layout time. Not implemented, by evidence.
+- The atomic unit shrank to header + stem (`.q__main`); each option row
+  stays atomic (`.q__opt`) but the option grid may continue onto the
+  next page, and solutions flow as before.
+- Every continuation half renders as the established "open book" box
+  **plus an absolutely-positioned "Qn · continued" tag** (a pseudo-
+  element, materialized into the PDF), so ownership of a continued
+  fragment is never ambiguous — the usability objection is addressed,
+  not ignored.
+- Question Banks additionally get their own tighter `@page` frame
+  (`QB_PAGE_MARGINS`) and trimmed page-content padding — a static,
+  template-scoped change, so "preview = PDF" identity and the v4.4
+  one-pass linearity are untouched (the rejected *adaptive per-page
+  compression* stays rejected).
+- The optional two-column layout (`qbColumns: 2`) stacks on top for
+  short-to-medium banks: measured 108 → 84 pages (−22%) on a
+  300-question ultra bank.
+
+Notes and prose templates keep the old margins and the old contract —
+nothing outside `tpl-questions` moved.
 
 ## Known limitations (honest)
 

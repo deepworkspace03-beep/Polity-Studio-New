@@ -209,6 +209,19 @@ export function Publish({
     }
   }
 
+  async function downloadFlowHtml() {
+    try {
+      const { buildFlowHtml } = await import("../../pdf/htmlExport");
+      const flow = buildDocumentHtml(doc, brand, { mode: "flow", purpose: "export", fileTitle, theme: settings.docTheme });
+      const html = await buildFlowHtml(flow, fileTitle);
+      downloadFile(`${fileTitle} (web).html`, html, "text/html");
+      toast(`Downloaded · ${(new Blob([html]).size / 1024).toFixed(0)} KB · continuous web layout, no pages`, "ok");
+    } catch (err) {
+      console.error("[publish] flow html export failed", err);
+      toast("Web HTML export hit a problem.", "error");
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg" role="dialog" aria-modal="true" aria-label="Publish PDF">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
@@ -265,6 +278,13 @@ export function Publish({
             disabled={phase !== "ready"}
           />
         )}
+        <IconButton
+          label="Download web-flow HTML — a pageless, continuous-scroll reading layout for websites and phones"
+          name="monitor"
+          size={17}
+          onClick={() => void downloadFlowHtml()}
+        />
+
         <Button
           variant="primary"
           icon={phase === "exporting" ? "loader" : "download"}

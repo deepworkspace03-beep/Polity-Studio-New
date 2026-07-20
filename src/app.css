@@ -74,6 +74,19 @@ body {
   [role="button"] {
     min-height: 40px;
   }
+  /* …except inside the height-locked h-10 pane-header rows (Settings ·
+     Toolbar · Preview). There a 40px-min button — most visibly the
+     Flow/Pages segmented pill, which adds its own border on top —
+     outgrows the 40px row, bursts through its bottom border and breaks
+     the single clean line the three pane headers form. This was the
+     long-standing "header not aligned on Android tablet" bug: the rule
+     above only exists on coarse pointers, so it never reproduced on any
+     desktop. Touch targets stay honest — the full row height is the
+     effective target for these controls. */
+  .h-10 button,
+  .h-10 [role="button"] {
+    min-height: 0;
+  }
 }
 
 ::selection {

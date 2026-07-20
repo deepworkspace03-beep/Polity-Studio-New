@@ -91,6 +91,19 @@ export interface DocLayout {
       question; "end" collects a key + explanations at the back;
       "none" prints a clean question paper. */
   answers: AnswersMode;
+  /** Question Bank only: every "##" unit/section opens on a fresh page —
+      the examination-book convention. Absent = true; optional so stored
+      documents predating the option keep their saved layout untouched. */
+  qbUnitBreaks?: boolean;
+  /** Question Bank only: show each question's topic pill in its header
+      row. Absent = true. When off the header row is dropped entirely —
+      the number folds into the question line and the source moves to a
+      compact inline chip at the end of the stem, saving a full row per
+      question. */
+  qbTopics?: boolean;
+  /** Question Bank only: interior question columns — 1 (default) or the
+      compact two-column examination layout. Absent = 1. */
+  qbColumns?: 1 | 2;
 }
 
 export interface Doc {

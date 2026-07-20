@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDocumentHtml, buildShellKey } from "./document";
+import { buildDocumentHtml, buildShellKey, pageFactKey } from "./document";
 import { DEFAULT_BRAND, DEFAULT_LAYOUT } from "../brand/defaults";
 import type { Doc } from "../lib/types";
 
@@ -59,22 +59,49 @@ describe("buildDocumentHtml", () => {
     expect(qb).not.toContain('class="toc"');
   });
 
-  it("wraps a question's unsplittable unit (header + stem + options) in q__main, with the solution outside it", () => {
-    // The pagination contract: .q__main is break-inside-avoid (a question
-    // is never split across pages) while the solution stays a sibling so a
-    // long one can continue onto the next page as an open box. Moving the
-    // solution inside q__main would silently reintroduce the whole-card
-    // break behaviour and its wasted page space.
+  it("keeps only header + stem in q__main; options and solution are siblings that may paginate independently", () => {
+    // The redesigned pagination contract: .q__main (header + stem) is the
+    // only break-inside-avoid unit. The option grid is a sibling so rows
+    // can continue onto the next page (each .q__opt is atomic in CSS),
+    // and the solution flows after it as an open box. Folding options or
+    // the solution back inside q__main would silently reintroduce the
+    // whole-card break behaviour and its half-empty pages.
     const qb = buildDocumentHtml(
       baseDoc({ template: "questions", body: "Q. Test?\nA) a\nB) b *\nSolution: Because." }),
       DEFAULT_BRAND,
       { mode: "flow" },
     );
-    const main = /<div class="q__main">([\s\S]*?)<\/div>\s*<div class="q__sol">/.exec(qb);
+    const main = /<div class="q__main">([\s\S]*?)<\/div>\s*<ol class="q__options/.exec(qb);
     expect(main).not.toBeNull();
     expect(main![1]).toContain('class="q__head"');
-    expect(main![1]).toContain('class="q__options"');
-    expect(main![1]).not.toContain('class="q__sol"');
+    expect(main![1]).not.toContain("q__options");
+    expect(main![1]).not.toContain("q__sol");
+    // The continuation tag's data source rides on the card element.
+    expect(qb).toContain('data-q="Q1"');
+  });
+
+  it("gives Question Banks their own tighter page frame and a size-* body class", () => {
+    const qb = buildDocumentHtml(
+      baseDoc({ template: "questions", body: "Q. Test?\nA) a\nB) b *" }),
+      DEFAULT_BRAND,
+      { mode: "paged" },
+    );
+    expect(qb).toContain("margin: 18mm 13mm 20mm 13mm"); // QB A4 frame, not the prose 21/15/23
+    expect(qb).toContain("size-a4");
+
+    const ultra = buildDocumentHtml(
+      baseDoc({ template: "questions", body: "Q. Test?\nA) a\nB) b *", layout: { ...DEFAULT_LAYOUT, density: "ultra" } }),
+      DEFAULT_BRAND,
+      { mode: "paged" },
+    );
+    expect(ultra).toContain("margin: 15mm 11mm 17mm 11mm");
+  });
+
+  it("keeps the flow+export build script-free (no inline-editing harness in exported files)", () => {
+    const exported = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow", purpose: "export" });
+    expect(exported).not.toContain("<script>");
+    const preview = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow", purpose: "preview" });
+    expect(preview).toContain("<script>");
   });
 
   it("emits the density class and the tighter Ultra Compact page margins", () => {
@@ -268,5 +295,18 @@ describe("buildShellKey", () => {
   it("stays stable when only body text changes (so typing never forces a full iframe rebuild)", () => {
     const key = buildShellKey(baseDoc(), DEFAULT_BRAND, "light");
     expect(buildShellKey(baseDoc({ body: "completely different text" }), DEFAULT_BRAND, "light")).toBe(key);
+  });
+});
+
+describe("pageFactKey", () => {
+  it("invalidates the exact page count when a question-bank layout switch changes", () => {
+    // qbUnitBreaks / qbTopics / qbColumns all move real page breaks, so a
+    // stored exact count must not survive a change to any of them.
+    const key = pageFactKey(baseDoc({ template: "questions" }), DEFAULT_BRAND, "light");
+    expect(pageFactKey(baseDoc({ template: "questions", layout: { ...DEFAULT_LAYOUT, qbUnitBreaks: false } }), DEFAULT_BRAND, "light")).not.toBe(key);
+    expect(pageFactKey(baseDoc({ template: "questions", layout: { ...DEFAULT_LAYOUT, qbTopics: false } }), DEFAULT_BRAND, "light")).not.toBe(key);
+    expect(pageFactKey(baseDoc({ template: "questions", layout: { ...DEFAULT_LAYOUT, qbColumns: 2 } }), DEFAULT_BRAND, "light")).not.toBe(key);
+    // Absent and explicit-default spellings are the same layout — same key.
+    expect(pageFactKey(baseDoc({ template: "questions", layout: { ...DEFAULT_LAYOUT, qbUnitBreaks: true, qbTopics: true, qbColumns: 1 } }), DEFAULT_BRAND, "light")).toBe(key);
   });
 });

@@ -5,25 +5,18 @@
  * HARNESS_JS (paged documents) —
  *   1. tracks the current chapter/section to fill the running-header topic,
  *   2. stamps the vector watermark onto every content page,
- *   3. switches long MCQ option lists to a single column,
- *   4. zoom: fit-to-width or an explicit factor (host message "set-zoom"),
- *   5. page navigation + visible-page reporting for the host pager,
- *   6. cursor sync: scrolls to the page containing a source line,
- *   7. reports completion + page count to the host app.
+ *   3. zoom: fit-to-width or an explicit factor (host message "set-zoom"),
+ *   4. page navigation + visible-page reporting for the host pager,
+ *   5. cursor sync: scrolls to the page containing a source line,
+ *   6. reports completion + page count to the host app.
+ * (MCQ option-column classification moved to build time — templates/
+ * index.ts — so the flow preview, paged preview and PDF always agree.)
  *
  * PREVIEW_JS (flow documents) —
  *   1. swaps #doc-root content in place (typing never reloads the iframe),
  *   2. follows the editor cursor via [data-line] markers.
  */
 export const HARNESS_JS = String.raw`(function () {
-  // Long MCQ options read better in one column — decide before layout.
-  document.querySelectorAll(".q__options").forEach(function (ol) {
-    var long = Array.prototype.some.call(ol.querySelectorAll(".q__opt-text"), function (el) {
-      return (el.textContent || "").length > 55;
-    });
-    if (long) ol.classList.add("q__options--long");
-  });
-
   var wantWatermark = document.body.getAttribute("data-watermark") === "1";
   var isPreview = document.body.getAttribute("data-purpose") === "preview";
   var wmTemplate = document.getElementById("watermark-template");

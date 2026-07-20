@@ -28,14 +28,18 @@ function formatCounter(value: number, style: string): string {
   return String(value);
 }
 
-/** Resolves a computed `content` value into plain text. */
+/** Resolves a computed `content` value into plain text. Chrome keeps
+    attr() unresolved in the computed value, so it is read from the host
+    element here (the question-bank "Qn · continued" tag rides on one). */
 export function resolveContent(content: string, el: Element, pageNum: number, pageTotal: number): string {
   let out = "";
-  const re = /"((?:[^"\\]|\\.)*)"|counter\(\s*([\w-]+)\s*(?:,\s*([\w-]+)\s*)?\)/g;
+  const re = /"((?:[^"\\]|\\.)*)"|counter\(\s*([\w-]+)\s*(?:,\s*([\w-]+)\s*)?\)|attr\(\s*([\w-]+)\s*\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content))) {
     if (m[1] !== undefined) {
       out += m[1].replace(/\\([\s\S])/g, "$1").replace(/\\A\s?/g, "\n");
+    } else if (m[4] !== undefined) {
+      out += el.getAttribute(m[4]) ?? "";
     } else {
       out += formatCounter(resolveCounter(el, m[2], pageNum, pageTotal), m[3] || "decimal");
     }

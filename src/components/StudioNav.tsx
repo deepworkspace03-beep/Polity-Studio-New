@@ -30,7 +30,10 @@ export function StudioNav({ home = true }: { home?: boolean }) {
   }
 
   return (
-    <>
+    // One tight cluster (gap-0.5), matching the right-hand action group in
+    // every view header — both icon groups read as the same component and
+    // the header's own larger gap only separates clusters, not icons.
+    <div className="flex flex-none items-center gap-0.5">
       <IconButton label="Back — return to the previous page" name="back" size={18} disabled={!canGoBack()} onClick={back} />
       {home && <IconButton label="Home — back to your library" name="home" size={18} onClick={() => navigate("library")} />}
       <IconButton label="Resume last session — reopen where you left off" name="history" size={18} onClick={resume} />
@@ -40,6 +43,6 @@ export function StudioNav({ home = true }: { home?: boolean }) {
         size={18}
         onClick={() => void restartStudio()}
       />
-    </>
+    </div>
   );
 }

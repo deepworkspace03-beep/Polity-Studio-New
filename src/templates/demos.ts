@@ -429,6 +429,27 @@ Explanation: Indra Sawhney (1992) capped total reservations at 50% and introduce
 Topic: Reservation
 Source: UGC-NET Dec 2022
 
+Q. Given below are two statements, one labelled as Assertion (A) and the other as Reason (R).
+Assertion (A): Fundamental Rights are enforceable directly in the Supreme Court under Article 32.
+Reason (R): Article 32 is itself a fundamental right, called by Ambedkar "the heart and soul of the Constitution".
+In the light of the above statements, choose the correct answer.
+A) Both A and R are true and R is the correct explanation of A *
+B) Both A and R are true but R is not the correct explanation of A
+C) A is true but R is false
+D) A is false but R is true
+Explanation: The remedy under Article 32 is itself a guaranteed right — that guaranteed status is precisely why rights are directly enforceable in the Supreme Court, so R explains A.
+Topic: Fundamental Rights
+Source: UGC-NET June 2024
+
+Q. Fundamental Duties were inserted by which constitutional amendment?
+A) 24th
+B) 42nd *
+C) 44th
+D) 52nd
+Explanation: The 42nd Amendment (1976) inserted Part IVA (Article 51A) on the Swaran Singh Committee's recommendation.
+Topic: Fundamental Duties
+Source: MP SET 2023
+
 ## Section C — Amendment & Basic Structure
 
 Q. Arrange the following cases chronologically —

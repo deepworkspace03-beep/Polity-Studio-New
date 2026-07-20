@@ -133,6 +133,25 @@ describe("renderMarkdown", () => {
     expect(html).toContain("<code>a -&gt; b</code>");
     expect(html).toContain("text → here");
   });
+
+  it("never turns (R)/(C)/(TM) into symbols — exam labels must print literally", () => {
+    // The stock typographer converted "Reason (R)" to "Reason ®" — fatal
+    // for Assertion–Reason banks and lettered references in any template.
+    const html = renderMarkdown("labelled Assertion (A) and Reason (R), option (C), mark (TM).");
+    expect(html).toContain("Reason (R)");
+    expect(html).toContain("option (C)");
+    expect(html).toContain("mark (TM)");
+    expect(html).not.toContain("®");
+    expect(html).not.toContain("™");
+  });
+
+  it("keeps the useful typography: en/em dashes, ellipsis and ±", () => {
+    const html = renderMarkdown("range 10--20 --- wait... give +-5");
+    expect(html).toContain("10–20");
+    expect(html).toContain("—");
+    expect(html).toContain("wait…");
+    expect(html).toContain("±5");
+  });
 });
 
 describe("cross-references & anchor targets", () => {

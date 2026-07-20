@@ -42,8 +42,9 @@ and how to extend it.
    exams, watermark text) is data in IndexedDB, edited in Settings, and
    flows into print CSS as `--c-*` variables. Per-document layout
    (cover style, TOC, watermark, page size, density — including the
-   layout-level Ultra Compact — question-bank answers placement) is
-   data on the document. A global "document reading
+   layout-level Ultra Compact — and the Question Bank's own switches:
+   answers placement, unit page breaks, per-question topic row,
+   one/two-column format) is data on the document. A global "document reading
    theme" (Settings → Appearance) re-derives the whole `--c-*` palette
    for a dark, eye-friendly rendering that flows through previews, PDF
    and HTML exports alike — brand hues are lightened with `color-mix`
@@ -453,6 +454,42 @@ reader's own browser. Once any layout runs (Pages or Publish), the exact
 count flows workspace-wide — including into Publish's typesetting progress
 bar, which then drops the "≈" and gives a trustworthy ETA.
 
+## The Question Bank layout system
+
+One examination-book card (`templates/index.ts` → `questionCard`)
+serves PYQs, MCQs and practice sets; the redesign centres on four ideas:
+
+- **Pagination contract.** Only the header + stem (`.q__main`) is
+  atomic. Option rows are individually atomic (`.q__opt`) but the grid
+  may continue onto the next page, and solutions flow freely — every
+  continuation renders as an "open book" box (no closing/opening rule)
+  stamped with an absolutely-positioned "Qn · continued" tag
+  (`::before`, `content: attr(data-q)`, `!important` against Paged.js's
+  own split-fragment suppressor). Question Banks also get a tighter
+  `@page` frame than prose templates (`QB_PAGE_MARGINS`, document.ts)
+  and trimmed page-content padding — banks are consulted, not read
+  cover to cover, so density is a feature.
+- **Build-time intelligence, not harness patches.** Option-column
+  choice (4-across for tiny options / two columns / one for long),
+  Assertion–Reason and Statement I/II block structure, and duplicate-
+  solution referencing ("See Question N …" with back-links on the
+  original) are all decided in the body builder, so the flow preview,
+  the paged preview and the PDF agree by construction.
+- **Layout switches on the document** (`DocLayout.qbUnitBreaks`,
+  `qbTopics`, `qbColumns`): units opening on fresh pages (default on),
+  the header-row-less compact card (number folds into the stem, source
+  rides inline at its end), and the classic two-column examination
+  format (`columns: 2` on the bank root — Paged.js fragments it
+  correctly, section headers span both columns; no `column-rule`,
+  because the PDF engine transcribes elements, not multicol paint).
+  All three feed `pageFactKey` so a stored exact page count can never
+  survive a switch that moves breaks.
+- **Answer navigation** (answers-at-the-end mode): every card carries a
+  quiet "Answer →" chip targeting its explanation (`#exp-N`) or key
+  cell (`#key-N`); explanations and key numbers link back to `#q-N`.
+  In the PDF these become real Dest annotations via the existing
+  link-resolution pass — nothing new in the engine.
+
 ## Internal PDF navigation
 
 Everything anchor-based rides one mechanism end to end: the renderer
@@ -513,4 +550,7 @@ the system, in one paragraph each:
   KB/page — the measured structural floor.
 - **HTML export** snapshots the already-paginated DOM (no Paged.js
   re-ship, ~500 KB saved), inlines only the font scripts the text uses,
-  and rides a ~2 KB viewer script.
+  and rides a ~2 KB viewer script. A second, **pageless** variant
+  (`buildFlowHtml`) packages the flow build instead — one continuous,
+  responsive reading page with zero scripts (the flow+export build
+  strips the inline-editing harness), for web publishing and phones.

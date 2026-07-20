@@ -235,6 +235,26 @@ scripted Playwright pass if you want it automated for one session.
   hover `title` + touch long-press bubble), which keeps the Settings pane
   short. Put the `HintInfo` trigger inside the `<label>` only with
   `preventDefault` on press so revealing the hint never focuses the field.
+- **markdown-it's typographer symbol substitutions are disabled on purpose.**
+  The stock `replacements` rule turns `(c)/(r)/(tm)` into ©/®/™ — in exam
+  content, "Reason (R)" printed as "Reason ®". `renderer.ts` disables the
+  rule and re-implements only the useful part (en/em dashes, ellipsis, ±)
+  in `studio_typography`; `renderer.test.ts` guards the literal "(R)".
+- **Paged.js suppresses author `::before` content on split fragments.** Its
+  injected stylesheet carries a high-specificity `content: none` for
+  `[data-split-from]::before` (so generated content isn't duplicated across
+  a split). A pseudo that must exist *only* on the continuation — the
+  question-bank "Qn · continued" tag — needs `!important` on its `content`
+  to beat it. Keep such tags absolutely positioned: they're injected after
+  layout is measured, so any in-flow height would overflow the page box.
+- **`@media (pointer: coarse)` styling must respect height-locked rows.**
+  The global 40px touch-target `min-height` on buttons made compact
+  controls (the Flow/Pages segmented pill) outgrow the fixed `h-10`
+  pane-header rows — a tablet-only layout break invisible on any desktop
+  (the media query never matches there). `app.css` exempts `.h-10` rows;
+  when adding a new fixed-height row with buttons, keep it in mind — and
+  test tablet-specific CSS with Playwright's `isMobile: true` emulation,
+  which is what flips `pointer: coarse` in Chromium.
 
 ## Extension points (checklist)
 
