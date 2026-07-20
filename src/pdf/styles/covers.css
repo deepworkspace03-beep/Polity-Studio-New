@@ -421,3 +421,20 @@ body.mode-paged .cv-guide--empty { display: none; }
   margin-right: 3mm;
   margin-bottom: 0.06em;
 }
+
+/* ── Dark reading mode ───────────────────────────────────────────────
+   The cover auto-adapts to the global light/dark PDF toggle (Settings →
+   reading theme / the preview's sun-moon), the same state that re-derives
+   the interior palette — no separate cover toggle. In dark mode a soft
+   dark veil is composited onto the shade layer, deepening every ground
+   (presets and custom alike) so the cover sits calmly against dark interior
+   pages instead of glaring. It rides .cv-shade, which the vector PDF engine
+   already replays as a shading, so print stays crisp; the higher-specificity
+   selector wins over each style's own `background` shorthand while its
+   gradient image still composites on top of the veil.
+   Limitation: this is a tonal dim, not a full re-colour — a light-grounded
+   cover (e.g. a custom near-white design) is deepened, not inverted. */
+body.doc-dark .cover .cv-shade { background-color: rgba(6, 9, 15, 0.38); }
+/* Custom covers normally suppress the shade entirely; in dark mode the veil
+   is exactly what we want, so let it through. */
+body.doc-dark .cover--custom .cv-shade { background: rgba(6, 9, 15, 0.38); }

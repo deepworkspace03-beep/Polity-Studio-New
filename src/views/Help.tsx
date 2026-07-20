@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.6.0";
+const STUDIO_VERSION = "4.7.0";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -365,8 +365,8 @@ ${UNIVERSAL_PROMPT}
 - The toolbar keeps everyday tools visible; the More (⋯) menu holds the rest (text styles, tables, page breaks, whole-document copy/cut/paste/replace). Every action in More has a pin toggle — Pin to Toolbar / Remove from Toolbar — so you can build your own always-visible bar; the layout is remembered per browser.
 - On touch devices, the editor starts keyboard-free: tapping to place the cursor, selecting text and toolbar formatting all leave the on-screen keyboard closed. Tap the "Tap to type" pill in the editor's bottom-left corner to switch into typing mode (opens the keyboard) and back out again.
 - The toolbar is selection-aware: with text selected, a callout or the code block wraps the selected text, headings/lists/quote transform the selected lines, inline styles wrap the exact selection, and the clipboard paste replaces it. With nothing selected the same buttons insert their usual templates.
-- Editor and preview scroll independently — reading one never disturbs the other. To sync them on purpose, click a line in the editor (or the preview) to place the cursor there, or drag the editor's scrollbar; the preview maps to the same body position (the generated cover/contents pages don't skew it). Small Go-to-Top / Go-to-Bottom buttons fade in on each pane once you've scrolled — a single tap jumps instantly to the end, press-and-hold glides smoothly.
-- Editing a Publication or Cover field peeks the preview at the cover, then returns to where you were.
+- Editor and preview scroll independently — reading one never disturbs the other. To sync them on purpose, click a line in the editor (or the preview) to place the cursor there, or drag the editor's scrollbar; the preview maps to the same body position (the generated cover/contents pages don't skew it). Clicking in the preview works both ways — in Flow or Pages view it scrolls the editor to the matching line and flashes it. Small Go-to-Top / Go-to-Bottom buttons fade in on each pane once you've scrolled — a single tap jumps instantly to the end, press-and-hold glides smoothly.
+- Editing a Publication or Cover field peeks the preview at the cover; editing an Interior (layout) field peeks at your last-viewed inside page — both return to where you were when you move on.
 - Inserting or tapping an image shows a toolbar for its layout (left/center/right/full), size, spacing, border, rounded corners, shadow and caption — the same controls appear right in the Flow preview, updating the document live.
 - "Replace with clipboard" (in the More menu) swaps the whole document for the clipboard's text, with a confirmation if the document isn't empty — separate from a normal paste at the cursor.
 - Ctrl/Cmd+F opens the Search Navigator — an in-document find/replace whose results are grouped by heading and estimated page; click any result to jump straight to it. Ctrl/Cmd+K opens universal search and commands across every document.
@@ -395,14 +395,15 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Workspace refined)`} intro="A calmer, more premium three-pane workspace — a cleaner cover system, a shorter Settings panel, and navigation that stays instant at any document size.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Search, Settings & Sync)`} intro="Universal homepage search, a Settings panel reorganised into three clear sections, aligned three-pane headers, and click-anywhere sync that works both ways.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>A refreshed cover system</b> — three premium publication-quality presets (Meridian, Aurora, Eclipse), each with an elegant built-in border and subtle depth. Design your own in the Cover Designer and <b>Save this design</b> — saved covers then sit right beside the presets for one-tap reuse on any document. Patterns are a short, tasteful set (Geometry, Arcs and a Globe motif). Older Regal/Heritage documents move to Meridian automatically.</li>
-            <li><b>Instant Go-to-Top / Go-to-Bottom</b> — a single tap jumps to the very top or bottom immediately, even in a 1000-page note (it used to crawl and stall). Press and hold to glide smoothly instead.</li>
-            <li><b>Scrolling stays independent</b> — reading one pane no longer drags the other. The preview follows the editor only when you ask it to: click a line to place the cursor, or drag the editor scrollbar. Manual wheel/touch scrolling in either pane is yours alone.</li>
-            <li><b>Remembered zoom</b> — the Pages view auto-fits the width and now remembers the zoom you choose across documents and sessions.</li>
-            <li><b>A shorter Settings panel</b> — field explanations tuck into a small ⓘ you can hover or long-press, so the everyday controls stay close instead of scrolling.</li>
-            <li><b>Legible everywhere</b> — the Go-to-Top / Bottom arrows keep clear contrast in every Studio-light/dark and document-light/dark combination.</li>
+            <li><b>Universal homepage search</b> — the Library search now looks inside every document's title, full content <i>and</i> metadata (exam, unit, session, author), not just titles. Each result shows how many times your term appears; open the <b>matches</b> breakdown to see where — grouped by heading with an estimated page — and tap any row to jump straight to that spot in the editor.</li>
+            <li><b>Settings in three sections</b> — the editor's Settings pane is now <b>Publication</b> (all cover text &amp; metadata), <b>Cover</b> (the compact design picker) and <b>Interior</b> (page layout, colour palettes, presets). Cleaner to scan, less scrolling.</li>
+            <li><b>Compact cover picker + favourites</b> — the three presets and your favourite saved designs sit on one tidy row of chips. Star any saved design (in “Manage saved designs”) to pin your top three beside the presets.</li>
+            <li><b>Covers follow light/dark</b> — the cover now adapts automatically to the global reading-theme toggle, deepening in dark mode so it sits calmly against dark interior pages — no separate cover switch.</li>
+            <li><b>Interior colour palettes</b> — three premium palettes (Oxford Navy, Forest Emerald, Claret &amp; Copper) applied in one tap, plus your own saved palettes. Customise the exact colours and <b>Save palette</b> to reuse them.</li>
+            <li><b>Live layout preview</b> — changing any Interior setting parks the preview on your last-viewed inside page (or the first content page) so you see density, size, TOC and palette changes land immediately.</li>
+            <li><b>Two-way click sync</b> — clicking in the <i>preview</i> now reliably scrolls the editor to the matching line and flashes it, in both Flow and Pages views — the exact mirror of clicking in the editor. The top headers of all three panes now line up on one clean row.</li>
           </ul>
         </Section>
 
@@ -644,13 +645,12 @@ export function Help() {
           </ul>
         </Section>
 
-        <Section title="The Settings pane, covers & the dark reading theme" intro="The editor's Settings pane (the sliders icon) is organised into four groups: Publication · Cover · Layout & PDF · Advanced.">
+        <Section title="The Settings pane, covers & the dark reading theme" intro="The editor's Settings pane (the sliders icon) is organised into three sections: Publication · Cover · Interior.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-            <li><b>Publication</b> holds the document's identity — subtitle, exam, paper/unit and author.</li>
-            <li><b>Cover</b> holds everything on the cover page in one place: the brand/institute name, session, edition, the language badge (cover only — it never changes your content), highlight lines, and the cover design. Three premium presets — <b>Meridian</b>, <b>Aurora</b> and <b>Eclipse</b> — each accept optional color overrides; <b>Custom — design your own</b> opens the Cover Designer (colors, a curated pattern, typography, frame and title-box treatments, emblem/logo), previewing live. Use <b>Save this design</b> and your saved covers appear right beside the presets for one-tap reuse on any document.</li>
-            <li><b>Layout &amp; PDF</b> covers text density (<b>Ultra</b> · Compact · Comfort · Relaxed — Ultra tightens the whole layout, not just the font, to pack the most onto each page while staying readable), page size, table of contents, watermark, (for Question Banks) the answers &amp; solutions position, and named layout presets.</li>
-            <li><b>Advanced</b> holds the document reading theme, the studio-wide PDF colors, and the PDF filename pattern. The full Branding page (names, links, watermark text) stays in Studio Settings.</li>
-            <li>The <b>document reading theme</b> (light/dark) renders previews, PDFs and HTML exports on an eye-friendly dark palette that typesets like a professional dark publication — the preview toolbar's sun/moon icon toggles it without leaving the editor. Covers keep their own design.</li>
+            <li><b>Publication</b> holds every cover-page text field in one place — publication name, subtitle, unit/institute, feature tags (e.g. “Premium Study Notes”), exam, paper/unit, session, edition, the language badge (cover only — it never changes your content) and author.</li>
+            <li><b>Cover</b> is where you include or exclude the cover page and choose its design. Three premium presets — <b>Meridian</b>, <b>Aurora</b> and <b>Eclipse</b> — sit as compact chips alongside your favourite saved designs; each preset accepts optional colour overrides. <b>Custom</b> opens the Cover Designer (colours, a curated pattern, typography, frame and title-box treatments, emblem/logo), previewing live. Use <b>Save this design</b>, then star it in <b>Manage saved designs</b> to pin your top three beside the presets. The cover automatically adapts to the light/dark reading theme — no separate switch.</li>
+            <li><b>Interior</b> covers text density (<b>Ultra</b> · Compact · Comfort · Relaxed — Ultra tightens the whole layout, not just the font), page size, table of contents, watermark, (for Question Banks) the answers &amp; solutions position, the <b>interior colour palettes</b> (three premium defaults plus your own saved palettes, applied to every PDF), named layout presets and the PDF filename pattern. Focus any Interior control and the preview jumps to your last-viewed inside page so you see the change land.</li>
+            <li>The <b>document reading theme</b> (light/dark) renders previews, PDFs and HTML exports on an eye-friendly dark palette that typesets like a professional dark publication — the preview toolbar's sun/moon icon toggles it without leaving the editor. Covers and the interior palette both follow it.</li>
           </ul>
         </Section>
 

@@ -165,7 +165,11 @@ export const HARNESS_JS = String.raw`(function () {
       for (var i = 0; i < pages.length; i++) {
         var r = pages[i].getBoundingClientRect();
         if (r.top <= mid && r.bottom >= mid) {
-          try { parent.postMessage({ type: "page-visible", page: i + 1 }, "*"); } catch (e) {}
+          // body flag = this page carries authored content ([data-line]), i.e.
+          // it is an interior page, not the generated cover/TOC — lets the host
+          // remember the last *inside* page for the settings layout-peek.
+          var isBody = !!pages[i].querySelector("[data-line]");
+          try { parent.postMessage({ type: "page-visible", page: i + 1, body: isBody }, "*"); } catch (e) {}
           return;
         }
       }
@@ -602,7 +606,11 @@ export const PREVIEW_JS = String.raw`(function () {
     var edge = Math.max(120, doc.clientHeight * 0.6);
     var atTop = window.scrollY <= edge;
     var atBottom = max - window.scrollY <= edge;
-    try { parent.postMessage({ type: "flow-scroll", pct: pct, atTop: atTop, atBottom: atBottom }, "*"); } catch (e) {}
+    // body flag = the reader has scrolled past the cover into authored
+    // content — the host remembers this position for the settings layout-peek.
+    var firstBody = root.querySelector("[data-line]");
+    var inBody = firstBody ? window.scrollY >= firstBody.getBoundingClientRect().top + window.scrollY - doc.clientHeight * 0.4 : true;
+    try { parent.postMessage({ type: "flow-scroll", pct: pct, atTop: atTop, atBottom: atBottom, body: inBody }, "*"); } catch (e) {}
   }
   window.addEventListener("scroll", function () {
     if (scrollTick) return;

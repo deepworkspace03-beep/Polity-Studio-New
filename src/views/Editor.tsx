@@ -14,6 +14,7 @@ import { stageAndReviewForInsert } from "../components/ImportReview";
 import { saveLastSession } from "../lib/session";
 import { StudioNav } from "../components/StudioNav";
 import { CodeMirror } from "./editor/CodeMirror";
+import { flashLine } from "./editor/syncHighlight";
 import { Toolbar } from "./editor/Toolbar";
 import { ImageTools } from "./editor/ImageTools";
 import { SearchNavigator } from "./editor/SearchNavigator";
@@ -149,6 +150,10 @@ export function Editor({ id, line }: { id: string; line?: number }) {
   // Cover peek: while a cover/publication field in the settings pane has
   // focus, the preview parks on the cover and returns afterwards.
   const coverPeekRef = useRef<((active: boolean) => void) | null>(null);
+  // Interior (layout) peek: the mirror for the Interior settings section —
+  // parks the preview on the last-viewed inside page while a layout field
+  // has focus, so a density/size/TOC change is visible as it's made.
+  const layoutPeekRef = useRef<((active: boolean) => void) | null>(null);
   const [tab, setTab] = useState<Tab>("write");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -362,20 +367,16 @@ export function Editor({ id, line }: { id: string; line?: number }) {
     setSearchOpen(true);
   }, []);
 
-  /** Preview → editor: move the CodeMirror cursor to the clicked
-      element's source line, focusing the editor unless the click landed
-      on something the preview itself is already editing inline. */
+  /** Preview → editor: move the CodeMirror cursor to the clicked element's
+      source line, scroll it into a comfortable band and flash it — the
+      mirror of editor → preview. `focusEditor` is false when the click
+      landed on an inline-editable element (moving DOM focus to CodeMirror
+      would blur the contenteditable), true otherwise. */
   const onFocusLine = useCallback((line: number, focusEditor: boolean) => {
     const view = viewRef.current;
     if (!view) return;
-    const doc = view.state.doc;
-    const ln = Math.max(1, Math.min(doc.lines, line));
-    const pos = doc.line(ln).from;
-    view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
-    if (focusEditor) {
-      setTab("write"); // surface the editor pane on the mobile write/preview toggle
-      requestAnimationFrame(() => view.focus());
-    }
+    if (focusEditor) setTab("write"); // surface the editor pane on the mobile write/preview toggle
+    flashLine(view, line, focusEditor);
   }, []);
 
   // Word-count is a full-text scan — defer it so it never competes with
@@ -431,7 +432,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-2 border-b border-edge bg-surface px-2.5 py-2 sm:px-4">
+      <header className="flex h-12 flex-none items-center gap-2 border-b border-edge bg-surface px-2.5 sm:px-4">
         <StudioNav />
         <input
           value={doc.title}
@@ -511,6 +512,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
                   onUndo={undoSettings}
                   canUndo={undoDepth > 0}
                   onCoverEditing={(active) => coverPeekRef.current?.(active)}
+                  onLayoutEditing={(active) => layoutPeekRef.current?.(active)}
                 />
               </div>
               <PaneResizer label="Resize settings panel" onDrag={resizeSettings} />
@@ -587,6 +589,7 @@ export function Editor({ id, line }: { id: string; line?: number }) {
             getView={() => viewRef.current}
             scrollSyncRef={previewScrollRef}
             coverPeekRef={coverPeekRef}
+            layoutPeekRef={layoutPeekRef}
           />
         </div>
         {!fullscreen && previewCollapsed && (

@@ -220,7 +220,7 @@ export function Toolbar({ getView }: { getView: () => EditorView | null }) {
   }
 
   return (
-    <div className="flex items-center gap-0.5 border-b border-edge bg-surface px-1.5 py-1">
+    <div className="flex h-10 flex-none items-center gap-0.5 border-b border-edge bg-surface px-1.5">
       {/* Scrolls on its own — an overflow-x-auto container also clips
           vertical overflow (a long-standing CSS quirk), so it can't wrap
           anything that opens a dropdown below it. Everything that does
