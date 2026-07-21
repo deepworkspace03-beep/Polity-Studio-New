@@ -40,9 +40,30 @@ export const HARNESS_JS = String.raw`(function () {
     }
   }
 
+  // Question-bank unit index: fill each row's page range (start–end) the
+  // same one-pass way as the TOC. data-start / data-end are anchor ids
+  // (the unit's first and last question). A single-page unit shows one
+  // number, not "5–5".
+  function pageOf(id) {
+    var dest = null;
+    try { dest = id && document.getElementById(id); } catch (e) {}
+    var page = dest && dest.closest(".pagedjs_page");
+    return page && page.getAttribute("data-page-number");
+  }
+  function fillIndexPages() {
+    var spans = document.querySelectorAll(".qb-index__page[data-start]");
+    for (var i = 0; i < spans.length; i++) {
+      var start = pageOf(spans[i].getAttribute("data-start"));
+      var end = pageOf(spans[i].getAttribute("data-end"));
+      if (!start) continue;
+      spans[i].textContent = end && end !== start ? start + "–" + end : start;
+    }
+  }
+
   function report(pages, error) {
     if (window.__PAGED_DONE__) return; // first result wins — never double-report
     try { fillTocPages(); } catch (e) {} // partial layouts still get the numbers that exist
+    try { fillIndexPages(); } catch (e) {}
     window.__PAGED_PAGES__ = pages || 0;
     window.__PAGED_DONE__ = true;
     if (error) window.__PAGED_ERROR__ = String(error);

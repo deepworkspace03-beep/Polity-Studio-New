@@ -1,7 +1,7 @@
 import type { BrandConfig, CoverColors, CoverDesign, CoverPattern, Doc, PageSize } from "../lib/types";
 import { DEFAULT_COVER_DESIGN } from "../brand/defaults";
 import { escapeHtml } from "../lib/utils";
-import { coverPatternSvg, type CoverPatternKind, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
+import { coverPatternSvg, type CoverPatternKind, flowWatermarkHtml, telegramIconSvg, templeEmblemSvg, templeMarkSvg, watermarkHtml, whatsappIconSvg } from "../brand/marks";
 import { extractToc } from "../markdown/renderer";
 import { TEMPLATE_RENDERERS } from "../templates";
 import { TEMPLATE_META } from "../templates/meta";
@@ -73,7 +73,7 @@ const DENSITY: Record<Doc["layout"]["density"], { size: string; leading: string 
   relaxed: { size: "13.6pt", leading: "1.72" },
 };
 
-function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
+export function themeVars(brand: BrandConfig, theme: "light" | "dark"): string {
   const c = brand.colors;
   if (theme === "dark") {
     // Dark reading theme — a deliberate visual design, not an inversion.
@@ -323,6 +323,42 @@ function tocHtml(doc: Doc): string {
 </nav>`;
 }
 
+/* ── Closing page (pageless colophon) ──────────────────────────────── */
+
+/** Professional closing page for the pageless (flow) layout. The paged
+    PDF carries the brand lockup, website and social links in a running
+    footer on every page; the continuous flow layout hides that chrome, so
+    a single crafted closing block restores it — website (clickable),
+    Telegram, WhatsApp and the publisher lockup — the digital equivalent of
+    a book's back cover. Flow-only: the paged PDF already has its footers.
+    All links are real anchors, so they stay clickable in the exported
+    HTML and (were this ever transcribed) the PDF. */
+function closingHtml(brand: BrandConfig): string {
+  const site = brand.website.replace(/^https?:\/\//, "");
+  const social = [
+    brand.telegram.url
+      ? `<a class="colophon__link" href="${escapeHtml(brand.telegram.url)}">${telegramIconSvg("colophon__ico")}<span>${escapeHtml(brand.telegram.label || "Telegram")}</span></a>`
+      : "",
+    brand.whatsapp.url
+      ? `<a class="colophon__link" href="${escapeHtml(brand.whatsapp.url)}">${whatsappIconSvg("colophon__ico")}<span>${escapeHtml(brand.whatsapp.label || "WhatsApp")}</span></a>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n    ");
+  return `
+<footer class="colophon" role="contentinfo">
+  ${templeMarkSvg("20mm", "colophon__mark")}
+  <div class="colophon__name">${escapeHtml(brand.name)}</div>
+  <div class="colophon__tag">${escapeHtml(brand.tagline)}</div>
+  <a class="colophon__site" href="${escapeHtml(brand.website)}">${escapeHtml(site)}</a>
+  <div class="colophon__socials">
+    ${social}
+  </div>
+  <div class="colophon__rule" aria-hidden="true"></div>
+  <div class="colophon__fine">${escapeHtml(brand.initiative)}</div>
+</footer>`;
+}
+
 /* ── Page chrome (running header/footer sources) ───────────────────── */
 
 function runnersHtml(doc: Doc, brand: BrandConfig): string {
@@ -425,9 +461,15 @@ function stripFrontMatter(body: string): string {
 export function buildDocContent(doc: Doc, brand: BrandConfig): string {
   doc = { ...doc, body: stripFrontMatter(doc.body) };
   const body = TEMPLATE_RENDERERS[doc.template].buildBody(doc);
-  return `${coverHtml(doc, brand, body.coverLines)}
+  // Flow-only: a viewport-fixed watermark (see flowWatermarkHtml) and the
+  // closing colophon page. Both live inside #doc-root so toggling the
+  // watermark updates in place without an iframe reload.
+  const watermark = doc.layout.watermark ? flowWatermarkHtml(brand.watermarkText) : "";
+  return `${watermark}${coverHtml(doc, brand, body.coverLines)}
 ${tocHtml(doc)}
-${body.html}`;
+${body.frontMatter ?? ""}
+${body.html}
+${closingHtml(brand)}`;
 }
 
 /** Everything that requires a full iframe rebuild when it changes —
@@ -460,6 +502,7 @@ export function pageFactKey(doc: Doc, brand: BrandConfig, theme: "light" | "dark
     doc.layout.qbUnitBreaks !== false,
     doc.layout.qbTopics !== false,
     doc.layout.qbColumns ?? 1,
+    doc.layout.qbIndex === true,
   ].join("|");
 }
 
@@ -513,10 +556,18 @@ ${paged ? PAGED_PREVIEW_CSS : FLOW_PREVIEW_CSS}`;
       ? ""
       : `<script>${PREVIEW_JS}</script>`;
 
-  const content = `${coverHtml(doc, brand, body.coverLines)}
+  // Pageless (flow) extras: the viewport-fixed watermark and the closing
+  // colophon page. The paged layout stamps its watermark per page from the
+  // <template> below and carries brand chrome in running footers, so both
+  // are flow-only here.
+  const flowWatermark = !paged && doc.layout.watermark ? flowWatermarkHtml(brand.watermarkText) : "";
+  const colophon = paged ? "" : closingHtml(brand);
+  const content = `${flowWatermark}${coverHtml(doc, brand, body.coverLines)}
 ${paged ? runnersHtml(doc, brand) : ""}
 ${tocHtml(doc)}
-${body.html}`;
+${body.frontMatter ?? ""}
+${body.html}
+${colophon}`;
 
   const title = options.fileTitle || doc.title || "Untitled";
 

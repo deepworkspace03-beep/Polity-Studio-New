@@ -28,7 +28,7 @@ listing. The one-line version:
 | `src/brand/` | Default branding data + the inline-SVG marks (temple, social icons, watermark). |
 | `src/markdown/` | The markdown-it pipeline (renderer.ts) and the MCQ text dialect parser (mcq.ts). |
 | `src/templates/` | Per-document-type registry: metadata, starters, demo content, body builders + print CSS. |
-| `src/pdf/` | The document builder (`document.ts`, one function feeds preview/paged/export), iframe harness scripts, the vector PDF engine, print stylesheets. |
+| `src/pdf/` | The document builder (`document.ts`, one function feeds preview/paged/export), iframe harness scripts, the vector PDF engine, the HTML/pageless exporters (`htmlExport.ts`) and the EPUB exporter (`epub.ts`), print stylesheets. |
 | `src/components/` | Shared, reusable UI (Button, Modal, Toast, CommandPalette, ImportReview) — no document-domain knowledge. |
 | `src/views/` | The four routed screens (Library, Editor, Settings, Help) and the Editor's own sub-views. |
 
@@ -247,6 +247,26 @@ scripted Playwright pass if you want it automated for one session.
   question-bank "Qn · continued" tag — needs `!important` on its `content`
   to beat it. Keep such tags absolutely positioned: they're injected after
   layout is measured, so any in-flow height would overflow the page box.
+- **Font inlining is usage-driven, and needs a *live* layout.** The HTML
+  and pageless exporters (`htmlExport.ts`) inline only the faces the
+  document actually renders, discovered by walking a laid-out document
+  with `getComputedStyle` (`collectFontUsage`). `buildStandaloneHtml`
+  gets the live paginated iframe doc for free; `buildFlowHtml` needs the
+  caller to render the flow build in a hidden iframe first (see
+  `renderInFrame` in `Publish.tsx`) and wait for `document.fonts.ready` —
+  a `DOMParser`-parsed string has no computed styles, so font detection
+  would silently keep nothing. The Devanagari faces are the exception:
+  they are never the first family in any stack (they sit behind
+  Literata/Manrope as a fallback), so they're kept by *text* (Devanagari
+  present), not by family match.
+- **EPUB content must be well-formed XHTML.** `epub.ts` round-trips the
+  rendered Markdown through the HTML parser then `XMLSerializer` so void
+  elements self-close, and re-parses the result as `application/xhtml+xml`
+  to reject anything malformed before packaging. The `mimetype` ZIP entry
+  must be first and STORED — `lib/zip.ts` is STORED-only, so ordering
+  alone satisfies it. Don't reach for the print cover in an EPUB: its
+  full-bleed fixed geometry doesn't belong in a reflowable book, so a
+  simple title page stands in.
 - **`@media (pointer: coarse)` styling must respect height-locked rows.**
   The global 40px touch-target `min-height` on buttons made compact
   controls (the Flow/Pages segmented pill) outgrow the fixed `h-10`

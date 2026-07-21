@@ -121,6 +121,36 @@ describe("buildDocumentHtml", () => {
     expect(off).toContain('data-watermark="0"');
   });
 
+  it("adds a pageless watermark + closing colophon only in flow mode, per layout.watermark", () => {
+    const flowOn = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow" });
+    expect(flowOn).toContain("flow-watermark");
+    expect(flowOn).toContain('class="colophon"');
+    const flowOff = buildDocumentHtml(baseDoc({ layout: { ...DEFAULT_LAYOUT, watermark: false } }), DEFAULT_BRAND, { mode: "flow" });
+    expect(flowOff).not.toContain("flow-watermark");
+    expect(flowOff).toContain('class="colophon"'); // colophon is independent of the watermark
+    // The paged layout keeps its per-page watermark template + running footers,
+    // so neither the fixed flow watermark nor the colophon appear there.
+    const paged = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "paged" });
+    expect(paged).not.toContain("flow-watermark");
+    expect(paged).not.toContain('class="colophon"');
+  });
+
+  it("places the Question Bank unit index (frontMatter) before the body when qbIndex is on", () => {
+    const body = "## U1\n\nQ. One?\nA) a *\nB) b\n\n## U2\n\nQ. Two?\nA) a *\nB) b";
+    const withIndex = buildDocumentHtml(baseDoc({ template: "questions", body, layout: { ...DEFAULT_LAYOUT, qbIndex: true } }), DEFAULT_BRAND, { mode: "flow" });
+    expect(withIndex).toContain('class="qb-index"');
+    expect(withIndex.indexOf("qb-index")).toBeLessThan(withIndex.indexOf('class="mcq'));
+    const withoutIndex = buildDocumentHtml(baseDoc({ template: "questions", body, layout: { ...DEFAULT_LAYOUT, qbIndex: false } }), DEFAULT_BRAND, { mode: "flow" });
+    expect(withoutIndex).not.toContain('class="qb-index"');
+  });
+
+  it("qbIndex participates in pageFactKey so a stored exact count can't survive the toggle", () => {
+    const base = baseDoc({ template: "questions", body: "## U1\n\nQ. One?\nA) a *\nB) b" });
+    const off = pageFactKey(base, DEFAULT_BRAND);
+    const on = pageFactKey(baseDoc({ ...base, layout: { ...base.layout, qbIndex: true } }), DEFAULT_BRAND);
+    expect(off).not.toBe(on);
+  });
+
   it("produces a different theme-variable block for dark vs light reading theme", () => {
     const light = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow", theme: "light" });
     const dark = buildDocumentHtml(baseDoc(), DEFAULT_BRAND, { mode: "flow", theme: "dark" });

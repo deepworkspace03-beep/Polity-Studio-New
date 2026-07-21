@@ -213,12 +213,32 @@ export function Publish({
     try {
       const { buildFlowHtml } = await import("../../pdf/htmlExport");
       const flow = buildDocumentHtml(doc, brand, { mode: "flow", purpose: "export", fileTitle, theme: settings.docTheme });
-      const html = await buildFlowHtml(flow, fileTitle);
-      downloadFile(`${fileTitle} (web).html`, html, "text/html");
-      toast(`Downloaded · ${(new Blob([html]).size / 1024).toFixed(0)} KB · continuous web layout, no pages`, "ok");
+      // Render the flow build in a hidden iframe first: the size-optimized
+      // export inlines only the font faces the document actually renders,
+      // which needs a live layout + computed styles to detect.
+      const rendered = await renderInFrame(flow);
+      try {
+        const html = await buildFlowHtml(rendered.doc, fileTitle);
+        downloadFile(`${fileTitle} (web).html`, html, "text/html");
+        toast(`Downloaded · ${(new Blob([html]).size / 1024).toFixed(0)} KB · continuous web layout, no pages`, "ok");
+      } finally {
+        rendered.dispose();
+      }
     } catch (err) {
       console.error("[publish] flow html export failed", err);
       toast("Web HTML export hit a problem.", "error");
+    }
+  }
+
+  async function downloadEpub() {
+    try {
+      const { buildEpub } = await import("../../pdf/epub");
+      const blob = await buildEpub(doc, brand, fileTitle, settings.docTheme);
+      downloadFile(`${fileTitle}.epub`, blob, "application/epub+zip");
+      toast(`Downloaded · ${(blob.size / 1024).toFixed(0)} KB · reflowable e-book (EPUB), opens on any reader`, "ok");
+    } catch (err) {
+      console.error("[publish] epub export failed", err);
+      toast("EPUB export hit a problem.", "error");
     }
   }
 
@@ -283,6 +303,12 @@ export function Publish({
           name="monitor"
           size={17}
           onClick={() => void downloadFlowHtml()}
+        />
+        <IconButton
+          label="Download EPUB — a reflowable e-book with navigation & bookmarks, for phones and e-readers"
+          name="book"
+          size={17}
+          onClick={() => void downloadEpub()}
         />
 
         <Button
@@ -377,6 +403,35 @@ export function Publish({
       </div>
     </div>
   );
+}
+
+/** Renders an HTML string in an offscreen iframe and resolves once it has
+    loaded and its fonts are ready, exposing the live document so callers
+    can read computed styles (used-font detection for the size-optimized
+    exports). The caller must `dispose()` when done. */
+function renderInFrame(html: string): Promise<{ doc: Document; dispose: () => void }> {
+  return new Promise((resolve, reject) => {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.tabIndex = -1;
+    frame.style.cssText = "position:fixed;left:-9999px;top:0;width:900px;height:1200px;opacity:0;pointer-events:none;border:0;";
+    frame.srcdoc = html;
+    const dispose = () => frame.remove();
+    frame.addEventListener("load", () => {
+      const win = frame.contentWindow;
+      const fdoc = frame.contentDocument;
+      if (!win || !fdoc) {
+        dispose();
+        reject(new Error("flow render frame unavailable"));
+        return;
+      }
+      const done = () => resolve({ doc: fdoc, dispose });
+      // Wait for the real fonts so computed font metrics are accurate;
+      // never hang on a font that fails to load.
+      Promise.race([win.document.fonts.ready, new Promise((r) => setTimeout(r, 4000))]).then(done, done);
+    });
+    document.body.appendChild(frame);
+  });
 }
 
 /** Last-resort export: prints the continuous flow layout (no page

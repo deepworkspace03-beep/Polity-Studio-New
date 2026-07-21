@@ -69,6 +69,23 @@ export function watermarkHtml(text: string): string {
 </div>`;
 }
 
+/**
+ * Pageless (flow) watermark — the paged layout stamps one per page, but a
+ * continuous reading document has no pages, so a single viewport-fixed
+ * lockup stands in: it stays centred behind the content as the reader
+ * scrolls, so every screenful carries the brand mark just as every PDF
+ * page does. Script-free (pure CSS `position: fixed`), so it survives the
+ * script-free pageless HTML export unchanged.
+ */
+export function flowWatermarkHtml(text: string): string {
+  return `<div class="page-watermark flow-watermark" aria-hidden="true">
+  <div class="page-watermark__lockup">
+    ${templeMarkSvg("34pt", "page-watermark__mark")}
+    <span class="page-watermark__text">${escapeHtml(text)}</span>
+  </div>
+</div>`;
+}
+
 export type CoverPatternKind = "geometry" | "abstract" | "globe";
 
 /**

@@ -177,21 +177,55 @@ describe("questionsBody", () => {
     expect(TEMPLATE_RENDERERS.questions.buildBody(doc).html).not.toContain("q__st-label");
   });
 
-  it("hiding topics drops the header row and folds number + source into the stem", () => {
+  it("hiding topics drops the topic pill but keeps number + source in the header", () => {
     const doc = baseDoc({
       template: "questions",
       body: SOLVED_Q,
       layout: { ...DEFAULT_LAYOUT, answers: "inline", qbTopics: false },
     });
     const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
-    expect(html).not.toContain("q__head");
+    // Source must never move below the question — the header stays, only
+    // the topic pill is dropped.
+    expect(html).toContain("q__head");
     expect(html).not.toContain("q__topic");
-    expect(html).toContain("q--flat");
+    expect(html).not.toContain("q--flat");
     expect(html).toContain('<span class="q__num">Q1</span>');
-    // Source rides inline inside the stem's final paragraph — above the
-    // options, costing no extra row.
-    expect(html).toMatch(/UGC-NET Dec 2023[\s\S]*?<\/p>/);
+    expect(html).toContain('class="q__src">UGC-NET Dec 2023</span>');
+    // Source rides in the header, so it stays above the options.
     expect(html.indexOf("UGC-NET")).toBeLessThan(html.indexOf("q__options"));
+  });
+
+  it("with topics hidden AND no source, the number folds into the stem (compact card)", () => {
+    const doc = baseDoc({
+      template: "questions",
+      body: "Q. A bare question with no provenance?\nA) a *\nB) b\nC) c\nD) d",
+      layout: { ...DEFAULT_LAYOUT, answers: "inline", qbTopics: false },
+    });
+    const { html } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(html).toContain("q--flat");
+    expect(html).not.toContain("q__head");
+    expect(html).toContain('<span class="q__num">Q1</span>');
+  });
+
+  it("prints an optional clickable unit index with counts when qbIndex is on", () => {
+    const body = "## Polity\n\nQ. One?\nA) a *\nB) b\n\nQ. Two?\nA) a *\nB) b\n\n## History\n\nQ. Three?\nA) a *\nB) b";
+    const doc = baseDoc({ template: "questions", body, layout: { ...DEFAULT_LAYOUT, answers: "inline", qbIndex: true } });
+    const { frontMatter } = TEMPLATE_RENDERERS.questions.buildBody(doc);
+    expect(frontMatter).toBeTruthy();
+    expect(frontMatter).toContain('class="qb-index"');
+    expect(frontMatter).toContain('href="#sec-1"');
+    expect(frontMatter).toContain('href="#sec-2"');
+    expect(frontMatter).toContain("2 Qs");
+    expect(frontMatter).toContain("1 Q</span>");
+    // Page-range spans carry the first/last question anchors for the harness.
+    expect(frontMatter).toContain('data-start="q-1"');
+    expect(frontMatter).toContain('data-end="q-2"');
+  });
+
+  it("omits the unit index when there are no titled units", () => {
+    const body = "Q. One?\nA) a *\nB) b";
+    const doc = baseDoc({ template: "questions", body, layout: { ...DEFAULT_LAYOUT, answers: "inline", qbIndex: true } });
+    expect(TEMPLATE_RENDERERS.questions.buildBody(doc).frontMatter).toBe("");
   });
 
   it("unit page breaks and the two-column layout are opt-in classes on the bank root", () => {

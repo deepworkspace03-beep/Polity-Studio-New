@@ -6,7 +6,7 @@ import { downloadFile } from "../lib/utils";
 /** Keep this in lockstep with package.json's "version" — shown in the
     "What's new" heading and stamped into the downloaded guide so it's
     obvious which app build a saved copy matches. */
-const STUDIO_VERSION = "4.8.0";
+const STUDIO_VERSION = "4.9.0";
 
 /**
  * Help — the Polity Studio manual: Markdown syntax with live examples,
@@ -175,9 +175,11 @@ B) option *        ← trailing * marks the correct option (or add "Answer: B")
 C) option
 D) option
 Topic: short topic/unit tag (question header, center)
-Source: UPSC 2021 (question header, right)
+Source: UPSC 2021 (question header, right — always stays in the header, never below)
 Solution: optional worked explanation ("Explanation:" also works)
 - One option per line, A)–E) or 1)–5). Group questions under "##" headings.
+- Assertion (A): … / Reason (R): … on their own lines render as bold labeled blocks.
+- Settings → Interior: optional clickable unit index (Contents), two-column layout, answers position.
 
 AVOID
 - Raw HTML, YAML front matter (--- blocks), images from the web.
@@ -319,7 +321,7 @@ ${NOTES_PROMPT}
 \`\`\`
 
 ### Question Bank
-PYQs, MCQs, mixed banks and practice sets in one examination-book layout. Each question's header is one compact line — the question number, the topic as a rounded badge, and the source as a gold-outlined badge (label-free). The opening line of the question reads slightly stronger than the rest; options sit lighter, so the hierarchy is obvious at a glance. The answers mode decides what each card reveals:
+PYQs, MCQs, mixed banks and practice sets in one examination-book layout. Each question's header keeps the question number, the topic (when shown) as a rounded badge, and the source as a gold badge together on one line — the source always stays in the header, never below the question. The opening line of the question reads slightly stronger than the rest; options sit lighter, so the hierarchy is obvious at a glance. Assertion (A) / Reason (R) (and Statement I/II) lines render as bold labeled blocks. Settings → Interior adds an optional clickable unit index (Contents page with per-unit question counts and page ranges) and a two-column layout. The answers mode decides what each card reveals:
 
 - **Inline** (default) — the study layout: correct option highlighted with a ✓, worked solution under the question when one exists.
 - **At the end** — a practice test: clean cards, answer key + explanations at the back.
@@ -370,6 +372,18 @@ ${UNIVERSAL_PROMPT}
 - Inserting or tapping an image shows a toolbar for its layout (left/center/right/full), size, spacing, border, rounded corners, shadow and caption — the same controls appear right in the Flow preview, updating the document live.
 - "Replace with clipboard" (in the More menu) swaps the whole document for the clipboard's text, with a confirmation if the document isn't empty — separate from a normal paste at the cursor.
 - Ctrl/Cmd+F opens the Search Navigator — an in-document find/replace whose results are grouped by heading and estimated page; click any result to jump straight to it. Ctrl/Cmd+K opens universal search and commands across every document.
+
+## Exporting
+
+From the Publish screen you can download the document as:
+
+- PDF — a true vector PDF: small, selectable text, clickable links and a bookmark outline, no print dialog. What you approve in the review is exactly what downloads.
+- HTML (paged) — the same paginated pages as a small, offline, instantly-opening web page.
+- Pageless HTML — a continuous, phone-friendly reading page with no pagination; works for every document type, honours your Watermark setting, ends with a branding page (website, Telegram, WhatsApp), and keeps every internal link and Contents jump clickable.
+- EPUB — a reflowable e-book with a proper table of contents / bookmarks and working links, for phones and e-readers (Apple Books, Google Play Books, Kobo, Thorium…). The most compact format for on-screen reading.
+- Markdown — the raw source, portable to any editor.
+
+Every export embeds only the font weights the document actually uses, keeping the files light.
 `;
 }
 
@@ -395,7 +409,20 @@ export function Help() {
       </header>
 
       <div className="space-y-5 pb-10">
-        <Section title={`What's new — version ${STUDIO_VERSION} (Question Bank redesign)`} intro="A publication-grade Question Bank: denser pages with nothing lost, structured Assertion–Reason blocks, smart option rows, clickable answer navigation, a two-column format, and a pageless web export.">
+        <Section title={`What's new — version ${STUDIO_VERSION} (Question Bank & Pageless refinement)`} intro="Provenance always in the header, an optional unit index, more prominent Assertion–Reason blocks, premium cover chips, and a fully-featured pageless mode with a new reflowable EPUB export.">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+            <li><b>Number, unit &amp; source, always together up top</b> — every question keeps its number, topic/unit and source in one top header; the source never drops below the question. Hiding topics now keeps <i>number + source</i> in the header (only the topic pill goes), and the number folds into the question line only when there's nothing else to show.</li>
+            <li><b>Optional unit index</b> — turn on <i>Unit index</i> (Settings → Interior) for a clickable Contents page right after the cover: every unit with its question count and page range, tap to jump. Filled with real page numbers after layout, exactly like the notes Contents.</li>
+            <li><b>Assertion–Reason, more prominent</b> — the <i>Assertion (A)</i> / <i>Reason (R)</i> (and Statement I/II) labels are now bold filled pills tied together by an accent spine — clearly emphasised, yet a step below a unit heading so the page stays balanced.</li>
+            <li><b>Roomier cards</b> — a touch more space between a card's top border and its first line, and between consecutive questions, for easier reading with no real cost to page economy.</li>
+            <li><b>Premium cover chips</b> — the Session (e.g. 2026) and Language badges now sit on elegant filled panels with subtle depth instead of plain outlines.</li>
+            <li><b>Pageless mode, fully featured</b> — the continuous web export now honours your <i>Watermark</i> setting (a quiet fixed brand stamp), closes with a professional branding page (website, Telegram, WhatsApp), and keeps every internal link, cross-reference and Contents jump clickable — for all document types, Notes and Question Banks included.</li>
+            <li><b>Smaller pageless files</b> — the exporter now embeds only the font weights the document actually uses, so a typical page is meaningfully lighter (a plain-English notes page keeps 9 of 29 faces).</li>
+            <li><b>New: EPUB e-book export</b> — Publish gains an EPUB button: a reflowable e-book with a real table of contents / bookmarks and working links, that opens in Apple Books, Google Play Books, Kobo and any reader — the recommended, and much smaller, format for reading on a phone.</li>
+          </ul>
+        </Section>
+
+        <Section title="Version 4.8 (Question Bank redesign)" intro="A publication-grade Question Bank: denser pages with nothing lost, structured Assertion–Reason blocks, smart option rows, clickable answer navigation, a two-column format, and a pageless web export.">
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Every page works harder</b> — Question Banks now use a tighter page frame of their own, and a question's options may continue onto the next page under a clearly tagged <i>"Qn · continued"</i> open card (solutions already flowed). Half-empty pages from questions that "didn't fit" are gone; every density mode benefits, Ultra Compact most.</li>
             <li><b>Units open on fresh pages</b> — each <code className="font-mono text-xs">##</code> unit starts a new page, like a printed book's sections (Settings → Interior can turn it off). Unit headers also show a question-count chip.</li>
@@ -600,9 +627,11 @@ export function Help() {
                 one line; identical detailed solutions print once, with later questions carrying a clickable{" "}
                 <em>See Question N</em> reference. The <em>Answers &amp; solutions</em> setting switches between the inline
                 study layout (✓ on the correct option, solution under the question), a back-of-book key with clickable{" "}
-                <em>Answer →</em> / <em>↩ Question</em> navigation, or a clean question paper. Settings can also hide the
-                per-question topic row (the source folds into the question line) and switch the whole bank to the classic
-                two-column examination layout.
+                <em>Answer →</em> / <em>↩ Question</em> navigation, or a clean question paper. The number, unit and source
+                always read together in the header — the source never drops below the question; hiding the topic keeps the
+                number + source in the header. Settings can also add an optional clickable <em>unit index</em> (a Contents
+                page with per-unit question counts and page ranges) and switch the whole bank to the classic two-column
+                examination layout.
               </span>
             }
             prompt={QUESTIONS_PROMPT}
@@ -672,7 +701,7 @@ export function Help() {
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             <li><b>Publication</b> holds every cover-page text field in one place — publication name, subtitle, unit/institute, feature tags (e.g. “Premium Study Notes”), exam, paper/unit, session, edition, the language badge (cover only — it never changes your content) and author.</li>
             <li><b>Cover</b> is where you include or exclude the cover page and choose its design. Three premium presets — <b>Meridian</b>, <b>Aurora</b> and <b>Eclipse</b> — sit as compact chips alongside your favourite saved designs; each preset accepts optional colour overrides. <b>Custom</b> opens the Cover Designer (colours, a curated pattern, typography, frame and title-box treatments, emblem/logo), previewing live. Use <b>Save this design</b>, then star it in <b>Manage saved designs</b> to pin your top three beside the presets. The cover automatically adapts to the light/dark reading theme — no separate switch.</li>
-            <li><b>Interior</b> covers text density (<b>Ultra</b> · Compact · Comfort · Relaxed — Ultra tightens the whole layout, not just the font), page size, table of contents, watermark, (for Question Banks) the answers &amp; solutions position, the <b>interior colour palettes</b> (three premium defaults plus your own saved palettes, applied to every PDF), named layout presets and the PDF filename pattern. Focus any Interior control and the preview jumps to your last-viewed inside page so you see the change land.</li>
+            <li><b>Interior</b> covers text density (<b>Ultra</b> · Compact · Comfort · Relaxed — Ultra tightens the whole layout, not just the font), page size, table of contents, watermark, (for Question Banks) the answers &amp; solutions position, the optional two-column layout and clickable <b>unit index</b>, the <b>interior colour palettes</b> (three premium defaults plus your own saved palettes, applied to every PDF), named layout presets and the PDF filename pattern. Focus any Interior control and the preview jumps to your last-viewed inside page so you see the change land.</li>
             <li>The <b>document reading theme</b> (light/dark) renders previews, PDFs and HTML exports on an eye-friendly dark palette that typesets like a professional dark publication — the preview toolbar's sun/moon icon toggles it without leaving the editor. Covers and the interior palette both follow it.</li>
           </ul>
         </Section>
@@ -682,7 +711,9 @@ export function Help() {
             <li>Everything autosaves as you type; documents live in this browser (back them up in Settings → Your data).</li>
             <li>YAML front matter (<code className="font-mono text-xs">--- … ---</code>) pasted from other tools is ignored automatically.</li>
             <li>Publish PDF opens a full review of the real typeset pages before you download — what you approve is exactly what downloads, as a true vector PDF (small, selectable text, clickable links and bookmarks, no print dialog).</li>
-            <li>Download HTML (next to Download PDF) gives the same pages as a small, offline, instantly-opening web page — handy for sharing without a PDF reader.</li>
+            <li>Download HTML (next to Download PDF) gives the same pages as a small, offline, instantly-opening web page — handy for sharing without a PDF reader. Every export now embeds only the font weights your document actually uses, so the files are lighter.</li>
+            <li><b>Pageless web export</b> (the monitor icon) is a continuous, phone-friendly reading page with no pagination — available for every document type. It honours your <b>Watermark</b> setting (a quiet fixed brand stamp), ends with a branding page (website, Telegram, WhatsApp), and keeps every internal link, cross-reference and Contents jump clickable.</li>
+            <li><b>EPUB e-book export</b> (the book icon) is the best choice for reading on a phone or e-reader: a reflowable e-book with a proper table of contents / bookmarks and working links, that opens in Apple Books, Google Play Books, Kobo, Thorium and more — and it's much smaller than the HTML.</li>
           </ul>
         </Section>
       </div>

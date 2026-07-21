@@ -1019,6 +1019,11 @@ function DetailsFields({ doc, onChange, onCoverEditing, onLayoutEditing }: { doc
               checked={doc.layout.qbTopics !== false}
               onChange={(v) => layout({ qbTopics: v })}
             />
+            <Toggle
+              label="Unit index (Contents page)"
+              checked={doc.layout.qbIndex === true}
+              onChange={(v) => layout({ qbIndex: v })}
+            />
           </div>
         )}
         <InteriorPalettes />

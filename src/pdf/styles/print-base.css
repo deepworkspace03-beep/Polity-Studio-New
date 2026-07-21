@@ -218,6 +218,81 @@ body.mode-flow .run-foot-site { display: none; }
   white-space: nowrap;
 }
 
+/* Pageless (flow) watermark — a single viewport-fixed lockup that stays
+   centred behind every screenful as the reader scrolls (the continuous
+   layout has no pages to stamp one-per). Positioned above the opaque
+   paper and painted over content at a low opacity so it reads as a quiet
+   brand stamp without harming legibility; pointer-events:none keeps text
+   selectable and links clickable through it. Only present in flow mode. */
+.flow-watermark {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  opacity: 0.06;
+}
+body.doc-dark .flow-watermark { opacity: 0.07; }
+
+/* ── Pageless closing page (colophon) ─────────────────────────────────
+   The digital "back cover": brand lockup, tagline, clickable website and
+   social links. Flow-only — the paged PDF carries this in running
+   footers. Uses --c-* so it adapts to the reading theme. */
+.colophon {
+  margin: 4em auto 0;
+  padding: 2.4em 1.5em 0.5em;
+  border-top: 1.4pt solid var(--c-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  break-before: page;
+}
+.colophon__mark { display: block; color: var(--c-primary); opacity: 0.9; margin-bottom: 0.5em; }
+.colophon__name {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 800;
+  font-size: 1.5em;
+  letter-spacing: 0.02em;
+  color: var(--c-primary);
+}
+.colophon__tag {
+  font-family: "Literata", "Noto Serif Devanagari", serif;
+  font-style: italic;
+  font-size: 1em;
+  color: var(--c-muted);
+  margin-top: 0.25em;
+}
+.colophon__site {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--c-accent);
+  border-bottom: none;
+  margin-top: 1em;
+}
+.colophon__socials { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.8em; margin-top: 1.1em; }
+.colophon__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-weight: 700;
+  font-size: 0.9em;
+  color: var(--c-primary);
+  border: 0.8pt solid var(--c-edge);
+  border-radius: 999pt;
+  padding: 0.4em 0.95em;
+  border-bottom: 0.8pt solid var(--c-edge);
+}
+.colophon__ico { width: 1.05em; height: 1.05em; display: block; color: var(--c-accent); flex: none; }
+.colophon__rule { width: 44pt; height: 3pt; border-radius: 2pt; background: linear-gradient(90deg, var(--c-accent), var(--c-primary)); margin: 1.5em 0 0.9em; }
+.colophon__fine {
+  font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
+  font-size: 0.78em;
+  letter-spacing: 0.02em;
+  color: var(--c-muted);
+}
+
 /* Manual page break: authors type \pagebreak on its own line. */
 .page-break { break-after: page; height: 0; }
 
