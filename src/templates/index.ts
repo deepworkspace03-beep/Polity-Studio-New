@@ -1,7 +1,7 @@
 import type { Doc, TemplateId } from "../lib/types";
 import { escapeHtml } from "../lib/utils";
 import { renderInline, renderMarkdown } from "../markdown/renderer";
-import { parseMcq, type McqOption, type McqQuestion } from "../markdown/mcq";
+import { parseMcq, type McqOption, type McqQuestion, type McqSection } from "../markdown/mcq";
 import notesCss from "../pdf/styles/notes.css?raw";
 import revisionCss from "../pdf/styles/revision.css?raw";
 import questionsCss from "../pdf/styles/questions.css?raw";
@@ -18,6 +18,12 @@ export interface BuiltBody {
   html: string;
   /** Selling-point lines shown on the cover. */
   coverLines: string[];
+  /** Optional content placed right after the cover, before the body —
+      currently the Question Bank's clickable unit index. Kept separate
+      from `html` so the document builder can insert it ahead of the
+      body (and give it its own page) without the template knowing the
+      cover/TOC assembly order. */
+  frontMatter?: string;
 }
 
 export interface TemplateRenderer {
@@ -146,16 +152,6 @@ function stemHtml(q: McqQuestion): string {
     .join("\n");
 }
 
-/** Appends inline chips (source · marks · answer-jump) inside the stem's
-    final paragraph so they cost no vertical space; falls back to a small
-    right-aligned line when the stem ends in a list or table. */
-function withInlineChips(stem: string, chips: string): string {
-  if (!chips) return stem;
-  const trimmed = stem.trimEnd();
-  if (trimmed.endsWith("</p>")) return trimmed.slice(0, -4) + " " + chips + "</p>";
-  return `${stem}<div class="q__srcline">${chips}</div>`;
-}
-
 /** Per-question extras computed once for the whole bank (solution
     de-duplication + answer navigation targets). */
 interface CardContext {
@@ -211,27 +207,33 @@ function questionCard(q: McqQuestion, ctx: CardContext): string {
      solutions flow on. data-q feeds the "continued" tag stamped on the
      continuation half. */
   const stem = stemHtml(q);
-  if (!ctx.showTopics) {
-    // Header-less compact card: the number chip floats into the question
-    // line and provenance folds into the stem's last line — one full row
-    // saved per question.
-    const body = withInlineChips(stem, [source, jump].filter(Boolean).join(" "));
+  const topic = ctx.showTopics && q.topic ? `<span class="q__topic">${renderInline(q.topic)}</span>` : "";
+  const rightSide = `${source}${jump}`;
+
+  // The header keeps Question Number, Topic/Unit (when enabled) and Source
+  // together — provenance always reads in the top row, never below the
+  // question. The compact number-in-stem fold is used only when the
+  // header would carry the number alone (topics hidden AND no source /
+  // answer-jump), so a bank with no provenance still packs tightly.
+  const showHeader = ctx.showTopics || Boolean(rightSide);
+  if (!showHeader) {
     return `<article class="q q--flat" id="q-${q.number}" data-q="Q${q.number}" data-line="${q.line}">
   <div class="q__main">
-    <div class="q__text"><span class="q__num">Q${q.number}</span>${body}</div>
+    <div class="q__text"><span class="q__num">Q${q.number}</span>${stem}</div>
   </div>
   <ol class="q__options${optionLayoutClass(q.options)}">${options}</ol>
   ${solution}
 </article>`;
   }
 
-  const topic = q.topic ? `<span class="q__topic">${renderInline(q.topic)}</span>` : "";
-  // The dotted leader soaks up whatever width topic + source leave over,
-  // so the header always spans the full card — book-style, never gappy.
-  const lead = `<span class="q__lead" aria-hidden="true"></span>`;
+  // The dotted leader soaks up whatever width the number/topic and source
+  // leave over so the header spans the full card — book-style, never gappy.
+  // Only present when something sits on the right, so a header with no
+  // source doesn't trail a line into empty space.
+  const lead = rightSide ? `<span class="q__lead" aria-hidden="true"></span>` : "";
   return `<article class="q" id="q-${q.number}" data-q="Q${q.number}" data-line="${q.line}">
   <div class="q__main">
-    <header class="q__head"><span class="q__num">Q${q.number}</span>${topic}${lead}${source}${jump}</header>
+    <header class="q__head"><span class="q__num">Q${q.number}</span>${topic}${lead}${rightSide}</header>
     <div class="q__text">${stem}</div>
   </div>
   <ol class="q__options${optionLayoutClass(q.options)}">${options}</ol>
@@ -261,6 +263,52 @@ function dedupeSolutions(questions: McqQuestion[]): { solRef: Map<number, number
     }
   }
   return { solRef, solShared };
+}
+
+/* ── Unit index (optional "Contents" page for Question Banks) ─────────
+   A book-style index of the bank's units: each row is a clickable link
+   to the unit, its question count, and (in the paged layout) the page
+   range the unit spans. The page numbers are filled in one post-layout
+   pass by the harness — the same mechanism the prose TOC uses — reading
+   data-start / data-end anchor ids off each row. In the flow (pageless)
+   layout there are no pages, so the range column self-hides. Only titled
+   "##" units are listed; a bank with a single untitled section has no
+   structure worth indexing, so the index is omitted. */
+function qbIndexHtml(sections: McqSection[]): string {
+  const units = sections.filter((s) => s.title.trim() && s.questions.length > 0);
+  if (units.length < 1) return "";
+  let si = 0;
+  const rows = sections
+    .map((s) => {
+      // Section ids follow the sectionsHtml numbering (1-based over ALL
+      // sections, titled or not) so the anchors resolve.
+      si += 1;
+      if (!s.title.trim() || s.questions.length === 0) return "";
+      const count = s.questions.length;
+      const first = s.questions[0].number;
+      const last = s.questions[s.questions.length - 1].number;
+      const num = String(units.indexOf(s) + 1).padStart(2, "0");
+      return `<li class="qb-index__item">
+      <a href="#sec-${si}">
+        <span class="qb-index__num">${num}</span>
+        <span class="qb-index__text">${renderInline(s.title)}</span>
+        <span class="qb-index__dots" aria-hidden="true"></span>
+        <span class="qb-index__count">${count} Q${count === 1 ? "" : "s"}</span>
+        <span class="qb-index__page" data-start="q-${first}" data-end="q-${last}"></span>
+      </a>
+    </li>`;
+    })
+    .filter(Boolean)
+    .join("\n");
+  const total = units.reduce((n, s) => n + s.questions.length, 0);
+  return `
+<nav class="qb-index">
+  <h2 class="qb-index__title">Index</h2>
+  <ol class="qb-index__list">
+    ${rows}
+  </ol>
+  <p class="qb-index__foot">${units.length} unit${units.length === 1 ? "" : "s"} · ${total} question${total === 1 ? "" : "s"}</p>
+</nav>`;
 }
 
 function questionsBody(doc: Doc): BuiltBody {
@@ -339,9 +387,12 @@ function questionsBody(doc: Doc): BuiltBody {
         : "With Answer Key"
       : "Practice Booklet";
 
+  const frontMatter = doc.layout.qbIndex ? qbIndexHtml(parsed.sections) : "";
+
   return {
     html: `${preamble}<main class="${mainClass}">${sectionsHtml}</main>${answerKey}${explanations}`,
     coverLines: [`${parsed.total} Question${parsed.total === 1 ? "" : "s"}`, subtitle],
+    frontMatter,
   };
 }
 

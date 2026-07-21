@@ -116,39 +116,48 @@ body.mode-flow .cv-edition { top: clamp(3px, 3.3cqw, 7mm); right: clamp(3px, 3.3
 }
 .cv-top__meta { display: flex; align-items: center; gap: 3mm; flex: none; }
 /* Language badge — cover page only. English / हिन्दी / both / none. A
-   quiet outlined pill so it reads as metadata, not a selling point;
-   rendered in the bottom section (.cv-langs), just above the footer rule. */
+   premium filled chip: a soft translucent ink panel with a faint top-edge
+   sheen (a gradient the PDF engine replays as a shading) so it reads as a
+   crafted metadata tag rather than plain outlined text. Rendered in the
+   bottom section (.cv-langs), just above the footer rule. */
 .cv-lang {
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 9pt;
   line-height: 1;
-  padding: 0 3mm;
+  padding: 0 3.4mm;
   height: 8.5mm;
   display: inline-flex;
   align-items: center;
   border-radius: 2.2mm;
-  color: var(--cv-soft);
-  border: 0.7pt solid var(--cv-line);
+  color: var(--cv-ink);
+  border: 0.6pt solid color-mix(in srgb, var(--cv-ink) 22%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--cv-ink) 16%, transparent) 0%, color-mix(in srgb, var(--cv-ink) 7%, transparent) 100%);
 }
 .cv-lang--hi { font-family: "Noto Sans Devanagari", "Manrope", sans-serif; font-size: 9.5pt; }
 /* Session pill — sits in the top-right meta row (the slot the edition
-   badge used to occupy). Quiet outlined metadata, matching the language
-   badge's weight so the two read as a set. */
+   badge used to occupy). The most prominent piece of cover metadata, so
+   it gets a warm accent-tinted fill with real depth: an accent gradient
+   panel, a fine accent hairline and a subtle drop for lift. The accent
+   family ties it to the edition badge without competing with it. */
 .cv-session {
   flex: none;
   font-family: "Manrope", "Noto Sans Devanagari", sans-serif;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 10pt;
   line-height: 1;
-  letter-spacing: 0.01em;
-  padding: 0 3.4mm;
+  letter-spacing: 0.02em;
+  padding: 0 3.8mm;
   height: 12mm;
   display: inline-flex;
   align-items: center;
   border-radius: 2.8mm;
   color: var(--cv-ink);
-  border: 0.8pt solid var(--cv-line);
+  border: 0.6pt solid color-mix(in srgb, var(--cv-accent) 55%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--cv-accent) 26%, transparent) 0%, color-mix(in srgb, var(--cv-accent) 12%, transparent) 100%);
+  box-shadow: 0 0.4mm 1.4mm rgba(0, 0, 0, 0.16);
 }
 /* Edition badge — pinned to the extreme top-right corner of the cover,
    above and to the right of the session pill. A small solid accent chip. */

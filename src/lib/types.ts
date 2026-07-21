@@ -104,6 +104,10 @@ export interface DocLayout {
   /** Question Bank only: interior question columns — 1 (default) or the
       compact two-column examination layout. Absent = 1. */
   qbColumns?: 1 | 2;
+  /** Question Bank only: print a clickable unit index (Contents) as the
+      first inside page — units, question counts and page ranges. Absent
+      = false (opt-in). */
+  qbIndex?: boolean;
 }
 
 export interface Doc {

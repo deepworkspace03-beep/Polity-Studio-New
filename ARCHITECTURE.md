@@ -136,9 +136,16 @@ src/
 │  └─ index.ts           body builders + print CSS per template
 ├─ pdf/
 │  ├─ document.ts        THE builder: doc+brand → self-contained HTML
-│  │                     (cover, TOC, runners, theme vars, @page);
+│  │                     (cover, TOC, QB unit index, runners, theme vars,
+│  │                     @page, pageless watermark + closing colophon);
 │  │                     also buildDocContent/buildShellKey for the
 │  │                     incremental flow preview
+│  ├─ htmlExport.ts      standalone HTML exports (paged snapshot + pageless
+│  │                     flow), inlining only the font faces the laid-out
+│  │                     document actually renders (usage detection)
+│  ├─ epub.ts            EPUB 3 export — the reflowable e-book format for
+│  │                     pageless reading (nav/bookmarks, hyperlinks,
+│  │                     referenced fonts); XHTML via DOMParser+XMLSerializer
 │  ├─ harness.ts         scripts inlined into the iframes: paged harness
 │  │                     (running topic, watermark, TOC page numbers,
 │  │                     fit/pinch zoom, page nav, cursor sync,
@@ -284,7 +291,15 @@ dark paged desk.
 - Footer — brand lockup with tagline (left) · website (center) ·
   Telegram + WhatsApp vector icons, clickable (right).
 - Cover pages are full-bleed with no chrome; the watermark is stamped
-  on every content page by the harness.
+  on every content page by the harness. Cover metadata chips (Session,
+  Language) use premium filled backgrounds with subtle depth (a soft
+  accent/ink gradient panel + hairline), replayed as PDF shadings.
+- **Pageless equivalents.** The continuous flow layout has no page
+  chrome, so it restores the same branding differently: an optional
+  single viewport-fixed watermark (`flowWatermarkHtml`) that stays
+  centred behind every screenful, and a closing colophon page
+  (`closingHtml`) carrying the website, Telegram, WhatsApp and brand
+  lockup. Both are flow-only (the paged PDF already has running footers).
 
 ## How to extend
 
@@ -475,15 +490,36 @@ serves PYQs, MCQs and practice sets; the redesign centres on four ideas:
   solution referencing ("See Question N …" with back-links on the
   original) are all decided in the body builder, so the flow preview,
   the paged preview and the PDF agree by construction.
+- **The header always carries provenance.** Question Number, Topic/Unit
+  (when `qbTopics` is on) and Source read together in the top header of
+  every card — Source never moves below the question. When topics are
+  hidden the header keeps Number + Source (topic pill dropped); the
+  compact number-folds-into-stem card (`.q--flat`) is used only when the
+  header would otherwise carry the number alone (topics hidden *and* no
+  source/answer-jump), so a bank with no provenance still packs tightly.
 - **Layout switches on the document** (`DocLayout.qbUnitBreaks`,
-  `qbTopics`, `qbColumns`): units opening on fresh pages (default on),
-  the header-row-less compact card (number folds into the stem, source
-  rides inline at its end), and the classic two-column examination
-  format (`columns: 2` on the bank root — Paged.js fragments it
-  correctly, section headers span both columns; no `column-rule`,
-  because the PDF engine transcribes elements, not multicol paint).
-  All three feed `pageFactKey` so a stored exact page count can never
-  survive a switch that moves breaks.
+  `qbTopics`, `qbColumns`, `qbIndex`): units opening on fresh pages
+  (default on), the topic pill per card, the classic two-column
+  examination format (`columns: 2` on the bank root — Paged.js fragments
+  it correctly, section headers span both columns; no `column-rule`,
+  because the PDF engine transcribes elements, not multicol paint), and
+  an optional clickable **unit index** (`qbIndex`, opt-in). All feed
+  `pageFactKey` so a stored exact page count can never survive a switch
+  that moves breaks.
+- **The unit index** (`qbIndexHtml`, `templates/index.ts`) is a
+  book-style Contents page placed right after the cover
+  (`BuiltBody.frontMatter`): number · unit title · question count ·
+  clickable link · page range. The page range is filled in one
+  post-layout pass by the harness (`fillIndexPages`), reading `data-start`
+  / `data-end` anchor ids off each row — the same mechanism the prose TOC
+  uses, never CSS `target-counter()`. The flow (pageless) layout has no
+  pages, so the range column self-hides.
+- **Assertion–Reason / Statement blocks** render the "Assertion (A)" /
+  "Reason (R)" (and "Statement I/II") labels as bold filled pills in the
+  same premium family as the topic/unit highlights, tied together by a
+  quiet accent spine — prominent, but pitched a notch below a unit
+  heading so the page hierarchy (unit > question structure > option)
+  stays intact.
 - **Answer navigation** (answers-at-the-end mode): every card carries a
   quiet "Answer →" chip targeting its explanation (`#exp-N`) or key
   cell (`#key-N`); explanations and key numbers link back to `#q-N`.
@@ -549,8 +585,28 @@ the system, in one paragraph each:
   glyphs. Result: ~60% smaller than browser print output, ~4.2–4.5
   KB/page — the measured structural floor.
 - **HTML export** snapshots the already-paginated DOM (no Paged.js
-  re-ship, ~500 KB saved), inlines only the font scripts the text uses,
-  and rides a ~2 KB viewer script. A second, **pageless** variant
-  (`buildFlowHtml`) packages the flow build instead — one continuous,
-  responsive reading page with zero scripts (the flow+export build
-  strips the inline-editing harness), for web publishing and phones.
+  re-ship, ~500 KB saved) and rides a ~2 KB viewer script. A second,
+  **pageless** variant (`buildFlowHtml`) packages the flow build instead
+  — one continuous, responsive reading page with zero scripts (the
+  flow+export build strips the inline-editing harness), an optional
+  viewport-fixed watermark and a professional closing colophon (website,
+  Telegram, WhatsApp, brand lockup — the digital "back cover" that
+  restores the branding the paged footers carry). Both exports inline
+  **only the font faces the document actually renders** — a live layout
+  pass (`collectFontUsage`, `htmlExport.ts`) records the (family, weight,
+  style) triples in use, and each used weight is mapped to the nearest
+  available real face, so unused weights/styles are dropped while never
+  breaking a used one. Measured: a plain-English notes page drops to 9 of
+  the 29 bundled faces (~25% smaller than the old script-only filter);
+  full-charset embedded fonts are the remaining floor (no in-browser
+  woff2 subsetter).
+- **EPUB export** (`epub.ts`) is the recommended format for size-sensitive
+  or reflow-first pageless distribution: a reflowable EPUB 3 with a real
+  navigation document (the reader's TOC/bookmarks — QB units or prose
+  headings), preserved internal hyperlinks, and fonts referenced as files
+  (no base64 tax; readers may substitute their own). Content is
+  well-formed XHTML, produced by round-tripping the rendered Markdown
+  through the HTML parser + `XMLSerializer` (void elements self-close) and
+  validated before packaging; the ZIP is written by the STORED-only
+  `lib/zip.ts` (the mandatory `mimetype` entry is first). Measured ~73%
+  smaller than the equivalent bilingual pageless HTML.
